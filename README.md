@@ -1,5 +1,7 @@
 # Samantha AI Assistant
 
+![Samantha AI Assistant Screenshot](screenshot.png)
+
 A conversational AI assistant with advanced features including RAG (Retrieval-Augmented Generation), web search,TTS and more.
 
 ## Features
