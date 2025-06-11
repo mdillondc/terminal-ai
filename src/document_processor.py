@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import tiktoken
 import PyPDF2
 from settings_manager import SettingsManager
+from rag_config import get_supported_extensions
 
 
 class DocumentProcessor:
@@ -241,7 +242,7 @@ class DocumentProcessor:
         all_chunks = []
         
         # Supported file extensions
-        supported_extensions = {'.txt', '.md', '.pdf'}
+        supported_extensions = get_supported_extensions()
         
         # Process all supported files recursively in the directory
         for root, dirs, files in os.walk(collection_path):
@@ -280,7 +281,7 @@ class DocumentProcessor:
             "total_size_bytes": 0
         }
         
-        supported_extensions = {'.txt', '.md', '.pdf'}
+        supported_extensions = get_supported_extensions()
         
         for root, dirs, files in os.walk(collection_path):
             for filename in files:

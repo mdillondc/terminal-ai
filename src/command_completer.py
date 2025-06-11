@@ -22,6 +22,7 @@ from vector_store import VectorStore
 
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
+from rag_config import get_supported_extensions
 
 
 class CompletionCache:
@@ -365,7 +366,7 @@ class CommandCompleter(Completer):
                 return
                 
             # Get all supported files in the collection (recursively)
-            supported_extensions = {'.txt', '.md'}
+            supported_extensions = get_supported_extensions()
             files = []
             
             for root, dirs, filenames in os.walk(collection_path):
@@ -378,10 +379,20 @@ class CommandCompleter(Completer):
                         relative_path = os.path.relpath(file_path, collection_path)
                         files.append(relative_path)
             
-            # Filter files based on partial input and yield completions
+            # Filter files based on partial input with smart fuzzy matching
             partial_lower = partial_filename.lower()
             for file_path in sorted(files):
-                if file_path.lower().startswith(partial_lower):
+                file_path_lower = file_path.lower()
+                filename = os.path.basename(file_path).lower()
+            
+                # Try multiple matching strategies for better UX:
+                # 1. Full path starts with partial (original behavior)
+                # 2. Filename starts with partial (user-friendly for nested files)
+                # 3. Any part of the path contains partial (fuzzy matching)
+                if (file_path_lower.startswith(partial_lower) or 
+                    filename.startswith(partial_lower) or 
+                    partial_lower in file_path_lower):
+                
                     yield Completion(
                         text=file_path,
                         start_position=-len(partial_filename),

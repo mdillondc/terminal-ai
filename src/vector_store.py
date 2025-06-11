@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional
 from settings_manager import SettingsManager
+from rag_config import get_supported_extensions
 
 
 class VectorStore:
@@ -36,7 +37,7 @@ class VectorStore:
             return {}
         
         metadata = {}
-        supported_extensions = {'.txt', '.md', '.pdf'}
+        supported_extensions = get_supported_extensions()
         
         for root, dirs, files in os.walk(collection_path):
             for filename in files:
