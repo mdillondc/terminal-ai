@@ -1,0 +1,8 @@
+requests
+prompt_toolkit
+yt-dlp
+clipboard
+openai
+ollama
+pygame
+tavily-python
