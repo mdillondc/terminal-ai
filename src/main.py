@@ -4,6 +4,7 @@ from openai import OpenAI
 from prompt_toolkit import prompt
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.validation import Validator, ValidationError
 
 from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
@@ -13,6 +14,11 @@ from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
 def confirm_exit() -> bool:
     response = input("Confirm quitting (Y/n)? ").strip().lower()
     return response in ['', 'y', 'yes']
+
+class NonEmptyValidator(Validator):
+    def validate(self, document):
+        if not document.text:
+            raise ValidationError(message="Please enter a message (empty input not allowed)", cursor_position=0)
 
 def main() -> None:
     settings_manager = SettingsManager.getInstance()
@@ -69,6 +75,7 @@ def main() -> None:
                     completer=command_manager.completer,
                     history=user_input_history,
                     key_bindings=kb,
+                    validator=NonEmptyValidator(),
                 )
 
                 # Check if user wants to interrupt TTS playback
