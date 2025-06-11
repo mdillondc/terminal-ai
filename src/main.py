@@ -18,7 +18,7 @@ def confirm_exit() -> bool:
 class NonEmptyValidator(Validator):
     def validate(self, document):
         if not document.text:
-            raise ValidationError(message="Please enter a message (empty input not allowed)", cursor_position=0)
+            raise ValidationError(message="", cursor_position=0)
 
 def main() -> None:
     settings_manager = SettingsManager.getInstance()

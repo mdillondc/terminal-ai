@@ -23,7 +23,7 @@ class ConversationManager:
         self.log_renamed = False  # Track if we've already renamed the log with AI-generated title
         self._ollama_available = None  # Cache Ollama availability check
         self._response_buffer = ""  # Buffer to accumulate response text for thinking coloring
-        
+
         # Initialize RAG engine - import here to avoid circular imports
         try:
             from rag_engine import RAGEngine
@@ -40,7 +40,7 @@ class ConversationManager:
         # ANSI color codes
         GRAY = '\033[38;2;204;204;204m'  # Light gray (#cccccc)
         RESET = '\033[0m'
-        
+
         # Initialize thinking state if needed
         if not hasattr(self, '_in_thinking_block'):
             self._in_thinking_block = False
@@ -50,14 +50,14 @@ class ConversationManager:
             self._thinking_started_output = False  # Track if we've output thinking content
         if not hasattr(self, '_skip_leading_whitespace'):
             self._skip_leading_whitespace = False
-        
+
         # Combine with any buffered content
         text_to_process = self._response_buffer + chunk
         self._response_buffer = ""
-        
+
         output = ""
         i = 0
-        
+
         while i < len(text_to_process):
             # Look for complete <think> tag
             if text_to_process[i:i+7] == '<think>':
@@ -67,7 +67,7 @@ class ConversationManager:
                     self._thinking_started_output = False
                 i += 7
                 continue
-            
+
             # Look for complete </think> tag
             if text_to_process[i:i+8] == '</think>':
                 if self._in_thinking_block:
@@ -88,7 +88,7 @@ class ConversationManager:
                     output += '</think>'
                 i += 8
                 continue
-            
+
             # Check for potential partial tags at the end that we should buffer
             remaining = text_to_process[i:]
             if i == len(text_to_process) - len(remaining):  # At the end
@@ -98,7 +98,7 @@ class ConversationManager:
                     # Keep potential partial tag in buffer
                     self._response_buffer = remaining
                     break
-            
+
             # Regular character
             if self._in_thinking_block:
                 # Check if this is the first non-whitespace character
@@ -123,7 +123,7 @@ class ConversationManager:
                         self._skip_leading_whitespace = False
                     output += text_to_process[i]
             i += 1
-        
+
         # Print immediately to maintain streaming
         if output:
             print(output, end="", flush=True)
@@ -132,19 +132,19 @@ class ConversationManager:
     def model(self) -> Optional[str]:
         """Get current model"""
         return self._model
-    
+
     @model.setter
     def model(self, value: Optional[str]) -> None:
         """Set model and update client if necessary"""
         self._model = value
         if value:
             self._update_client_for_model(value)
-    
+
     def _is_ollama_available(self) -> bool:
         """Check if Ollama is available with caching"""
         if self._ollama_available is not None:
             return self._ollama_available
-        
+
         try:
             base_url = self.settings_manager.setting_get("ollama_base_url")
             url = f"{base_url}/api/version"
@@ -155,35 +155,35 @@ class ConversationManager:
             self._ollama_available = False
         except Exception:
             self._ollama_available = False
-        
+
         return self._ollama_available
-    
+
     def _is_ollama_model(self, model_name: str) -> bool:
         """Detect if a model is from Ollama based on naming patterns"""
         if not self._is_ollama_available():
             return False
-        
+
         # Common Ollama model patterns
         ollama_patterns = [
             ':',  # Most Ollama models have tags like "llama3.2:latest"
             'llama', 'mistral', 'qwen', 'codellama', 'phi', 'gemma',
             'tinyllama', 'vicuna', 'orca', 'openchat', 'starling'
         ]
-        
+
         model_lower = model_name.lower()
         return any(pattern in model_lower for pattern in ollama_patterns)
-    
+
     def _is_google_model(self, model_name: str) -> bool:
         """Detect if a model is from Google based on naming patterns"""
         # Check if GOOGLE_API_KEY is available
         if not os.environ.get("GOOGLE_API_KEY"):
             return False
-        
+
         # Common Google model patterns
         google_patterns = ['gemini', 'palm', 'bard']
         model_lower = model_name.lower()
         return any(pattern in model_lower for pattern in google_patterns)
-    
+
     def _create_ollama_client(self):
         """Create OpenAI-compatible client configured for Ollama"""
         try:
@@ -195,7 +195,7 @@ class ConversationManager:
             )
         except Exception:
             return None
-    
+
     def _create_google_client(self):
         """Create OpenAI-compatible client configured for Google Gemini"""
         try:
@@ -209,7 +209,7 @@ class ConversationManager:
             )
         except Exception:
             return None
-    
+
     def _update_client_for_model(self, model_name: str) -> None:
         """Update client based on model source"""
         if self._is_ollama_model(model_name):
@@ -246,11 +246,11 @@ class ConversationManager:
             if user_messages:
                 last_user_message = user_messages[-1]['content']
                 rag_context, rag_sources = self.rag_engine.get_context_for_query(last_user_message)
-                
+
                 if rag_context:
                     # Insert RAG context as a system message before the AI response
                     self.conversation_history.append({
-                        "role": "system", 
+                        "role": "system",
                         "content": rag_context
                     })
 
@@ -274,13 +274,13 @@ class ConversationManager:
                     print("\n - Response interrupted by user.")
                     interrupted = True
                     break
-                    
+
                 if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
                     delta = chunk.choices[0].delta
                     if hasattr(delta, 'content') and delta.content is not None:
                         ai_response_chunk = delta.content
                         ai_response += ai_response_chunk
-                        
+
                         # Process chunk with thinking text coloring
                         self._process_and_print_chunk(ai_response_chunk)
         except Exception as e:
@@ -290,7 +290,7 @@ class ConversationManager:
         if hasattr(self, '_response_buffer') and self._response_buffer:
             print(self._response_buffer, end="", flush=True)
             self._response_buffer = ""
-        
+
         # Reset thinking state for next response
         if hasattr(self, '_in_thinking_block'):
             self._in_thinking_block = False
@@ -300,18 +300,18 @@ class ConversationManager:
             self._thinking_started_output = False
         if hasattr(self, '_skip_leading_whitespace'):
             self._skip_leading_whitespace = False
-        
+
         # Only save if we got a response
         if ai_response:
             # Append ai_response to the conversation_history array
             self.conversation_history.append({"role": "assistant", "content": ai_response})
-            
+
             # Display RAG sources if any were used
             if rag_sources and self.rag_engine:
                 print(f"\n\n- {self.rag_engine.format_sources(rag_sources)}")
-            
+
             self.log_save()
-        
+
             # Check if this is the first user-AI exchange and rename log with descriptive title
             self._check_and_rename_log_after_first_exchange(interrupted)
 
@@ -331,13 +331,13 @@ class ConversationManager:
                 if message["role"] == "user":
                     last_user_message = message["content"]
                     break
-            
+
             if not last_user_message:
                 print(" - No user message found for search.")
                 return
-            
+
             print(" - Search mode enabled. Generating optimal search query...")
-            
+
             # Get recent conversation context using configurable window size
             context_window = self.settings_manager.search_context_window
             char_limit = self.settings_manager.search_context_char_limit
@@ -349,43 +349,43 @@ class ConversationManager:
                     if len(content) > char_limit:
                         content = content[:char_limit] + "..."
                     context_messages.append(f"{message['role']}: {content}")
-            
+
             context_text = "\n".join(context_messages) if context_messages else "No prior context."
-            
+
             # Extract key topics/entities from conversation context for better search queries
             key_topics = self._extract_key_topics_from_context(context_text)
             topics_text = f"Key topics from conversation: {', '.join(key_topics)}" if key_topics else ""
-            
+
             # Create a temporary conversation to generate search query
             search_query_conversation = [
                 {
-                    "role": "system", 
+                    "role": "system",
                     "content": "You are a search query optimizer. Given a user's question or statement and the conversation context, rewrite it as 1-3 optimal search queries that would find the most relevant and current information to answer their question. Consider the conversation context to understand what the user is really asking about. Respond with only the search queries, one per line, no explanations."
                 },
                 {
-                    "role": "user", 
+                    "role": "user",
                     "content": f"CONVERSATION CONTEXT:\n{context_text}\n\n{topics_text}\n\nCURRENT QUESTION: {last_user_message}\n\nRewrite the current question as optimal search queries, considering the conversation context and key topics:"
                 }
             ]
-            
+
             # Generate search query using AI
             query_response = self.client.chat.completions.create(
                 model=self.model,
                 messages=search_query_conversation,
                 temperature=0.3
             )
-            
+
             search_queries = query_response.choices[0].message.content.strip().split('\n')
             search_queries = [q.strip() for q in search_queries if q.strip()]
-            
+
             print(f" - Generated search queries: {', '.join(search_queries)}")
-            
+
             # Perform searches
             search_client = create_tavily_search()
             if not search_client:
                 print(" - (!) Failed to initialize Tavily search client. Continuing without search.")
                 return
-            
+
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
             for query in search_queries[:max_queries]:  # Limit queries to avoid overwhelming
@@ -397,23 +397,23 @@ class ConversationManager:
                 except TavilySearchError as e:
                     print(f" - Search failed for '{query}': {e}")
                     continue
-            
+
             if all_search_results:
                 # Combine all search results
                 combined_results = "\n\n" + "="*80 + "\n".join(all_search_results) + "\n" + "="*80 + "\n"
-                
+
                 # Add search results as a system message to provide context
                 search_context = {
                     "role": "system",
                     "content": f"SEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this information to provide a comprehensive and current answer to the user's question. Cite sources when relevant."
                 }
-                
+
                 # Insert search context before the last user message
                 self.conversation_history.insert(-1, search_context)
                 print(" - Search completed. Analyzing results...")
             else:
                 print(" - No search results found. Continuing without search data.")
-                
+
         except Exception as e:
             print(f" - (!) Search workflow error: {e}. Continuing without search.")
             return
@@ -421,20 +421,20 @@ class ConversationManager:
     def _extract_key_topics_from_context(self, context_text: str) -> list:
         """
         Extract key topics and entities from conversation context to improve search queries.
-        
+
         Args:
             context_text: The conversation context string
-            
+
         Returns:
             List of key topics/entities found in the context
         """
         if not context_text or context_text == "No prior context.":
             return []
-        
+
         # Simple keyword extraction - look for important terms
         # This could be enhanced with more sophisticated NLP techniques
         important_keywords = []
-        
+
         # Look for proper nouns and important terms (simple heuristic approach)
         words = context_text.split()
         for i, word in enumerate(words):
@@ -444,18 +444,18 @@ class ConversationManager:
                 if i == 0 or words[i-1].endswith('.') or words[i-1].endswith(':'):
                     continue
                 important_keywords.append(word.strip('.,!?:;'))
-        
+
         # Look for specific patterns that indicate important topics
         topic_patterns = [
             'Trump', 'Marines', 'mobilization', 'deployment', 'firearms', 'military',
             'President', 'LA', 'California', 'video', 'YouTube', 'allegations',
             'political', 'claims', 'Marines', 'weapons', 'policy'
         ]
-        
+
         for pattern in topic_patterns:
             if pattern.lower() in context_text.lower():
                 important_keywords.append(pattern)
-        
+
         # Remove duplicates and return unique topics
         return list(set(important_keywords))[:5]  # Limit to top 5 topics
 
@@ -463,7 +463,7 @@ class ConversationManager:
     def _handle_tts_playback(self, text: str, was_interrupted: bool = False):
         """
         Handle TTS playback of AI response.
-        
+
         Args:
             text: Text to convert to speech
             was_interrupted: Whether the AI response was interrupted
@@ -472,15 +472,15 @@ class ConversationManager:
             if not is_tts_available():
                 print("- TTS not available - OpenAI or audio system unavailable")
                 return
-            
+
             if was_interrupted:
                 print("- Skipping TTS due to interrupted response")
                 return
-            
+
             # Get TTS service and generate speech
             tts_service = get_tts_service(self.client)
             tts_service.generate_and_play_speech(text)
-            
+
         except Exception as e:
             print(f"- TTS error: {e}")
 
@@ -489,7 +489,7 @@ class ConversationManager:
         # Skip if not in interactive terminal
         if not sys.stdin.isatty():
             return False
-            
+
         try:
             # Check if input is available with small timeout
             if select.select([sys.stdin], [], [], 0.05)[0]:
@@ -509,14 +509,14 @@ class ConversationManager:
             return False
         except Exception:
             return False
-            
+
     def apply_instructions(self, file_name: Optional[str], old_file_name: Optional[str] = None) -> None:
         if file_name is None:
             print(" - Please specify the instructions file to use.")
             return
 
         new_file_path = self.settings_manager.setting_get("working_dir") + "/instructions/" + file_name
-        
+
         if not os.path.exists(new_file_path):
             print(f" - (!) {new_file_path} does not exist.")
         else:
@@ -553,7 +553,7 @@ class ConversationManager:
         # Skip saving if incognito mode is enabled
         if self.settings_manager.setting_get("incognito"):
             return
-            
+
         current_log_file_location = self.settings_manager.setting_get("log_file_location")
         if current_log_file_location:
             os.remove(current_log_file_location)
@@ -582,20 +582,20 @@ class ConversationManager:
         conversation_history = json.dumps(self.conversation_history, indent=4)
         with open(log_file_location + ".json", 'w') as file:
             file.write(conversation_history)
-    
+
     def _check_and_rename_log_after_first_exchange(self, interrupted: bool = False) -> None:
         """Check if this is the first user-AI exchange and rename log with AI-generated title"""
         if self.log_renamed:
             return  # Already renamed
-        
+
         # Skip renaming if incognito mode is enabled
         if self.settings_manager.setting_get("incognito"):
             return
-        
+
         # Count user and assistant messages (excluding system/instructions)
         user_messages = [msg for msg in self.conversation_history if msg['role'] == 'user']
         assistant_messages = [msg for msg in self.conversation_history if msg['role'] == 'assistant']
-        
+
         # Need at least 1 user message and 1 assistant response
         if len(user_messages) >= 1 and len(assistant_messages) >= 1:
             try:
@@ -607,43 +607,40 @@ class ConversationManager:
             except Exception as e:
                 print(f" - Note: Could not generate descriptive log title: {e}")
                 # Continue without renaming - not critical functionality
-    
+
     def _create_title_generation_prompt(self, context: str) -> str:
         """Create the standardized prompt for AI title generation"""
-        return """You are an expert at creating precise, descriptive filenames for technical conversations. Analyze the conversation context and create a specific filename that captures the core technical concept or problem.
+        return """You are an expert at creating precise, descriptive filenames that capture the ACTUAL CONTENT and SUBSTANCE of conversations, not the format or source.
 
 Context: "{}"
 
-REQUIREMENTS:
+CRITICAL INSTRUCTIONS:
+- Focus on WHAT is being discussed, NOT HOW it was obtained
+- Extract the core topic, subject matter, or key concepts
+- Ignore format words like: transcript, video, analysis, summary, document, file, etc.
 - 3-8 words maximum
-- Use lowercase letters, numbers, and hyphens only (no spaces, underscores, or special characters)
-- Focus on the specific technical domain, tool, or concept mentioned
-- Avoid generic words like: help, question, problem, issue, discussion, general, basic, simple
+- Use lowercase letters, numbers, and hyphens only
 
-GOOD EXAMPLES:
-- "python-async-await-tutorial" (not "python-help")
-- "react-useeffect-cleanup-memory" (not "react-question")
-- "mysql-join-performance-optimization" (not "database-problem")
-- "docker-multi-stage-build-guide" (not "docker-help")
-- "git-rebase-interactive-workflow" (not "git-issue")
-- "css-flexbox-responsive-layout" (not "css-layout-help")
-- "api-rate-limiting-implementation" (not "api-question")
+CONTENT-FOCUSED EXAMPLES:
+- If analyzing React performance → "react-component-optimization"
+- If explaining database queries → "sql-join-query-design"
+- If about Docker deployment → "docker-container-deployment"
 
-BAD EXAMPLES (avoid these patterns):
-- "programming-help" → too generic
-- "how-to-code" → too vague
-- "general-discussion" → not specific
-- "basic-question" → lacks domain focus
+AVOID FORMAT WORDS:
+❌ "youtube-video-transcript-analysis" → Focus on what the video discusses
+❌ "document-summary-review" → Focus on the document's topic
+❌ "file-processing-tutorial" → Focus on what's being processed
+❌ "conversation-about-coding" → Focus on the specific coding topic
 
-ANALYZE: What specific technology, framework, concept, or problem is being discussed? Focus on that.
+EXTRACT THE SUBSTANCE: What is the core subject, technology, concept, person, event, or topic being discussed?
 
-Generate only the filename:""".format(context[:400])
+Generate only the filename focusing on content substance:""".format(context[:1000])
 
     def _generate_title_from_context(self, context: str) -> Optional[str]:
         """Generate a title using AI given conversation context"""
         try:
             title_prompt = self._create_title_generation_prompt(context)
-            
+
             # Get title from AI
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -651,7 +648,7 @@ Generate only the filename:""".format(context[:400])
                 max_tokens=25,
                 temperature=0.1
             )
-            
+
             if response.choices and response.choices[0].message.content:
                 title = response.choices[0].message.content.strip()
                 # Clean up the title - ensure it's filename-safe
@@ -663,13 +660,13 @@ Generate only the filename:""".format(context[:400])
                 title = re.sub(r'-+', '-', title)
                 # Remove leading/trailing hyphens
                 title = title.strip('-')
-                # Limit length and ensure it's not empty
+                # Ensure it's not empty
                 if title and len(title) >= 3:
-                    return title[:40]
-                    
+                    return title
+
         except Exception as e:
             print(f" - Error generating title: {e}")
-        
+
         return None
 
     def _generate_log_title(self) -> Optional[str]:
@@ -679,81 +676,81 @@ Generate only the filename:""".format(context[:400])
             user_messages = [msg for msg in self.conversation_history if msg['role'] == 'user']
             if not user_messages:
                 return "general-conversation"
-            
+
             # Get the first user message content for analysis
             first_user_msg = user_messages[0]['content']
-            
+
             # If the message is too short or generic, use fallback
             if len(first_user_msg.strip()) < 10 or first_user_msg.lower().strip() in ['hello', 'hi', 'hey', 'test']:
                 return "general-conversation"
-            
+
             # Build context with first user message and AI response
             context_parts = [f"User: {first_user_msg[:1500]}"]
-            
+
             # Find the first assistant response
             for msg in self.conversation_history:
                 if msg['role'] == 'assistant':
                     context_parts.append(f"Assistant: {msg['content'][:1500]}")
                     break
-            
+
             context = "\n".join(context_parts)
-            
+
             # Use the shared title generation method
             title = self._generate_title_from_context(context)
             if title:
                 return title
-                
+
         except Exception as e:
             print(f" - Error generating title: {e}")
-        
+
         # Fallback to generic name if all else fails
         return "general-conversation"
-    
+
     def _rename_log_files_with_title(self, title: str, interrupted: bool = False) -> None:
         """Rename the current log files to include the descriptive title"""
         try:
             current_log_location = self.settings_manager.setting_get("log_file_location")
             if not current_log_location or not os.path.exists(current_log_location):
                 return
-            
+
             # Extract date from current filename
             current_filename = os.path.basename(current_log_location)
             if current_filename.endswith('.md'):
                 current_filename = current_filename[:-3]  # Remove .md extension
-            
+
             # Extract date part (format: 2025-06-08_timestamp)
             date_part = current_filename.split('_')[0] if '_' in current_filename else current_filename
-            
+
             # Add unix timestamp to prevent conflicts
             import time
             timestamp = int(time.time())
-            
+
             # Create new filename: date_descriptive-title_timestamp.md
             new_filename = f"{date_part}_{title}_{timestamp}.md"
-            
+
             # Get directory path
             log_directory = os.path.dirname(current_log_location)
             new_log_location = os.path.join(log_directory, new_filename)
-            
+
             # Rename both .md and .json files
             if os.path.exists(current_log_location):
                 os.rename(current_log_location, new_log_location)
-            
+
             json_current = current_log_location + ".json"
             json_new = new_log_location + ".json"
             if os.path.exists(json_current):
                 os.rename(json_current, json_new)
-            
+
             # Update settings with new location
             self.settings_manager.setting_set("log_file_location", new_log_location)
             self.settings_manager.setting_set("log_file_name", new_filename)
-            
+
             # Adjust spacing based on whether response was interrupted
             if interrupted:
                 print(f" - Log renamed to: {new_filename}")
             else:
                 print(f"\n\n - Log renamed to: {new_filename}")
-            
+
         except Exception as e:
             print(f" - Error renaming log files: {e}")
 
@@ -768,15 +765,15 @@ Generate only the filename:""".format(context[:400])
                     context_parts.append(f"User: {msg['content'][:200]}")
                 elif role == 'assistant':
                     context_parts.append(f"Assistant: {msg['content'][:150]}")
-            
+
             if not context_parts:
                 return "general-conversation"
-                
+
             context = "\n".join(context_parts)
             title = self._generate_title_from_context(context)
-            
+
             return title if title else "general-conversation"
-            
+
         except Exception as e:
             print(f" - Error generating AI suggested title: {e}")
             return "general-conversation"
@@ -786,11 +783,11 @@ Generate only the filename:""".format(context[:400])
         # Skip renaming if incognito mode is enabled
         if self.settings_manager.setting_get("incognito"):
             return "incognito-mode.md"  # Return placeholder name
-            
+
         try:
             # Sanitize the title first
             title = title.replace(" ", "-").replace('"', "").replace("'", "")
-            
+
             current_log_location = self.settings_manager.setting_get("log_file_location")
             if not current_log_location or not os.path.exists(current_log_location):
                 # If no current log, create filename with current date/timestamp
@@ -801,41 +798,41 @@ Generate only the filename:""".format(context[:400])
                 new_filename = f"{date_part}_{title}_{timestamp}.md"
                 self.settings_manager.setting_set("log_file_name", new_filename)
                 return new_filename
-            
+
             # Extract date from current filename
             current_filename = os.path.basename(current_log_location)
             if current_filename.endswith('.md'):
                 current_filename = current_filename[:-3]  # Remove .md extension
-            
+
             # Extract date part (format: 2025-06-08_timestamp or 2025-06-08_title_timestamp)
             date_part = current_filename.split('_')[0] if '_' in current_filename else current_filename
-            
+
             # Add unix timestamp to prevent conflicts
             import time
             timestamp = int(time.time())
-            
+
             # Create new filename: date_descriptive-title_timestamp.md
             new_filename = f"{date_part}_{title}_{timestamp}.md"
-            
+
             # Get directory path
             log_directory = os.path.dirname(current_log_location)
             new_log_location = os.path.join(log_directory, new_filename)
-            
+
             # Rename both .md and .json files
             if os.path.exists(current_log_location):
                 os.rename(current_log_location, new_log_location)
-            
+
             json_current = current_log_location + ".json"
             json_new = new_log_location + ".json"
             if os.path.exists(json_current):
                 os.rename(json_current, json_new)
-            
+
             # Update settings with new location and filename
             self.settings_manager.setting_set("log_file_location", new_log_location)
             self.settings_manager.setting_set("log_file_name", new_filename)
-            
+
             return new_filename
-            
+
         except Exception as e:
             print(f" - Error renaming log files: {e}")
             # Fallback to simple filename if rename fails
@@ -879,7 +876,7 @@ Generate only the filename:""".format(context[:400])
         for msg in self.conversation_history:
             if msg.get('role') != 'system':
                 display_messages.append(msg)
-        
+
         if not display_messages:
             print(" - No user conversation to display (only system messages found).")
             return
@@ -898,7 +895,7 @@ Generate only the filename:""".format(context[:400])
             print("   Showing last 8 messages (use full log file to see complete history)")
             print("-" * 70)
             display_messages = display_messages[-8:]
-        
+
         for i, entry in enumerate(display_messages, 1):
             role = entry.get('role', 'unknown')
             content = entry.get('content', '')
