@@ -75,7 +75,7 @@ A terminal AI assistant with advanced features including RAG (Retrieval-Augmente
 ### RAG (Document Analysis)
 
 ```bash
-# Create document collection (supports .txt and .md files)
+# Create document collection (supports various formats, see `rag_config.py`)
 mkdir -p rag/my-docs
 mkdir -p rag/my-docs/api          # Subdirectories supported
 cp your-files.txt rag/my-docs/

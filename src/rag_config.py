@@ -13,10 +13,12 @@ SUPPORTED_FILE_EXTENSIONS: Set[str] = {
     '.txt',   # Plain text files
     '.md',    # Markdown files  
     '.pdf',   # PDF documents
+    '.docx',  # Microsoft Word documents
+    '.xlsx',  # Microsoft Excel spreadsheets
+    '.rtf',   # Rich Text Format
     # To add more file types, simply add them here:
-    # '.docx',  # Microsoft Word documents
-    # '.rtf',   # Rich Text Format
     # '.html',  # HTML documents
+    # '.pptx',  # PowerPoint presentations
 }
 
 # File type metadata for display purposes
@@ -35,12 +37,27 @@ FILE_TYPE_INFO: Dict[str, Dict[str, Any]] = {
         'name': 'PDF',
         'description': 'Portable Document Format files',
         'processor': 'pdf'
+    },
+    '.docx': {
+        'name': 'Word Document',
+        'description': 'Microsoft Word documents',
+        'processor': 'docx'
+    },
+    '.xlsx': {
+        'name': 'Excel Spreadsheet',
+        'description': 'Microsoft Excel spreadsheets',
+        'processor': 'xlsx'
+    },
+    '.rtf': {
+        'name': 'Rich Text Format',
+        'description': 'Rich Text Format documents',
+        'processor': 'rtf'
     }
     # When adding new file types above, also add their metadata here:
-    # '.docx': {
-    #     'name': 'Word Document',
-    #     'description': 'Microsoft Word documents',
-    #     'processor': 'docx'
+    # '.html': {
+    #     'name': 'HTML Document',
+    #     'description': 'HTML web documents',
+    #     'processor': 'html'
     # }
 }
 

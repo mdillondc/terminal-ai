@@ -6,6 +6,25 @@ import PyPDF2
 from settings_manager import SettingsManager
 from rag_config import get_supported_extensions
 
+# Import libraries for additional file types
+try:
+    from docx import Document as DocxDocument
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
+try:
+    import openpyxl
+    XLSX_AVAILABLE = True
+except ImportError:
+    XLSX_AVAILABLE = False
+
+try:
+    from striprtf.striprtf import rtf_to_text
+    RTF_AVAILABLE = True
+except ImportError:
+    RTF_AVAILABLE = False
+
 
 class DocumentProcessor:
     def __init__(self):
@@ -17,11 +36,17 @@ class DocumentProcessor:
         return len(self.encoding.encode(text))
     
     def load_file(self, file_path: str) -> str:
-        """Load content from a text, markdown, or PDF file"""
+        """Load content from supported file types"""
         file_ext = os.path.splitext(file_path)[1].lower()
         
         if file_ext == '.pdf':
             return self.load_pdf_file(file_path)
+        elif file_ext == '.docx':
+            return self.load_docx_file(file_path)
+        elif file_ext == '.xlsx':
+            return self.load_xlsx_file(file_path)
+        elif file_ext == '.rtf':
+            return self.load_rtf_file(file_path)
         else:
             return self.load_text_file(file_path)
     
@@ -63,6 +88,96 @@ class DocumentProcessor:
             return "\n\n".join(content)
         except Exception as e:
             print(f"Error loading PDF file {file_path}: {e}")
+            return ""
+    
+    def load_docx_file(self, file_path: str) -> str:
+        """Load content from a Word (.docx) file"""
+        if not DOCX_AVAILABLE:
+            print(f"Cannot process Word file {file_path}: python-docx not installed")
+            return ""
+        
+        try:
+            doc = DocxDocument(file_path)
+            content = []
+            
+            for paragraph in doc.paragraphs:
+                if paragraph.text.strip():
+                    content.append(paragraph.text)
+            
+            # Also extract text from tables
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = []
+                    for cell in row.cells:
+                        if cell.text.strip():
+                            row_text.append(cell.text.strip())
+                    if row_text:
+                        content.append(" | ".join(row_text))
+            
+            return "\n\n".join(content)
+        except Exception as e:
+            print(f"Error loading Word file {file_path}: {e}")
+            return ""
+    
+    def load_xlsx_file(self, file_path: str) -> str:
+        """Load content from an Excel (.xlsx) file"""
+        if not XLSX_AVAILABLE:
+            print(f"Cannot process Excel file {file_path}: openpyxl not installed")
+            return ""
+        
+        try:
+            workbook = openpyxl.load_workbook(file_path, data_only=True)
+            content = []
+            
+            for sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                content.append(f"--- Sheet: {sheet_name} ---")
+                
+                # Extract all non-empty cells
+                sheet_content = []
+                for row in sheet.iter_rows(values_only=True):
+                    row_text = []
+                    for cell in row:
+                        if cell is not None and str(cell).strip():
+                            row_text.append(str(cell).strip())
+                    if row_text:
+                        sheet_content.append(" | ".join(row_text))
+                
+                if sheet_content:
+                    content.extend(sheet_content)
+                else:
+                    content.append("(empty sheet)")
+            
+            return "\n\n".join(content)
+        except Exception as e:
+            print(f"Error loading Excel file {file_path}: {e}")
+            return ""
+    
+    def load_rtf_file(self, file_path: str) -> str:
+        """Load content from an RTF file"""
+        if not RTF_AVAILABLE:
+            print(f"Cannot process RTF file {file_path}: striprtf not installed")
+            return ""
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                rtf_content = file.read()
+            
+            # Convert RTF to plain text
+            plain_text = rtf_to_text(rtf_content)
+            return plain_text
+        except UnicodeDecodeError:
+            # Try with different encoding if UTF-8 fails
+            try:
+                with open(file_path, 'r', encoding='latin-1') as file:
+                    rtf_content = file.read()
+                plain_text = rtf_to_text(rtf_content)
+                return plain_text
+            except Exception as e:
+                print(f"Error reading RTF file {file_path}: {e}")
+                return ""
+        except Exception as e:
+            print(f"Error loading RTF file {file_path}: {e}")
             return ""
     
     def clean_text(self, text: str) -> str:

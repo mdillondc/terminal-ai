@@ -10,3 +10,6 @@ PyPDF2
 pyarrow
 pandas
 numpy
+python-docx
+openpyxl
+striprtf
