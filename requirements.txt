@@ -6,3 +6,7 @@ openai
 ollama
 pygame
 tavily-python
+PyPDF2
+pyarrow
+pandas
+numpy

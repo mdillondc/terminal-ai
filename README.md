@@ -2,7 +2,7 @@
 
 ![Samantha AI Assistant Screenshot](screenshot.png)
 
-A conversational AI assistant with advanced features including RAG (Retrieval-Augmented Generation), web search,TTS and more.
+A terminal AI assistant with advanced features including RAG (Retrieval-Augmented Generation), web search, TTS, and more.
 
 ## Features
 
@@ -96,7 +96,6 @@ cp api-docs/*.md rag/my-docs/api/
 
 **OpenAI** (cloud-based):
 - High quality, requires API key
-- Cost: ~$0.00002 per 1K tokens
 
 **Ollama** (local, private):
 - Free, runs locally, works offline
@@ -119,7 +118,7 @@ self.embedding_provider = "ollama"  # or "openai"
 > --logmv
 
 # Rename current conversation with your own title
-> --logmv "project-planning-discussion"
+> --logmv project-planning-discussion
 
 # Private mode (no logging)
 > --incognito
@@ -194,6 +193,7 @@ python src/main.py --input "Hello Samantha!"
 
 # Configure for privacy in src/settings_manager.py:
 # self.embedding_provider = "ollama"
+# self.ollama_embedding_model = "nomic-embed-text"
 ```
 
 ## RAG Collections & Source Citations

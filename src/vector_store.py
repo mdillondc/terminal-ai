@@ -1,7 +1,8 @@
 import os
-import json
 import hashlib
 import time
+import pandas as pd
+import numpy as np
 from typing import List, Dict, Any, Optional
 from settings_manager import SettingsManager
 
@@ -35,43 +36,44 @@ class VectorStore:
             return {}
         
         metadata = {}
-        supported_extensions = {'.txt', '.md'}
+        supported_extensions = {'.txt', '.md', '.pdf'}
         
-        for filename in os.listdir(collection_path):
-            file_path = os.path.join(collection_path, filename)
-            
-            if not os.path.isfile(file_path):
-                continue
+        for root, dirs, files in os.walk(collection_path):
+            for filename in files:
+                file_path = os.path.join(root, filename)
                 
-            file_ext = os.path.splitext(filename)[1].lower()
-            if file_ext not in supported_extensions:
-                continue
-            
-            try:
-                stat = os.stat(file_path)
-                metadata[filename] = {
-                    "path": file_path,
-                    "size": stat.st_size,
-                    "modified_time": stat.st_mtime,
-                    "hash": self._get_file_hash(file_path)
-                }
-            except Exception as e:
-                print(f"Error getting metadata for {filename}: {e}")
-                continue
+                file_ext = os.path.splitext(filename)[1].lower()
+                if file_ext not in supported_extensions:
+                    continue
+                
+                # Get relative path for better organization
+                relative_path = os.path.relpath(file_path, collection_path)
+                
+                try:
+                    stat = os.stat(file_path)
+                    metadata[relative_path] = {
+                        "path": file_path,
+                        "size": stat.st_size,
+                        "modified_time": stat.st_mtime,
+                        "hash": self._get_file_hash(file_path)
+                    }
+                except Exception as e:
+                    print(f"Error getting metadata for {relative_path}: {e}")
+                    continue
         
         return metadata
     
     def _get_index_file_path(self, collection_name: str) -> str:
         """Get path to index file for a collection"""
-        return os.path.join(self.vectorstore_path, f"{collection_name}_index.json")
+        return os.path.join(self.vectorstore_path, f"{collection_name}_index.parquet")
     
     def _get_meta_file_path(self, collection_name: str) -> str:
         """Get path to metadata file for a collection"""
-        return os.path.join(self.vectorstore_path, f"{collection_name}_meta.json")
+        return os.path.join(self.vectorstore_path, f"{collection_name}_meta.parquet")
     
     def save_collection_index(self, collection_name: str, chunks_with_embeddings: List[Dict[str, Any]]) -> bool:
         """
-        Save collection index with embeddings and metadata
+        Save collection index with embeddings and metadata using Parquet format
         
         Args:
             collection_name: Name of the collection
@@ -84,40 +86,56 @@ class VectorStore:
             index_file_path = self._get_index_file_path(collection_name)
             meta_file_path = self._get_meta_file_path(collection_name)
             
-            # Prepare index data
-            index_data = {
+            # Prepare chunks data for Parquet storage
+            chunks_data = []
+            for chunk in chunks_with_embeddings:
+                chunk_copy = chunk.copy()
+                # Convert embedding to numpy array for efficient storage
+                if 'embedding' in chunk_copy:
+                    chunk_copy['embedding'] = np.array(chunk_copy['embedding'], dtype=np.float32)
+                chunks_data.append(chunk_copy)
+            
+            # Create DataFrame and save as Parquet
+            chunks_df = pd.DataFrame(chunks_data)
+            chunks_df.to_parquet(index_file_path, compression='snappy', index=False)
+            
+            # Prepare and save metadata
+            file_metadata = self._get_collection_file_metadata(collection_name)
+            meta_data = {
                 "collection_name": collection_name,
-                "created_at": time.time(),
+                "index_created_at": time.time(),
                 "chunk_count": len(chunks_with_embeddings),
                 "embedding_provider": self.settings_manager.setting_get("embedding_provider"),
                 "embedding_model": self.settings_manager.setting_get("openai_embedding_model"),
                 "ollama_embedding_model": self.settings_manager.setting_get("ollama_embedding_model"),
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap"),
-                "chunks": chunks_with_embeddings
             }
             
-            # Save index file
-            with open(index_file_path, 'w', encoding='utf-8') as f:
-                json.dump(index_data, f, indent=2, ensure_ascii=False)
+            # Convert file metadata to DataFrame format
+            meta_rows = []
+            for filename, file_info in file_metadata.items():
+                meta_rows.append({
+                    "filename": filename,
+                    "file_path": file_info["path"],
+                    "file_size": file_info["size"],
+                    "modified_time": file_info["modified_time"],
+                    "file_hash": file_info["hash"]
+                })
             
-            # Prepare and save metadata file
-            file_metadata = self._get_collection_file_metadata(collection_name)
-            meta_data = {
-                "collection_name": collection_name,
-                "index_created_at": time.time(),
-                "file_metadata": file_metadata,
-                "settings": {
-                    "embedding_provider": self.settings_manager.setting_get("embedding_provider"),
-                    "embedding_model": self.settings_manager.setting_get("openai_embedding_model"),
-                    "ollama_embedding_model": self.settings_manager.setting_get("ollama_embedding_model"),
-                    "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
-                    "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap")
-                }
-            }
+            # Create metadata DataFrame with collection info
+            if meta_rows:
+                file_meta_df = pd.DataFrame(meta_rows)
+            else:
+                file_meta_df = pd.DataFrame(columns=["filename", "file_path", "file_size", "modified_time", "file_hash"])
             
-            with open(meta_file_path, 'w', encoding='utf-8') as f:
-                json.dump(meta_data, f, indent=2, ensure_ascii=False)
+            # Add collection metadata as attributes (we'll store them separately)
+            collection_meta_df = pd.DataFrame([meta_data])
+            
+            # Save both as a single Parquet file with multiple row groups
+            # We'll use the first row for collection metadata and the rest for file metadata
+            combined_meta = pd.concat([collection_meta_df, file_meta_df], ignore_index=True, sort=False)
+            combined_meta.to_parquet(meta_file_path, compression='snappy', index=False)
             
             print(f"- Saved index for collection '{collection_name}' ({len(chunks_with_embeddings)} chunks)")
             return True
@@ -128,7 +146,7 @@ class VectorStore:
     
     def load_collection_index(self, collection_name: str) -> Optional[List[Dict[str, Any]]]:
         """
-        Load collection index with embeddings
+        Load collection index with embeddings from Parquet format
         
         Args:
             collection_name: Name of the collection
@@ -142,10 +160,17 @@ class VectorStore:
             if not os.path.exists(index_file_path):
                 return None
             
-            with open(index_file_path, 'r', encoding='utf-8') as f:
-                index_data = json.load(f)
+            # Load chunks from Parquet
+            chunks_df = pd.read_parquet(index_file_path)
             
-            chunks = index_data.get("chunks", [])
+            # Convert back to list of dictionaries
+            chunks = chunks_df.to_dict('records')
+            
+            # Convert numpy arrays back to lists for compatibility
+            for chunk in chunks:
+                if 'embedding' in chunk and isinstance(chunk['embedding'], np.ndarray):
+                    chunk['embedding'] = chunk['embedding'].tolist()
+            
             print(f"- Loaded index for collection '{collection_name}' ({len(chunks)} chunks)")
             return chunks
             
@@ -172,12 +197,31 @@ class VectorStore:
                 return False
             
             # Load cached metadata
-            with open(meta_file_path, 'r', encoding='utf-8') as f:
-                cached_meta = json.load(f)
+            meta_df = pd.read_parquet(meta_file_path)
+            
+            # First row contains collection metadata, rest contains file metadata
+            if len(meta_df) == 0:
+                return False
+            
+            collection_meta = meta_df.iloc[0].to_dict()
             
             # Get current file metadata
             current_meta = self._get_collection_file_metadata(collection_name)
-            cached_file_meta = cached_meta.get("file_metadata", {})
+            
+            # Extract file metadata from the DataFrame (skip first row which is collection metadata)
+            cached_file_meta = {}
+            if len(meta_df) > 1:
+                file_rows = meta_df.iloc[1:].copy()
+                file_rows = file_rows.dropna(subset=['filename'])  # Remove rows without filename
+                
+                for _, row in file_rows.iterrows():
+                    if pd.notna(row['filename']):
+                        cached_file_meta[row['filename']] = {
+                            "path": row['file_path'],
+                            "size": row['file_size'],
+                            "modified_time": row['modified_time'],
+                            "hash": row['file_hash']
+                        }
             
             # Check if file count changed
             if len(current_meta) != len(cached_file_meta):
@@ -204,7 +248,15 @@ class VectorStore:
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap")
             }
-            cached_settings = cached_meta.get("settings", {})
+            
+            # Compare with cached settings from collection metadata
+            cached_settings = {
+                "embedding_provider": collection_meta.get("embedding_provider"),
+                "embedding_model": collection_meta.get("embedding_model"),
+                "ollama_embedding_model": collection_meta.get("ollama_embedding_model"),
+                "chunk_size": collection_meta.get("chunk_size"),
+                "chunk_overlap": collection_meta.get("chunk_overlap")
+            }
             
             if current_settings != cached_settings:
                 return False
@@ -216,7 +268,7 @@ class VectorStore:
             return False
     
     def get_available_collections(self) -> List[str]:
-        """Get list of available collection names"""
+        """Get list of available collection names - just show all directories in rag/ except vectorstore"""
         try:
             if not os.path.exists(self.collections_path):
                 return []
@@ -225,25 +277,8 @@ class VectorStore:
             for item in os.listdir(self.collections_path):
                 item_path = os.path.join(self.collections_path, item)
                 
-                # Skip files and the vectorstore directory
-                if not os.path.isdir(item_path) or item == "vectorstore":
-                    continue
-                
-                # Check if directory has supported files
-                has_supported_files = False
-                supported_extensions = {'.txt', '.md'}
-                
-                try:
-                    for filename in os.listdir(item_path):
-                        if os.path.isfile(os.path.join(item_path, filename)):
-                            file_ext = os.path.splitext(filename)[1].lower()
-                            if file_ext in supported_extensions:
-                                has_supported_files = True
-                                break
-                except:
-                    continue
-                
-                if has_supported_files:
+                # Only include directories, skip the vectorstore directory
+                if os.path.isdir(item_path) and item != "vectorstore":
                     collections.append(item)
             
             return sorted(collections)
@@ -270,16 +305,18 @@ class VectorStore:
             index_info = {}
             if has_index:
                 try:
-                    with open(self._get_index_file_path(collection_name), 'r') as f:
-                        index_data = json.load(f)
-                    index_info = {
-                        "chunk_count": index_data.get("chunk_count", 0),
-                        "created_at": index_data.get("created_at", 0),
-                        "embedding_provider": index_data.get("embedding_provider", "unknown"),
-                        "embedding_model": index_data.get("embedding_model", "unknown"),
-                        "ollama_embedding_model": index_data.get("ollama_embedding_model", "unknown")
-                    }
-                except:
+                    meta_df = pd.read_parquet(self._get_meta_file_path(collection_name))
+                    if len(meta_df) > 0:
+                        collection_meta = meta_df.iloc[0].to_dict()
+                        index_info = {
+                            "chunk_count": int(collection_meta.get("chunk_count", 0)) if pd.notna(collection_meta.get("chunk_count")) else 0,
+                            "created_at": float(collection_meta.get("index_created_at", 0)) if pd.notna(collection_meta.get("index_created_at")) else 0,
+                            "embedding_provider": str(collection_meta.get("embedding_provider", "unknown")),
+                            "embedding_model": str(collection_meta.get("embedding_model", "unknown")),
+                            "ollama_embedding_model": str(collection_meta.get("ollama_embedding_model", "unknown"))
+                        }
+                except Exception as e:
+                    print(f"Error reading index info: {e}")
                     pass
             
             return {

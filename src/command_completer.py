@@ -18,6 +18,7 @@ from functools import lru_cache
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
 from openai import OpenAI
+from vector_store import VectorStore
 
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
@@ -323,15 +324,8 @@ class CommandCompleter(Completer):
                 )
     
     def _complete_rag_collections(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete RAG collection names from the rag directory"""
+        """Complete RAG collection names using VectorStore (single source of truth)"""
         try:
-            # Get the rag directory path
-            working_dir = self.settings_manager.setting_get("working_dir")
-            rag_dir = os.path.join(working_dir, "rag")
-            
-            if not os.path.exists(rag_dir):
-                return
-            
             # Special completion for 'off' option
             if "off".startswith(partial_name.lower()):
                 yield Completion(
@@ -340,38 +334,16 @@ class CommandCompleter(Completer):
                     display_meta="Deactivate RAG mode"
                 )
             
-            # List subdirectories in rag/ (collections)
-            supported_extensions = {'.txt', '.md'}
+            # Use VectorStore for collection discovery (DRY principle)
+            vector_store = VectorStore()
+            collections = vector_store.get_available_collections()
             
-            for item in os.listdir(rag_dir):
-                item_path = os.path.join(rag_dir, item)
-                
-                # Skip files and the vectorstore directory
-                if not os.path.isdir(item_path) or item == "vectorstore":
-                    continue
-                
-                # Check if directory has supported files
-                has_supported_files = False
-                try:
-                    for filename in os.listdir(item_path):
-                        if os.path.isfile(os.path.join(item_path, filename)):
-                            file_ext = os.path.splitext(filename)[1].lower()
-                            if file_ext in supported_extensions:
-                                has_supported_files = True
-                                break
-                except:
-                    continue
-                
-                if has_supported_files and item.startswith(partial_name):
-                    # Count files for display
-                    file_count = sum(1 for f in os.listdir(item_path) 
-                                   if os.path.isfile(os.path.join(item_path, f)) and 
-                                   os.path.splitext(f)[1].lower() in supported_extensions)
-                    
+            for collection in collections:
+                if collection.startswith(partial_name):
                     yield Completion(
-                        text=item,
+                        text=collection,
                         start_position=-len(partial_name),
-                        display_meta=f"RAG collection ({file_count} files)"
+                        display_meta="RAG collection"
                     )
         except Exception:
             # Silently fail if there are any issues with directory access

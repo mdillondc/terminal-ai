@@ -2,6 +2,7 @@ import os
 import re
 from typing import List, Dict, Any, Optional, Tuple
 import tiktoken
+import PyPDF2
 from settings_manager import SettingsManager
 
 
@@ -15,6 +16,15 @@ class DocumentProcessor:
         return len(self.encoding.encode(text))
     
     def load_file(self, file_path: str) -> str:
+        """Load content from a text, markdown, or PDF file"""
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        if file_ext == '.pdf':
+            return self.load_pdf_file(file_path)
+        else:
+            return self.load_text_file(file_path)
+    
+    def load_text_file(self, file_path: str) -> str:
         """Load content from a text or markdown file"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -31,6 +41,27 @@ class DocumentProcessor:
                 return ""
         except Exception as e:
             print(f"Error loading file {file_path}: {e}")
+            return ""
+    
+    def load_pdf_file(self, file_path: str) -> str:
+        """Load content from a PDF file"""
+        try:
+            content = []
+            with open(file_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                
+                for page_num, page in enumerate(pdf_reader.pages):
+                    try:
+                        page_text = page.extract_text()
+                        if page_text.strip():
+                            content.append(f"--- Page {page_num + 1} ---\n{page_text}")
+                    except Exception as e:
+                        print(f"Error extracting text from page {page_num + 1} of {file_path}: {e}")
+                        continue
+            
+            return "\n\n".join(content)
+        except Exception as e:
+            print(f"Error loading PDF file {file_path}: {e}")
             return ""
     
     def clean_text(self, text: str) -> str:
@@ -210,7 +241,7 @@ class DocumentProcessor:
         all_chunks = []
         
         # Supported file extensions
-        supported_extensions = {'.txt', '.md'}
+        supported_extensions = {'.txt', '.md', '.pdf'}
         
         # Process all supported files recursively in the directory
         for root, dirs, files in os.walk(collection_path):
@@ -249,7 +280,7 @@ class DocumentProcessor:
             "total_size_bytes": 0
         }
         
-        supported_extensions = {'.txt', '.md'}
+        supported_extensions = {'.txt', '.md', '.pdf'}
         
         for root, dirs, files in os.walk(collection_path):
             for filename in files:

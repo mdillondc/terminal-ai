@@ -253,7 +253,7 @@ class CommandManager:
         collections = self.rag_engine.list_collections()
         if not collections:
             print(" - No RAG collections found in rag/ directory")
-            print(" - Create collections by adding .txt or .md files to rag/collection_name/")
+            print(" - Create collections by making directories in rag/collection_name/")
             return
         
         print(" - Available RAG collections:")
