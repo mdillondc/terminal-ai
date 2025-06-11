@@ -131,18 +131,69 @@ class CommandCompleter(Completer):
             argument_part = parts[1] if len(parts) > 1 else ""
             return command_name, argument_part
     
+    def _fuzzy_match_command(self, partial: str, command: str) -> tuple[bool, int]:
+        """
+        Check if partial input fuzzy matches a command and return match quality.
+        
+        Returns:
+            tuple: (matches, score) where higher score = better match
+        """
+        partial_lower = partial.lower()
+        command_lower = command.lower()
+        
+        if not partial_lower:
+            return True, 0
+        
+        # Strategy 1: Exact start match (highest score)
+        if command_lower.startswith(partial_lower):
+            return True, 1000 + len(partial)
+        
+        # Strategy 2: Subsequence match (e.g., "ragb" matches "rag-build")
+        # Check if all characters appear in order
+        partial_idx = 0
+        for char in command_lower:
+            if partial_idx < len(partial_lower) and char == partial_lower[partial_idx]:
+                partial_idx += 1
+        
+        if partial_idx == len(partial_lower):
+            # All characters found in order
+            # Score based on how compact the match is
+            return True, 500 + (100 - len(command)) + len(partial)
+        
+        # Strategy 3: Contains substring anywhere
+        if partial_lower in command_lower:
+            return True, 300 + len(partial)
+        
+        # Strategy 4: Edit distance (simple version - count matching characters)
+        matching_chars = sum(1 for c in partial_lower if c in command_lower)
+        if matching_chars >= len(partial_lower) * 0.7:  # At least 70% of characters match
+            return True, 100 + matching_chars
+        
+        return False, 0
+
     def _complete_command_names(self, partial_command: str) -> Generator[Completion, None, None]:
-        """Complete command names based on partial input"""
+        """Complete command names with fuzzy matching based on partial input"""
+        matches = []
+        
         for command in self.available_commands:
             command_keyword = command[2:]  # Remove "--" prefix
             
-            if command_keyword.startswith(partial_command.lower()):
+            is_match, score = self._fuzzy_match_command(partial_command, command_keyword)
+            
+            if is_match:
                 description = self.registry.get_command_description(command)
-                yield Completion(
-                    text=command_keyword,
-                    start_position=-len(partial_command),
-                    display_meta=description
-                )
+                matches.append((score, command_keyword, description))
+        
+        # Sort by score (higher is better), then alphabetically
+        matches.sort(key=lambda x: (-x[0], x[1]))
+        
+        # Yield completions in order of relevance
+        for score, command_keyword, description in matches:
+            yield Completion(
+                text=command_keyword,
+                start_position=-len(partial_command),
+                display_meta=description
+            )
     
     def _complete_command_arguments(self, command_name: str, argument_part: str) -> Generator[Completion, None, None]:
         """Complete arguments for a specific command"""
