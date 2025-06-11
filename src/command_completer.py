@@ -131,41 +131,43 @@ class CommandCompleter(Completer):
             argument_part = parts[1] if len(parts) > 1 else ""
             return command_name, argument_part
     
-    def _fuzzy_match_command(self, partial: str, command: str) -> tuple[bool, int]:
+    def _fuzzy_match(self, partial: str, target: str) -> tuple[bool, int]:
         """
-        Check if partial input fuzzy matches a command and return match quality.
+        Reusable fuzzy matching function for any string matching.
         
+        Args:
+            partial: Partial input to match against
+            target: Target string to match
+            
         Returns:
             tuple: (matches, score) where higher score = better match
         """
         partial_lower = partial.lower()
-        command_lower = command.lower()
+        target_lower = target.lower()
         
         if not partial_lower:
             return True, 0
         
         # Strategy 1: Exact start match (highest score)
-        if command_lower.startswith(partial_lower):
+        if target_lower.startswith(partial_lower):
             return True, 1000 + len(partial)
         
         # Strategy 2: Subsequence match (e.g., "ragb" matches "rag-build")
-        # Check if all characters appear in order
         partial_idx = 0
-        for char in command_lower:
+        for char in target_lower:
             if partial_idx < len(partial_lower) and char == partial_lower[partial_idx]:
                 partial_idx += 1
         
         if partial_idx == len(partial_lower):
             # All characters found in order
-            # Score based on how compact the match is
-            return True, 500 + (100 - len(command)) + len(partial)
+            return True, 500 + (100 - len(target)) + len(partial)
         
         # Strategy 3: Contains substring anywhere
-        if partial_lower in command_lower:
+        if partial_lower in target_lower:
             return True, 300 + len(partial)
         
         # Strategy 4: Edit distance (simple version - count matching characters)
-        matching_chars = sum(1 for c in partial_lower if c in command_lower)
+        matching_chars = sum(1 for c in partial_lower if c in target_lower)
         if matching_chars >= len(partial_lower) * 0.7:  # At least 70% of characters match
             return True, 100 + matching_chars
         
@@ -178,7 +180,7 @@ class CommandCompleter(Completer):
         for command in self.available_commands:
             command_keyword = command[2:]  # Remove "--" prefix
             
-            is_match, score = self._fuzzy_match_command(partial_command, command_keyword)
+            is_match, score = self._fuzzy_match(partial_command, command_keyword)
             
             if is_match:
                 description = self.registry.get_command_description(command)
@@ -312,22 +314,30 @@ class CommandCompleter(Completer):
             pass
     
     def _complete_model_names(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete model names from OpenAI, Google, and Ollama APIs with fallback to predefined suggestions"""
+        """Complete model names from OpenAI, Google, and Ollama APIs with fuzzy matching"""
         # Try to get dynamic models from all sources
         models = self._get_available_models()
         
-        # If we have models from APIs, use those
+        # If we have models from APIs, use those with fuzzy matching
         if models:
+            matches = []
             for model_info in models:
                 model_name = model_info["name"]
                 model_source = model_info["source"]
                 
-                if partial_name.lower() in model_name.lower():
-                    yield Completion(
-                        text=model_name,
-                        start_position=-len(partial_name),
-                        display_meta=f"{model_source} Model"
-                    )
+                is_match, score = self._fuzzy_match(partial_name, model_name)
+                if is_match:
+                    matches.append((score, model_name, f"{model_source} Model"))
+            
+            # Sort by score (higher is better), then alphabetically
+            matches.sort(key=lambda x: (-x[0], x[1]))
+            
+            for score, model_name, display_meta in matches:
+                yield Completion(
+                    text=model_name,
+                    start_position=-len(partial_name),
+                    display_meta=display_meta
+                )
         # Fallback to predefined suggestions if APIs are unavailable
         elif rules.custom_suggestions:
             for suggestion in rules.custom_suggestions:
@@ -339,7 +349,7 @@ class CommandCompleter(Completer):
                     )
     
     def _complete_tts_models(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete TTS model names with OpenAI TTS models"""
+        """Complete TTS model names with fuzzy matching"""
         # OpenAI TTS models
         tts_models = [
             ("tts-1", "Standard TTS model, optimized for real-time use"),
@@ -347,16 +357,24 @@ class CommandCompleter(Completer):
             ("gpt-4o-mini-tts", "Latest GPT-based TTS model with improved prosody")
         ]
         
+        matches = []
         for model_name, description in tts_models:
-            if partial_name.lower() in model_name.lower():
-                yield Completion(
-                    text=model_name,
-                    start_position=-len(partial_name),
-                    display_meta=description
-                )
+            is_match, score = self._fuzzy_match(partial_name, model_name)
+            if is_match:
+                matches.append((score, model_name, description))
+        
+        # Sort by score (higher is better), then alphabetically
+        matches.sort(key=lambda x: (-x[0], x[1]))
+        
+        for score, model_name, description in matches:
+            yield Completion(
+                text=model_name,
+                start_position=-len(partial_name),
+                display_meta=description
+            )
     
     def _complete_tts_voices(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete TTS voice names with OpenAI TTS voices"""
+        """Complete TTS voice names with fuzzy matching"""
         # OpenAI TTS voices with descriptions
         tts_voices = [
             ("alloy", "Neutral, versatile voice"),
@@ -367,36 +385,50 @@ class CommandCompleter(Completer):
             ("shimmer", "Soft, gentle voice")
         ]
         
+        matches = []
         for voice_name, description in tts_voices:
-            if partial_name.lower() in voice_name.lower():
-                yield Completion(
-                    text=voice_name,
-                    start_position=-len(partial_name),
-                    display_meta=description
-                )
+            is_match, score = self._fuzzy_match(partial_name, voice_name)
+            if is_match:
+                matches.append((score, voice_name, description))
+        
+        # Sort by score (higher is better), then alphabetically
+        matches.sort(key=lambda x: (-x[0], x[1]))
+        
+        for score, voice_name, description in matches:
+            yield Completion(
+                text=voice_name,
+                start_position=-len(partial_name),
+                display_meta=description
+            )
     
     def _complete_rag_collections(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete RAG collection names using VectorStore (single source of truth)"""
+        """Complete RAG collection names using VectorStore with fuzzy matching"""
         try:
-            # Special completion for 'off' option
-            if "off".startswith(partial_name.lower()):
-                yield Completion(
-                    text="off",
-                    start_position=-len(partial_name),
-                    display_meta="Deactivate RAG mode"
-                )
+            matches = []
+            
+            # Special completion for 'off' option with fuzzy matching
+            is_match, score = self._fuzzy_match(partial_name, "off")
+            if is_match:
+                matches.append((score, "off", "Deactivate RAG mode"))
             
             # Use VectorStore for collection discovery (DRY principle)
             vector_store = VectorStore()
             collections = vector_store.get_available_collections()
             
             for collection in collections:
-                if collection.startswith(partial_name):
-                    yield Completion(
-                        text=collection,
-                        start_position=-len(partial_name),
-                        display_meta="RAG collection"
-                    )
+                is_match, score = self._fuzzy_match(partial_name, collection)
+                if is_match:
+                    matches.append((score, collection, "RAG collection"))
+            
+            # Sort by score (higher is better), then alphabetically
+            matches.sort(key=lambda x: (-x[0], x[1]))
+            
+            for score, text, display_meta in matches:
+                yield Completion(
+                    text=text,
+                    start_position=-len(partial_name),
+                    display_meta=display_meta
+                )
         except Exception:
             # Silently fail if there are any issues with directory access
             pass
@@ -455,17 +487,24 @@ class CommandCompleter(Completer):
             return
 
     def _complete_simple_suggestions(self, partial_text: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete with simple static suggestions"""
+        """Complete with simple static suggestions using fuzzy matching"""
         if not rules.custom_suggestions:
             return
-            
-        partial_lower = partial_text.lower()
+        
+        matches = []
         for suggestion in rules.custom_suggestions:
-            if suggestion.lower().startswith(partial_lower):
-                yield Completion(
-                    text=suggestion,
-                    start_position=-len(partial_text)
-                )
+            is_match, score = self._fuzzy_match(partial_text, suggestion)
+            if is_match:
+                matches.append((score, suggestion))
+        
+        # Sort by score (higher is better), then alphabetically
+        matches.sort(key=lambda x: (-x[0], x[1]))
+        
+        for score, suggestion in matches:
+            yield Completion(
+                text=suggestion,
+                start_position=-len(partial_text)
+            )
     
     @lru_cache(maxsize=100)
     def _get_files_in_directory(self, directory: str, prefix: str, extensions: Optional[tuple] = None) -> List[str]:
