@@ -2,7 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import re
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Tuple
+import time
 
 
 class WebContentExtractor:
@@ -20,16 +21,17 @@ class WebContentExtractor:
 
     def extract_content(self, url: str) -> Dict[str, Optional[str]]:
         """
-        Extract main content from a web page.
+        Extract main content from a web page with paywall bypass capabilities.
 
         Returns:
-            Dict with keys: 'title', 'content', 'url', 'error'
+            Dict with keys: 'title', 'content', 'url', 'error', 'warning'
         """
         result = {
             'title': None,
             'content': None,
             'url': url,
-            'error': None
+            'error': None,
+            'warning': None
         }
 
         try:
@@ -38,38 +40,29 @@ class WebContentExtractor:
                 result['error'] = "Invalid URL format"
                 return result
 
-            # Fetch the page
+            # Try normal extraction first
             print(" - Fetching webpage...")
-            response = self.session.get(url, timeout=self.timeout)
-            response.raise_for_status()
+            normal_result = self._basic_extraction(url)
 
-            # Parse HTML
-            soup = BeautifulSoup(response.text, 'html.parser')
+            if normal_result['error']:
+                return normal_result
 
-            # Extract title
-            result['title'] = self._extract_title(soup)
+            # Check for paywall
+            if self._is_paywall_content(normal_result['content']):
+                print(" - Paywall detected, trying alternative methods...")
+                bypass_result = self._try_paywall_bypass(url)
+                if bypass_result['content'] and not self._is_paywall_content(bypass_result['content']):
+                    return bypass_result
+                else:
+                    print(" - ⚠️ Content incomplete due to paywall - no bypass methods worked")
+                    normal_result['warning'] = "Content may be incomplete due to paywall"
+                    return normal_result
 
-            # Extract main content
-            result['content'] = self._extract_main_content(soup)
+            return normal_result
 
-            if not result['content']:
-                result['error'] = "No readable content found on the page"
-                return result
-
-            print(f" - Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
-
-        except requests.exceptions.Timeout:
-            result['error'] = "Request timed out"
-        except requests.exceptions.ConnectionError:
-            result['error'] = "Could not connect to the website"
-        except requests.exceptions.HTTPError as e:
-            result['error'] = f"HTTP error: {e}"
-        except requests.exceptions.RequestException as e:
-            result['error'] = f"Request failed: {e}"
         except Exception as e:
             result['error'] = f"Unexpected error: {e}"
-
-        return result
+            return result
 
     def _is_valid_url(self, url: str) -> bool:
         """Check if URL has a valid format."""
@@ -104,10 +97,51 @@ class WebContentExtractor:
 
     def _extract_main_content(self, soup: BeautifulSoup) -> str:
         """Extract main readable content from the page."""
-        # Remove unwanted elements
-        for element in soup(['script', 'style', 'nav', 'header', 'footer',
-                           'aside', 'advertisement', 'ads', 'sidebar']):
-            element.decompose()
+        # Remove unwanted elements - comprehensive HTML-based approach
+        unwanted_selectors = [
+            # Basic unwanted elements
+            'script', 'style', 'nav', 'header', 'footer', 'aside', 'advertisement', 'ads', 'sidebar',
+
+            # Cookie/Privacy/GDPR (attribute-based - works across all sites)
+            '[class*="cookie"]', '[id*="cookie"]', '[class*="gdpr"]', '[id*="gdpr"]',
+            '[class*="consent"]', '[id*="consent"]', '[class*="privacy"]', '[id*="privacy"]',
+
+            # Popups/Modals/Banners (generic patterns)
+            '[class*="banner"]', '[class*="popup"]', '[class*="modal"]', '[class*="overlay"]',
+            '[class*="dialog"]', '[class*="notice"]', '[class*="alert"]',
+
+            # Newsletter/Subscription (generic patterns)
+            '[class*="newsletter"]', '[class*="subscribe"]', '[class*="signup"]', '[class*="email"]',
+
+            # Donation/Support/Membership (works for Guardian, NYT, etc.)
+            '[class*="support"]', '[class*="contribution"]', '[class*="donate"]', '[class*="donation"]',
+            '[class*="membership"]', '[class*="reader"]', '[class*="fund"]', '[class*="appeal"]',
+            '[class*="fundrais"]', '[class*="patron"]', '[class*="sponsor"]', '[class*="campaign"]',
+
+            # Advertisement/Promotion related
+            '[class*="promo"]', '[class*="promotion"]', '[class*="ad-"]', '[class*="cta"]',
+
+            # Social/Sharing popups
+            '[class*="share"]', '[class*="social"]', '[class*="follow"]',
+
+            # Common generic class names (works across sites)
+            '.banner', '.popup', '.modal', '.overlay', '.notice', '.alert', '.toast',
+            '.subscription', '.newsletter', '.signup', '.donate', '.support', '.contribute',
+            '.membership', '.reader-support', '.fundraising', '.appeal',
+
+            # Common generic IDs
+            '#banner', '#popup', '#modal', '#overlay', '#notice', '#alert',
+            '#subscription', '#newsletter', '#donate', '#support', '#membership',
+            '#support-banner', '#donation-banner', '#contribution-banner', '#membership-banner',
+            '#reader-support', '#fundraising-banner', '#appeal-banner',
+
+            # Generic "call to action" and "revenue" selectors
+            '[class*="cta"]', '[class*="call-to-action"]', '[class*="revenue"]'
+        ]
+
+        for selector in unwanted_selectors:
+            for element in soup.select(selector):
+                element.decompose()
 
         # Try to find main content areas
         content_selectors = [
@@ -134,10 +168,22 @@ class WebContentExtractor:
         # Fallback: try to extract from body, but filter out likely navigation/junk
         body = soup.find('body')
         if body:
-            # Remove common non-content elements
-            for element in body(['nav', 'header', 'footer', 'aside', 'menu',
-                               'breadcrumb', 'pagination', 'sidebar']):
-                element.decompose()
+            # Remove common non-content elements including additional popups
+            non_content_selectors = [
+                'nav', 'header', 'footer', 'aside', 'menu', 'breadcrumb', 'pagination', 'sidebar',
+                # Additional popup and banner removal for fallback extraction
+                '[class*="cookie"]', '[class*="gdpr"]', '[class*="consent"]', '[class*="privacy"]',
+                '[class*="banner"]', '[class*="popup"]', '[class*="modal"]', '[class*="overlay"]',
+                '[class*="newsletter"]', '[class*="subscribe"]', '[class*="support"]',
+                '[class*="contribution"]', '[class*="donate"]', '[class*="membership"]',
+                '[class*="donation"]', '[class*="reader-revenue"]', '[class*="fundrais"]',
+                '[class*="patron"]', '[class*="sponsor"]', '[class*="appeal"]',
+                '[class*="campaign"]', '[class*="cta"]', '[class*="revenue"]'
+            ]
+
+            for selector in non_content_selectors:
+                for element in body.select(selector):
+                    element.decompose()
 
             # Look for paragraphs and headings
             content_elements = body.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'])
@@ -166,6 +212,21 @@ class WebContentExtractor:
         lines = text.split('\n')
         cleaned_lines = []
 
+        # Cookie and popup related patterns to filter out - very specific only
+        cookie_patterns = [
+            r'^we use cookies.*$', r'^this site uses cookies.*$',
+            r'^accept all cookies$', r'^reject all cookies$', r'^manage cookies$',
+            r'^cookie policy$', r'^cookie settings$', r'^privacy policy$',
+            r'^subscribe to our newsletter$', r'^newsletter signup$',
+            r'^by continuing to browse.*$', r'^by using this website.*$'
+        ]
+
+        # Combine all unwanted text patterns (minimal since HTML removal handles most)
+        unwanted_text_patterns = cookie_patterns + [
+            r'^support.*journalism.*$', r'^donate.*$', r'^contribute.*$',
+            r'^become.*member.*$', r'^join.*$', r'^help.*keep.*free.*$'
+        ]
+
         for line in lines:
             line = line.strip()
             # Skip very short lines that are likely navigation
@@ -174,6 +235,308 @@ class WebContentExtractor:
             # Skip lines that look like navigation or metadata
             if re.match(r'^(Home|About|Contact|Menu|Search|Login|Register|\d+|→|←|»|«)$', line, re.IGNORECASE):
                 continue
+            # Skip obvious popup/banner text that HTML removal missed
+            if any(re.match(pattern, line, re.IGNORECASE) for pattern in unwanted_text_patterns):
+                continue
+            # Skip very generic popup text
+            if line.lower() in ['ok', 'accept', 'decline', 'agree', 'disagree', 'yes', 'no', 'close', 'x']:
+                continue
             cleaned_lines.append(line)
 
         return '\n'.join(cleaned_lines).strip()
+
+    def _basic_extraction(self, url: str) -> Dict[str, Optional[str]]:
+        """Basic content extraction without paywall handling."""
+        result = {
+            'title': None,
+            'content': None,
+            'url': url,
+            'error': None,
+            'warning': None
+        }
+
+        try:
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+            result['title'] = self._extract_title(soup)
+            result['content'] = self._extract_main_content(soup)
+
+            if not result['content']:
+                result['error'] = "No readable content found on the page"
+                return result
+
+            print(f" - Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
+
+        except requests.exceptions.Timeout:
+            result['error'] = "Request timed out"
+        except requests.exceptions.ConnectionError:
+            result['error'] = "Could not connect to the website"
+        except requests.exceptions.HTTPError as e:
+            result['error'] = f"HTTP error: {e}"
+        except requests.exceptions.RequestException as e:
+            result['error'] = f"Request failed: {e}"
+
+        return result
+
+    def _is_paywall_content(self, content: str) -> bool:
+        """Detect common paywall indicators."""
+        if not content:
+            return False
+
+        content_lower = content.lower()
+        total_words = len(content.split())
+
+        # Strong paywall indicators
+        strong_indicators = [
+            "subscribe to continue", "subscription required", "paywall",
+            "premium content", "members only", "subscriber exclusive",
+            "login to continue", "sign in to read more",
+            "create account to continue", "free trial", "unlock this article",
+            "please log in to continue", "create account to unlock",
+            "start your free trial", "never miss a story", "get started",
+            "already have an account", "start your subscription",
+            "support ensures", "independent journalism", "uncompromising quality",
+            "enduring impact", "bright future for independent journalism"
+        ]
+
+        # Weaker indicators (need multiple) - removed overly broad terms
+        weak_indicators = [
+            "subscribe", "subscription", "premium", "member",
+            "sign in", "log in", "create account", "register",
+            "free trial", "start trial"
+        ]
+
+        # Check for strong indicators
+        for indicator in strong_indicators:
+            if indicator in content_lower:
+                return True
+
+        # Pattern-based detection for complex paywall messages
+        paywall_patterns = [
+            # The Atlantic style - more specific patterns
+            ("never miss a story", "free trial"),
+            ("uncompromising quality", "independent journalism"),
+            ("get started", "already have an account"),
+            ("support ensures", "bright future"),
+            # NYT style
+            ("subscribe", "continue reading"),
+            ("create account", "free articles"),
+            # WSJ style
+            ("subscriber", "exclusive"),
+            # General patterns - must be more specific
+            ("start your free trial", "sign in"),
+            ("subscription", "unlimited access")
+        ]
+
+        # Check for pattern combinations - require both patterns to be present
+        for pattern1, pattern2 in paywall_patterns:
+            if pattern1 in content_lower and pattern2 in content_lower:
+                return True
+
+        # For very short content, be more aggressive with detection
+        if total_words < 50:
+            weak_count = sum(1 for indicator in weak_indicators if indicator in content_lower)
+            if weak_count >= 3:  # Require more evidence even for short content
+                return True
+        else:
+            # For longer content, need much more evidence
+            weak_count = sum(1 for indicator in weak_indicators if indicator in content_lower)
+            if weak_count >= 4:  # Raised threshold
+                return True
+
+            # Check content length vs paywall text ratio - be more conservative
+            paywall_words = sum(content_lower.count(indicator) for indicator in weak_indicators)
+            if total_words < 150 and paywall_words > 8:  # More restrictive
+                return True
+
+        return False
+
+    def _try_paywall_bypass(self, url: str) -> Dict[str, Optional[str]]:
+        """Try multiple methods to bypass paywalls."""
+        bypass_methods = [
+            ("Archive.org", self._try_archive_org),
+            ("Search Engine Bot", self._try_bot_user_agent),
+            ("Print Version", self._try_print_version),
+            ("AMP Version", self._try_amp_version)
+        ]
+
+        for method_name, method_func in bypass_methods:
+            try:
+                result = method_func(url)
+                if (result and result.get('content') and
+                    not self._is_paywall_content(result['content']) and
+                    len(result['content'].split()) > 100):  # Ensure substantial content
+                    print(f" - ✅ Paywall bypassed using {method_name}")
+                    result['warning'] = f"Paywall bypassed using {method_name}"
+                    return result
+            except Exception as e:
+                # Silently continue to next method
+                continue
+
+        # All methods failed
+        return {'content': None, 'error': 'All bypass methods failed'}
+
+    def _try_archive_org(self, url: str) -> Dict[str, Optional[str]]:
+        """Try to fetch content from Archive.org (Wayback Machine)."""
+        # Try recent snapshots first, then go back in time
+        timestamps = [
+            "20241201000000",  # Recent
+            "20241101000000",
+            "20241001000000",
+            "20240601000000",  # 6 months ago
+            "20240101000000",  # 1 year ago
+            "20230601000000"   # Older fallback
+        ]
+
+        for timestamp in timestamps:
+            try:
+                archive_url = f"https://web.archive.org/web/{timestamp}/{url}"
+
+                # Use different session to avoid rate limiting conflicts
+                archive_session = requests.Session()
+                archive_session.headers.update({
+                    'User-Agent': 'Mozilla/5.0 (compatible; Archive-Request/1.0)'
+                })
+
+                response = archive_session.get(archive_url, timeout=15)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+
+                    # Remove archive.org specific elements
+                    for element in soup(['script[src*="archive.org"]', '#wm-ipp-base', '.wb-autocomplete-suggestions']):
+                        if element:
+                            element.decompose()
+
+                    title = self._extract_title(soup)
+                    content = self._extract_main_content(soup)
+
+                    if content and len(content.split()) > 100:
+                        return {
+                            'title': title,
+                            'content': content,
+                            'url': url,
+                            'error': None,
+                            'warning': None
+                        }
+
+                time.sleep(0.5)  # Be respectful to archive.org
+
+            except Exception:
+                continue
+
+        return {'content': None, 'error': 'Archive.org lookup failed'}
+
+    def _try_bot_user_agent(self, url: str) -> Dict[str, Optional[str]]:
+        """Try with search engine bot user agent."""
+        bot_user_agents = [
+            'Googlebot/2.1 (+http://www.google.com/bot.html)',
+            'Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+            'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+        ]
+
+        for user_agent in bot_user_agents:
+            try:
+                bot_session = requests.Session()
+                bot_session.headers.update({
+                    'User-Agent': user_agent,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Connection': 'keep-alive'
+                })
+
+                response = bot_session.get(url, timeout=self.timeout)
+                response.raise_for_status()
+
+                soup = BeautifulSoup(response.text, 'html.parser')
+                title = self._extract_title(soup)
+                content = self._extract_main_content(soup)
+
+                if content and len(content.split()) > 100:
+                    return {
+                        'title': title,
+                        'content': content,
+                        'url': url,
+                        'error': None,
+                        'warning': None
+                    }
+
+            except Exception:
+                continue
+
+        return {'content': None, 'error': 'Bot user agent failed'}
+
+    def _try_print_version(self, url: str) -> Dict[str, Optional[str]]:
+        """Try print version URLs which often bypass paywalls."""
+        print_variations = [
+            f"{url}?print=1",
+            f"{url}?print=true",
+            f"{url}&print=1",
+            f"{url}/print",
+            f"{url}?view=print",
+            f"{url}?format=print"
+        ]
+
+        for print_url in print_variations:
+            try:
+                response = self.session.get(print_url, timeout=self.timeout)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    title = self._extract_title(soup)
+                    content = self._extract_main_content(soup)
+
+                    if content and len(content.split()) > 100:
+                        return {
+                            'title': title,
+                            'content': content,
+                            'url': url,
+                            'error': None,
+                            'warning': None
+                        }
+
+            except Exception:
+                continue
+
+        return {'content': None, 'error': 'Print version failed'}
+
+    def _try_amp_version(self, url: str) -> Dict[str, Optional[str]]:
+        """Try AMP (Accelerated Mobile Pages) version."""
+        parsed = urlparse(url)
+
+        amp_variations = [
+            url.replace('www.', 'amp.'),
+            url.replace('https://', 'https://amp.'),
+            f"{parsed.scheme}://{parsed.netloc}/amp{parsed.path}",
+            f"{url}/amp",
+            f"{url}?amp=1"
+        ]
+
+        for amp_url in amp_variations:
+            try:
+                response = self.session.get(amp_url, timeout=self.timeout)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+
+                    # Remove AMP-specific elements
+                    for element in soup(['amp-ad', 'amp-analytics', 'amp-sidebar']):
+                        if element:
+                            element.decompose()
+
+                    title = self._extract_title(soup)
+                    content = self._extract_main_content(soup)
+
+                    if content and len(content.split()) > 100:
+                        return {
+                            'title': title,
+                            'content': content,
+                            'url': url,
+                            'error': None,
+                            'warning': None
+                        }
+
+            except Exception:
+                continue
+
+        return {'content': None, 'error': 'AMP version failed'}

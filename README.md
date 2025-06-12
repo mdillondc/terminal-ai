@@ -10,7 +10,7 @@ A terminal AI assistant with advanced features including RAG (Retrieval-Augmente
 - **RAG System**: Query your own documents with intelligent retrieval
 - **Web Search**: Real-time information via Tavily API
 - **YouTube Integration**: Extract and analyze video transcripts
-- **URL Content Extraction**: Extract and analyze content from any website
+- **URL Content Extraction**: Extract and analyze content from any website with intelligent paywall bypass
 - **Text-to-Speech**: Convert responses to natural speech
 - **Conversation Management**: Save, resume, and organize conversations
 - **Rich Commands**: Extensible command system with tab completion
@@ -127,6 +127,33 @@ self.embedding_provider = "ollama"  # or "openai"
 # Private mode (no logging)
 > --incognito
 ```
+
+### URL Content Extraction & Paywall Handling
+
+```bash
+# Extract content from any website
+> --url https://nytimes.com/some-article
+ - Extracting content from URL...
+ - Paywall detected, trying alternative methods...
+ - ✅ Paywall bypassed using Archive.org
+ - Content added to conversation context.
+
+# YouTube URLs automatically redirect to --youtube command
+> --url https://youtube.com/watch?v=example
+ - YouTube URL detected - redirecting to --youtube command...
+
+# Works with most news sites and blogs
+> --url https://theguardian.com/article
+> --url https://medium.com/@author/story
+```
+
+**Paywall Bypass Methods** (attempted automatically):
+- **Archive.org (Wayback Machine)** - Often most effective for older articles
+- **Search Engine Bot Headers** - Many sites show full content to search engines
+- **Print Versions** - URLs like `?print=1` often bypass paywalls
+- **AMP Versions** - Google AMP pages sometimes bypass restrictions
+
+**Note**: Paywall bypass success varies by site and article age. The feature will transparently inform you whether bypass attempts succeeded or failed.
 
 ### Getting Help
 

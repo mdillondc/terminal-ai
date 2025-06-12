@@ -801,6 +801,10 @@ class CommandManager:
             print(" - No content could be extracted from the URL.")
             return
 
+        # Display warning if paywall was encountered
+        if result.get('warning'):
+            print(f" - {result['warning']}")
+
         # Format the content for the conversation
         title = result['title'] or "Web Content"
         formatted_content = f"Website: {title}\n\nSource: {url}\n\n{result['content']}"
