@@ -214,6 +214,8 @@ See requirements.txt
 
 ```bash
 python src/main.py --input "Hello Samantha!"
+# You can add any commands from --help to the --input command, e.g.:
+python src/main.py --input "--model qwen3:14b-q8_0 --instructions summary.md --youtube https://youtube.com/some-url"
 
 # Enable features and start chatting
 > --tts --search
