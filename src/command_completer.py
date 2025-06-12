@@ -27,11 +27,11 @@ from rag_config import get_supported_extensions
 
 class CompletionCache:
     """Simple cache for file system completions and API calls to improve performance"""
-    
+
     def __init__(self, cache_duration: float = 2.0):
         self.cache_duration = cache_duration
         self._cache: Dict[str, tuple[float, List[str]]] = {}
-    
+
     def get(self, key: str) -> Optional[Any]:
         """Get cached results if they're still valid"""
         if key in self._cache:
@@ -39,11 +39,11 @@ class CompletionCache:
             if time.time() - timestamp < self.cache_duration:
                 return results
         return None
-    
+
     def set(self, key: str, value: Any) -> None:
         """Cache results with current timestamp"""
         self._cache[key] = (time.time(), value)
-    
+
     def clear(self) -> None:
         """Clear all cached results"""
         self._cache.clear()
@@ -54,74 +54,74 @@ class CommandCompleter(Completer):
     Intelligent command completer that uses the CommandRegistry for
     context-aware completion suggestions.
     """
-    
+
     def __init__(self, command_registry: CommandRegistry):
         self.registry = command_registry
         self.settings_manager = SettingsManager.getInstance()
         self.cache = CompletionCache(cache_duration=300.0)  # Cache API calls for 5 minutes
-        
+
         # Pre-compute available commands for faster access
         self.available_commands = self.registry.get_available_commands()
-        
+
         # Initialize OpenAI client for dynamic model fetching
         try:
             self.openai_client = OpenAI()
         except Exception:
             self.openai_client = None
-    
+
     def get_completions(self, document: Document, complete_event: Any) -> Generator[Completion, None, None]:
         """
         Generate completion suggestions based on current input context.
-        
+
         Args:
             document: The current document/input
             complete_event: Completion event from prompt_toolkit
-            
+
         Yields:
             Completion objects for matching suggestions
         """
         try:
             text_before_cursor = document.text_before_cursor
-            
+
             # Find the last command in the input
             last_command_info = self._parse_current_command(text_before_cursor)
-            
+
             if not last_command_info:
                 return
-            
+
             command_name, argument_part = last_command_info
-            
+
             if not command_name:
                 # Complete command names
                 yield from self._complete_command_names(argument_part)
             else:
                 # Complete arguments for specific command
                 yield from self._complete_command_arguments(command_name, argument_part)
-                
+
         except Exception:
             # Graceful degradation - don't break the completion system
             # In production, you might want to log this error
             pass
-    
+
     def _parse_current_command(self, text: str) -> Optional[tuple[Optional[str], str]]:
         """
         Parse the current command context from input text.
-        
+
         Returns:
             tuple: (command_name, argument_part) or None if no command context
         """
         text_lower = text.lower()
         last_double_dash = text_lower.rfind("--")
-        
+
         if last_double_dash == -1:
             return None
-        
+
         # Extract everything after the last "--"
         after_dash = text[last_double_dash + 2:]
-        
+
         # Split into command and argument parts
         parts = after_dash.split(" ", 1)
-        
+
         if len(parts) == 1:
             # Still typing command name
             return None, parts[0]
@@ -130,65 +130,65 @@ class CommandCompleter(Completer):
             command_name = "--" + parts[0]
             argument_part = parts[1] if len(parts) > 1 else ""
             return command_name, argument_part
-    
+
     def _fuzzy_match(self, partial: str, target: str) -> tuple[bool, int]:
         """
         Reusable fuzzy matching function for any string matching.
-        
+
         Args:
             partial: Partial input to match against
             target: Target string to match
-            
+
         Returns:
             tuple: (matches, score) where higher score = better match
         """
         partial_lower = partial.lower()
         target_lower = target.lower()
-        
+
         if not partial_lower:
             return True, 0
-        
+
         # Strategy 1: Exact start match (highest score)
         if target_lower.startswith(partial_lower):
             return True, 1000 + len(partial)
-        
+
         # Strategy 2: Subsequence match (e.g., "ragb" matches "rag-build")
         partial_idx = 0
         for char in target_lower:
             if partial_idx < len(partial_lower) and char == partial_lower[partial_idx]:
                 partial_idx += 1
-        
+
         if partial_idx == len(partial_lower):
             # All characters found in order
             return True, 500 + (100 - len(target)) + len(partial)
-        
+
         # Strategy 3: Contains substring anywhere
         if partial_lower in target_lower:
             return True, 300 + len(partial)
-        
+
         # Strategy 4: Edit distance (simple version - count matching characters)
         matching_chars = sum(1 for c in partial_lower if c in target_lower)
         if matching_chars >= len(partial_lower) * 0.7:  # At least 70% of characters match
             return True, 100 + matching_chars
-        
+
         return False, 0
 
     def _complete_command_names(self, partial_command: str) -> Generator[Completion, None, None]:
         """Complete command names with fuzzy matching based on partial input"""
         matches = []
-        
+
         for command in self.available_commands:
             command_keyword = command[2:]  # Remove "--" prefix
-            
+
             is_match, score = self._fuzzy_match(partial_command, command_keyword)
-            
+
             if is_match:
                 description = self.registry.get_command_description(command)
                 matches.append((score, command_keyword, description))
-        
+
         # Sort by score (higher is better), then alphabetically
         matches.sort(key=lambda x: (-x[0], x[1]))
-        
+
         # Yield completions in order of relevance
         for score, command_keyword, description in matches:
             yield Completion(
@@ -196,16 +196,16 @@ class CommandCompleter(Completer):
                 start_position=-len(partial_command),
                 display_meta=description
             )
-    
+
     def _complete_command_arguments(self, command_name: str, argument_part: str) -> Generator[Completion, None, None]:
         """Complete arguments for a specific command"""
         completion_rules = self.registry.get_completion_rules(command_name)
-        
+
         if not completion_rules:
             return
-        
+
         completion_type = completion_rules.completion_type
-        
+
         if completion_type == CompletionType.NONE:
             return
         elif completion_type == CompletionType.FILE_PATH:
@@ -226,13 +226,13 @@ class CommandCompleter(Completer):
             yield from self._complete_rag_collection_files(argument_part, completion_rules)
         elif completion_type == CompletionType.SIMPLE:
             yield from self._complete_simple_suggestions(argument_part, completion_rules)
-    
+
     def _complete_file_paths(self, partial_path: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete file paths with optional extension filtering"""
         try:
             # Expand user home directory
             expanded_path = os.path.expanduser(partial_path)
-            
+
             # Determine directory and filename parts
             if os.path.isdir(expanded_path):
                 directory = expanded_path
@@ -240,11 +240,11 @@ class CommandCompleter(Completer):
             else:
                 directory = os.path.dirname(expanded_path) or "."
                 filename_prefix = os.path.basename(expanded_path)
-            
+
             # Get file suggestions (convert list to tuple for caching)
             extensions_tuple = tuple(rules.file_extensions) if rules.file_extensions else None
             files = self._get_files_in_directory(directory, filename_prefix, extensions_tuple)
-            
+
             for file_path in files:
                 # Calculate the completion text
                 if partial_path.endswith("/") or not filename_prefix:
@@ -253,39 +253,42 @@ class CommandCompleter(Completer):
                 else:
                     completion_text = os.path.basename(file_path)
                     start_pos = -len(filename_prefix)
-                
+
                 yield Completion(
                     text=completion_text,
                     start_position=start_pos,
                     display_meta=self._get_file_display_meta(file_path)
                 )
-                
+
         except (OSError, PermissionError):
             # Handle file system errors gracefully
             pass
-    
+
     def _complete_log_files(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete log file names from the logs directory"""
         if not rules.base_directory or not os.path.exists(rules.base_directory):
             return
-        
+
         cache_key = f"logs:{partial_name}:{rules.base_directory}"
         cached_results = self.cache.get(cache_key)
-        
+
         if cached_results is None:
             # Search recursively for log files
             pattern = os.path.join(rules.base_directory, "**", "*.md")
             all_log_files = glob.glob(pattern, recursive=True)
-            
+
             # Filter by partial name
             matching_files = [
                 f for f in all_log_files
                 if partial_name.lower() in os.path.basename(f).lower()
             ]
-            
+
+            # Sort by modification time (most recent first)
+            matching_files.sort(key=lambda f: os.path.getmtime(f), reverse=True)
+
             self.cache.set(cache_key, matching_files)
             cached_results = matching_files
-        
+
         for log_file in cached_results:
             filename = os.path.basename(log_file)
             yield Completion(
@@ -293,16 +296,16 @@ class CommandCompleter(Completer):
                 start_position=-len(partial_name),
                 display_meta=f"Log: {self._get_relative_path(log_file, rules.base_directory)}"
             )
-    
+
     def _complete_instruction_files(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete instruction file names from the instructions directory"""
         if not rules.base_directory or not os.path.exists(rules.base_directory):
             return
-        
+
         try:
             files = os.listdir(rules.base_directory)
             markdown_files = [f for f in files if f.endswith('.md')]
-            
+
             for file in markdown_files:
                 if partial_name.lower() in file.lower():
                     yield Completion(
@@ -312,26 +315,26 @@ class CommandCompleter(Completer):
                     )
         except OSError:
             pass
-    
+
     def _complete_model_names(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete model names from OpenAI, Google, and Ollama APIs with fuzzy matching"""
         # Try to get dynamic models from all sources
         models = self._get_available_models()
-        
+
         # If we have models from APIs, use those with fuzzy matching
         if models:
             matches = []
             for model_info in models:
                 model_name = model_info["name"]
                 model_source = model_info["source"]
-                
+
                 is_match, score = self._fuzzy_match(partial_name, model_name)
                 if is_match:
                     matches.append((score, model_name, f"{model_source} Model"))
-            
+
             # Sort by score (higher is better), then alphabetically
             matches.sort(key=lambda x: (-x[0], x[1]))
-            
+
             for score, model_name, display_meta in matches:
                 yield Completion(
                     text=model_name,
@@ -347,7 +350,7 @@ class CommandCompleter(Completer):
                         start_position=-len(partial_name),
                         display_meta="Fallback Model"
                     )
-    
+
     def _complete_tts_models(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete TTS model names with fuzzy matching"""
         # OpenAI TTS models
@@ -356,23 +359,23 @@ class CommandCompleter(Completer):
             ("tts-1-hd", "High-definition TTS model, optimized for quality"),
             ("gpt-4o-mini-tts", "Latest GPT-based TTS model with improved prosody")
         ]
-        
+
         matches = []
         for model_name, description in tts_models:
             is_match, score = self._fuzzy_match(partial_name, model_name)
             if is_match:
                 matches.append((score, model_name, description))
-        
+
         # Sort by score (higher is better), then alphabetically
         matches.sort(key=lambda x: (-x[0], x[1]))
-        
+
         for score, model_name, description in matches:
             yield Completion(
                 text=model_name,
                 start_position=-len(partial_name),
                 display_meta=description
             )
-    
+
     def _complete_tts_voices(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete TTS voice names with fuzzy matching"""
         # OpenAI TTS voices with descriptions
@@ -384,45 +387,45 @@ class CommandCompleter(Completer):
             ("nova", "Bright, energetic voice"),
             ("shimmer", "Soft, gentle voice")
         ]
-        
+
         matches = []
         for voice_name, description in tts_voices:
             is_match, score = self._fuzzy_match(partial_name, voice_name)
             if is_match:
                 matches.append((score, voice_name, description))
-        
+
         # Sort by score (higher is better), then alphabetically
         matches.sort(key=lambda x: (-x[0], x[1]))
-        
+
         for score, voice_name, description in matches:
             yield Completion(
                 text=voice_name,
                 start_position=-len(partial_name),
                 display_meta=description
             )
-    
+
     def _complete_rag_collections(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete RAG collection names using VectorStore with fuzzy matching"""
         try:
             matches = []
-            
+
             # Special completion for 'off' option with fuzzy matching
             is_match, score = self._fuzzy_match(partial_name, "off")
             if is_match:
                 matches.append((score, "off", "Deactivate RAG mode"))
-            
+
             # Use VectorStore for collection discovery (DRY principle)
             vector_store = VectorStore()
             collections = vector_store.get_available_collections()
-            
+
             for collection in collections:
                 is_match, score = self._fuzzy_match(partial_name, collection)
                 if is_match:
                     matches.append((score, collection, "RAG collection"))
-            
+
             # Sort by score (higher is better), then alphabetically
             matches.sort(key=lambda x: (-x[0], x[1]))
-            
+
             for score, text, display_meta in matches:
                 yield Completion(
                     text=text,
@@ -432,7 +435,7 @@ class CommandCompleter(Completer):
         except Exception:
             # Silently fail if there are any issues with directory access
             pass
-    
+
     def _complete_rag_collection_files(self, partial_filename: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete with files from the active RAG collection"""
         try:
@@ -440,48 +443,48 @@ class CommandCompleter(Completer):
             active_collection = self.settings_manager.setting_get("rag_active_collection")
             if not active_collection:
                 return
-                
+
             # Get the collection path
             working_dir = self.settings_manager.setting_get("working_dir")
             collection_path = os.path.join(working_dir, "rag", active_collection)
-            
+
             if not os.path.exists(collection_path) or not os.path.isdir(collection_path):
                 return
-                
+
             # Get all supported files in the collection (recursively)
             supported_extensions = get_supported_extensions()
             files = []
-            
+
             for root, dirs, filenames in os.walk(collection_path):
                 for filename in filenames:
                     file_ext = os.path.splitext(filename)[1].lower()
-                    
+
                     if file_ext in supported_extensions:
                         # Get relative path from collection root
                         file_path = os.path.join(root, filename)
                         relative_path = os.path.relpath(file_path, collection_path)
                         files.append(relative_path)
-            
+
             # Filter files based on partial input with smart fuzzy matching
             partial_lower = partial_filename.lower()
             for file_path in sorted(files):
                 file_path_lower = file_path.lower()
                 filename = os.path.basename(file_path).lower()
-            
+
                 # Try multiple matching strategies for better UX:
                 # 1. Full path starts with partial (original behavior)
                 # 2. Filename starts with partial (user-friendly for nested files)
                 # 3. Any part of the path contains partial (fuzzy matching)
-                if (file_path_lower.startswith(partial_lower) or 
-                    filename.startswith(partial_lower) or 
+                if (file_path_lower.startswith(partial_lower) or
+                    filename.startswith(partial_lower) or
                     partial_lower in file_path_lower):
-                
+
                     yield Completion(
                         text=file_path,
                         start_position=-len(partial_filename),
                         display_meta="RAG file"
                     )
-                    
+
         except Exception:
             # Graceful degradation - don't break completion
             return
@@ -490,60 +493,60 @@ class CommandCompleter(Completer):
         """Complete with simple static suggestions using fuzzy matching"""
         if not rules.custom_suggestions:
             return
-        
+
         matches = []
         for suggestion in rules.custom_suggestions:
             is_match, score = self._fuzzy_match(partial_text, suggestion)
             if is_match:
                 matches.append((score, suggestion))
-        
+
         # Sort by score (higher is better), then alphabetically
         matches.sort(key=lambda x: (-x[0], x[1]))
-        
+
         for score, suggestion in matches:
             yield Completion(
                 text=suggestion,
                 start_position=-len(partial_text)
             )
-    
+
     @lru_cache(maxsize=100)
     def _get_files_in_directory(self, directory: str, prefix: str, extensions: Optional[tuple] = None) -> List[str]:
         """Get files in directory with optional prefix and extension filtering (cached)"""
         try:
             if not os.path.exists(directory):
                 return []
-            
+
             files = []
             for item in os.listdir(directory):
                 item_path = os.path.join(directory, item)
-                
+
                 # Skip if doesn't match prefix
                 if prefix and not item.lower().startswith(prefix.lower()):
                     continue
-                
+
                 # Include directories for navigation
                 if os.path.isdir(item_path):
                     files.append(item_path + "/")
                     continue
-                
+
                 # Filter by extensions if specified
                 if extensions:
                     if any(item.lower().endswith(ext.lower()) for ext in extensions):
                         files.append(item_path)
                 else:
                     files.append(item_path)
-            
+
             return sorted(files)
-            
+
         except (OSError, PermissionError):
             return []
-    
+
     def _get_file_display_meta(self, file_path: str) -> str:
         """Get display metadata for instruction and log files"""
         try:
             if os.path.isdir(file_path):
                 return "Directory"
-            
+
             # Get file size
             size = os.path.getsize(file_path)
             if size < 1024:
@@ -552,7 +555,7 @@ class CommandCompleter(Completer):
                 size_str = f"{size // 1024}KB"
             else:
                 size_str = f"{size // (1024 * 1024)}MB"
-            
+
             # Get file extension - only handle relevant types
             ext = os.path.splitext(file_path)[1].lower()
             if ext == '.md':
@@ -561,54 +564,54 @@ class CommandCompleter(Completer):
                 file_type = 'JSON'
             else:
                 file_type = 'File'
-            
+
             return f"{file_type} ({size_str})"
-            
+
         except OSError:
             return "File"
-    
+
     def _get_relative_path(self, file_path: str, base_dir: str) -> str:
         """Get relative path from base directory"""
         try:
             return os.path.relpath(file_path, base_dir)
         except ValueError:
             return os.path.basename(file_path)
-    
+
     def _get_available_models(self) -> List[Dict[str, str]]:
         """Get available models from OpenAI, Google, and Ollama APIs with persistent caching"""
         all_models = []
-        
+
         # Get OpenAI models (with persistent cache)
         openai_models = self._get_openai_models_cached()
         for model in openai_models:
             all_models.append({"name": model, "source": "OpenAI"})
-        
+
         # Get Google models (with persistent cache)
         google_models = self._get_google_models_cached()
         for model in google_models:
             all_models.append({"name": model, "source": "Google"})
-        
+
         # Get Ollama models (always live, no cache)
         ollama_models = self._get_ollama_models()
         for model in ollama_models:
             all_models.append({"name": model, "source": "Ollama"})
-        
+
         return all_models
-    
+
     def _get_openai_models_cached(self) -> List[str]:
         """Get available models from OpenAI API with persistent caching"""
         # Try to load from cache first
         cached_models = self._load_models_from_cache("openai")
         if cached_models is not None:
             return cached_models
-        
+
         # Cache miss or expired, try to fetch from API
         fresh_models = self._get_openai_models()
         if fresh_models:
             # Save to cache if API call succeeded
             self._save_models_to_cache("openai", fresh_models)
             return fresh_models
-        
+
         # API call failed, try to use expired cache as fallback
         cache_path = self._get_cache_file_path("openai")
         if os.path.exists(cache_path):
@@ -618,34 +621,34 @@ class CommandCompleter(Completer):
                 return cache_data.get("models", [])
             except (json.JSONDecodeError, KeyError, OSError):
                 pass
-        
+
         return []
 
     def _get_openai_models(self) -> List[str]:
         """Get available models from OpenAI API (no caching)"""
         if not self.openai_client:
             return []
-        
+
         try:
             # Fetch models from OpenAI API
             models_response = self.openai_client.models.list()
-            
+
             # Extract model IDs and filter for relevant ones
             all_models = [model.id for model in models_response.data]
-            
+
             # Filter for GPT models
             filtered_models = []
-            
+
             for model in all_models:
                 if any(keyword in model.lower() for keyword in ['gpt', 'o1']):
                     filtered_models.append(model)
-            
+
             return filtered_models
-            
+
         except Exception:
             # If API call fails, return empty list (will fallback to predefined)
             return []
-    
+
     def _get_ollama_models(self) -> List[str]:
         """Get available models from Ollama with graceful error handling"""
         try:
@@ -653,49 +656,49 @@ class CommandCompleter(Completer):
             settings = SettingsManager.getInstance()
             base_url = settings.setting_get("ollama_base_url")
             url = f"{base_url}/api/tags"
-            
+
             # Create request with short timeout
             req = urllib.request.Request(url)
             req.add_header('Content-Type', 'application/json')
-            
+
             # Very short timeout - we don't want to block if Ollama isn't available
             with urllib.request.urlopen(req, timeout=2) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode('utf-8'))
-                    
+
                     models = []
                     if 'models' in data:
                         for model in data['models']:
                             model_name = model.get('name', '')
                             if model_name:
                                 models.append(model_name)
-                    
+
 
                     return models
-                    
+
         except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
             # Ollama not available, connection failed, or invalid response - silently continue
             pass
         except Exception:
             # Any other error - silently continue to not break the application
             pass
-        
+
         return []
-    
+
     def _get_google_models_cached(self) -> List[str]:
         """Get available models from Google Gemini API with persistent caching"""
         # Try to load from cache first
         cached_models = self._load_models_from_cache("google")
         if cached_models is not None:
             return cached_models
-        
+
         # Cache miss or expired, try to fetch from API
         fresh_models = self._get_google_models()
         if fresh_models:
             # Save to cache if API call succeeded
             self._save_models_to_cache("google", fresh_models)
             return fresh_models
-        
+
         # API call failed, try to use expired cache as fallback
         cache_path = self._get_cache_file_path("google")
         if os.path.exists(cache_path):
@@ -705,28 +708,28 @@ class CommandCompleter(Completer):
                 return cache_data.get("models", [])
             except (json.JSONDecodeError, KeyError, OSError):
                 pass
-        
+
         return []
 
     def _get_google_models(self) -> List[str]:
         """Get available models from Google Gemini API (no caching)"""
         try:
             import os
-            
+
             # Check if API key is available
             api_key = os.environ.get("GOOGLE_API_KEY")
             if not api_key:
                 return []
-            
+
             # Get Google models from API
             url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
             req = urllib.request.Request(url)
             req.add_header('Content-Type', 'application/json')
-            
+
             with urllib.request.urlopen(req, timeout=3) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode('utf-8'))
-                    
+
                     models = []
                     if 'models' in data:
                         for model_info in data['models']:
@@ -735,22 +738,22 @@ class CommandCompleter(Completer):
                                 # Extract model name from "models/gemini-1.5-flash" format
                                 if model_name.startswith('models/'):
                                     model_name = model_name[7:]  # Remove "models/" prefix
-                                
+
                                 # Filter for chat-capable models (exclude embeddings, vision-only, etc.)
                                 if any(keyword in model_name.lower() for keyword in ['gemini', 'palm', 'bard']):
                                     # Skip deprecated or vision-only models
                                     if not any(skip in model_name.lower() for skip in ['vision', 'embedding', 'deprecated']):
                                         models.append(model_name)
-                    
+
                     return models
-                    
+
         except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
             # Google API not available, connection failed, or invalid response
             pass
         except Exception:
             # Any other error - silently continue to not break the application
             pass
-        
+
         return []
 
     def refresh_cache(self) -> None:
@@ -779,31 +782,31 @@ class CommandCompleter(Completer):
     def _load_models_from_cache(self, source: str) -> Optional[List[str]]:
         """Load models from cache file if valid"""
         cache_path = self._get_cache_file_path(source)
-        
+
         if not os.path.exists(cache_path):
             return None
 
         try:
             with open(cache_path, 'r') as f:
                 cache_data = json.load(f)
-            
+
             if not self._is_cache_valid(cache_data, source):
                 return None
-                
+
             return cache_data.get("models", [])
-            
+
         except (json.JSONDecodeError, KeyError, OSError):
             return None
 
     def _save_models_to_cache(self, source: str, models: List[str]) -> None:
         """Save models to cache file"""
         cache_path = self._get_cache_file_path(source)
-        
+
         cache_data = {
             "last_updated": datetime.now(timezone.utc).isoformat(),
             "models": models
         }
-        
+
         try:
             with open(cache_path, 'w') as f:
                 json.dump(cache_data, f, indent=2)
@@ -816,10 +819,10 @@ class CommandCompleter(Completer):
             last_updated_str = cache_data.get("last_updated")
             if not last_updated_str:
                 return False
-                
+
             last_updated = datetime.fromisoformat(last_updated_str.replace('Z', '+00:00'))
             now = datetime.now(timezone.utc)
-            
+
             # Get cache expiration hours from settings
             from settings_manager import SettingsManager
             settings = SettingsManager.getInstance()
@@ -829,9 +832,9 @@ class CommandCompleter(Completer):
                 cache_hours = settings.setting_get("google_models_cache_hours")
             else:
                 return False
-                
+
             cache_duration_seconds = cache_hours * 3600
             return (now - last_updated).total_seconds() < cache_duration_seconds
-            
+
         except (ValueError, TypeError):
             return False
