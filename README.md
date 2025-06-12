@@ -4,6 +4,8 @@
 
 A terminal AI assistant with advanced features including RAG (Retrieval-Augmented Generation), web search, TTS, and more.
 
+As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I found myself preferring terminal-based workflows. I created Samantha AI to bring the powerful features I love from modern AI interfaces directly to the command line.
+
 ## Features
 
 - **Multi-Provider AI**: OpenAI models, Google Gemini, and Ollama (local models)
