@@ -27,7 +27,7 @@ class SettingsManager:
 
         # API Settings
         self.api = "openai"
-        self.model = "gpt-4.1"
+        self.model = "gpt-4.1-mini"
         self.ollama_base_url = "http://localhost:11434"
 
         # Cache Settings
