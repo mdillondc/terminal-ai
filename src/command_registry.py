@@ -16,7 +16,7 @@ class CompletionType(Enum):
     """Defines different types of completion behavior for commands"""
     SIMPLE = "simple"  # Just command name completion
     FILE_PATH = "file_path"  # File path completion
-    LOG_FILE = "log_file"  # Log file completion  
+    LOG_FILE = "log_file"  # Log file completion
     INSTRUCTION_FILE = "instruction_file"  # Instruction file completion
     MODEL_NAME = "model_name"  # Model name suggestions
     TTS_MODEL = "tts_model"  # TTS model suggestions
@@ -51,19 +51,19 @@ class CommandInfo:
 class CommandRegistry:
     """
     Central registry for all commands in the application.
-    
+
     This class maintains a single source of truth for command definitions,
     their metadata, and completion behavior.
     """
-    
+
     def __init__(self, working_dir: str):
         self.working_dir = working_dir
         self._commands: Dict[str, CommandInfo] = {}
         self._initialize_default_commands()
-    
+
     def _initialize_default_commands(self) -> None:
         """Initialize all default commands with their metadata and completion rules"""
-        
+
         # Core commands
         self.register_command(CommandInfo(
             name="--help",
@@ -73,7 +73,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         self.register_command(CommandInfo(
             name="--model",
             description="Switches the underlying AI model. Use this to select a different AI model for processing commands (dynamically fetched from OpenAI, Google, and Ollama APIs).",
@@ -85,7 +85,7 @@ class CommandRegistry:
             ),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--refresh-models",
             description="Clears the model cache and forces a fresh fetch of available models from OpenAI and Google APIs.",
@@ -94,7 +94,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         # Content processing commands
         self.register_command(CommandInfo(
             name="--instructions",
@@ -108,7 +108,7 @@ class CommandRegistry:
             ),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--youtube",
             description="Extract transcript, send to AI. Use appropriate instructions to e.g. summarize video.",
@@ -117,7 +117,16 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=True
         ))
-        
+
+        self.register_command(CommandInfo(
+            name="--url",
+            description="Extract content from any website URL and send to AI for analysis.",
+            usage="--url https://example.com/article",
+            execution_order=2,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=True
+        ))
+
         self.register_command(CommandInfo(
             name="--search",
             description="Toggles web search mode on or off. When enabled, user prompts are automatically enhanced with Tavily web search results.",
@@ -126,7 +135,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         self.register_command(CommandInfo(
             name="--nothink",
             description="Toggles nothink mode on or off. When enabled, user messages are prepended with '/nothink ' to disable thinking on thinking Ollama models.",
@@ -154,7 +163,7 @@ class CommandRegistry:
             requires_argument=False
         ))
 
-        
+
         self.register_command(CommandInfo(
             name="--cb",
             description="Use clipboard contents as input.",
@@ -163,7 +172,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         # Conversation management commands
         self.register_command(CommandInfo(
             name="--log",
@@ -177,7 +186,7 @@ class CommandRegistry:
             ),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--logmv",
             description="Renames the current conversation's log file.",
@@ -186,7 +195,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         # TTS commands
         self.register_command(CommandInfo(
             name="--tts",
@@ -196,7 +205,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         self.register_command(CommandInfo(
             name="--tts-model",
             description="Changes the Text-to-Speech model to alter the voice synthesis.",
@@ -208,7 +217,7 @@ class CommandRegistry:
             ),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--tts-voice",
             description="Selects a different voice for Text-to-Speech responses.",
@@ -220,7 +229,7 @@ class CommandRegistry:
             ),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--tts-save-as-mp3",
             description="[EXPERIMENTAL] Save TTS responses to a MP3 files.",
@@ -229,7 +238,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         # Utility commands
         self.register_command(CommandInfo(
             name="--text",
@@ -239,7 +248,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=True
         ))
-        
+
         # RAG (Retrieval-Augmented Generation) commands
         self.register_command(CommandInfo(
             name="--rag",
@@ -249,7 +258,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
             requires_argument=False
         ))
-        
+
         self.register_command(CommandInfo(
             name="--rag-build",
             description="Build/rebuild embeddings index for a RAG collection.",
@@ -258,7 +267,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--rag-refresh",
             description="Force refresh/rebuild embeddings index for a RAG collection.",
@@ -267,7 +276,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--rag-show",
             description="Show relevant chunks from a file in the active RAG collection.",
@@ -276,7 +285,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION_FILE),
             requires_argument=True
         ))
-        
+
         self.register_command(CommandInfo(
             name="--rag-status",
             description="Show current RAG status and configuration.",
@@ -285,7 +294,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         self.register_command(CommandInfo(
             name="--rag-test",
             description="Test connection to the current embedding provider.",
@@ -294,7 +303,7 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
+
         self.register_command(CommandInfo(
             name="--rag-info",
             description="Show detailed information about the current embedding model and provider configuration.",
@@ -303,48 +312,48 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
-        
 
-    
+
+
     def register_command(self, command_info: CommandInfo) -> None:
         """Register a new command in the registry"""
         self._commands[command_info.name] = command_info
-        
+
         # Also register any aliases
         if command_info.aliases:
             for alias in command_info.aliases:
                 self._commands[alias] = command_info
-    
+
     def get_available_commands(self) -> List[str]:
         """Get list of all available command names"""
         # Return only the primary command names (not aliases)
         return sorted([
-            cmd for cmd, info in self._commands.items() 
+            cmd for cmd, info in self._commands.items()
             if cmd == info.name  # Only primary names, not aliases
         ])
-    
+
     def get_command_info(self, command_name: str) -> Optional[CommandInfo]:
         """Get complete information about a command"""
         return self._commands.get(command_name)
-    
+
     def get_completion_rules(self, command_name: str) -> Optional[CompletionRules]:
         """Get completion rules for a specific command"""
         command_info = self.get_command_info(command_name)
         return command_info.completion_rules if command_info else None
-    
+
     def command_exists(self, command_name: str) -> bool:
         """Check if a command exists in the registry"""
         return command_name in self._commands
-    
+
     def requires_argument(self, command_name: str) -> bool:
         """Check if a command requires an argument"""
         command_info = self.get_command_info(command_name)
         return command_info.requires_argument if command_info else False
-    
+
     def get_commands_by_execution_order(self) -> Dict[int, List[CommandInfo]]:
         """Get commands grouped by their execution order"""
         by_order: Dict[int, List[CommandInfo]] = {}
-        
+
         # Only include primary commands (not aliases)
         for command_info in self._commands.values():
             if command_info.name in self._commands:  # Is primary command
@@ -353,49 +362,49 @@ class CommandRegistry:
                     by_order[order] = []
                 if command_info not in by_order[order]:  # Avoid duplicates
                     by_order[order].append(command_info)
-        
+
         return by_order
-    
+
     def get_command_description(self, command_name: str) -> str:
         """Get description for a command, with fallback"""
         command_info = self.get_command_info(command_name)
         return command_info.description if command_info else "No description available"
-    
+
     def get_command_usage(self, command_name: str) -> str:
         """Get usage example for a command, with fallback"""
         command_info = self.get_command_info(command_name)
         return command_info.usage if command_info else f"{command_name} <args>"
-    
+
     def validate_command_input(self, command_name: str, argument: Optional[str] = None) -> tuple[bool, Optional[str]]:
         """
         Validate command input and return (is_valid, error_message)
-        
+
         Returns:
             tuple: (True, None) if valid, (False, error_message) if invalid
         """
         command_info = self.get_command_info(command_name)
-        
+
         if not command_info:
             return False, f"Unknown command: {command_name}"
-        
+
         if command_info.requires_argument and not argument:
             return False, f"Command {command_name} requires an argument. Usage: {command_info.usage}"
-        
+
         # Check custom validator if present
-        if (command_info.completion_rules.validator and 
-            argument and 
+        if (command_info.completion_rules.validator and
+            argument and
             not command_info.completion_rules.validator(argument)):
             return False, f"Invalid argument for {command_name}: {argument}"
-        
+
         return True, None
-    
+
     def get_legacy_command_descriptions(self) -> Dict[str, Dict[str, Any]]:
         """
         Get command descriptions in the legacy format for backward compatibility.
         This allows existing code to continue working while we transition.
         """
         legacy_format = {}
-        
+
         for command_name, command_info in self._commands.items():
             if command_name == command_info.name:  # Only primary commands
                 legacy_format[command_name] = {
@@ -403,5 +412,5 @@ class CommandRegistry:
                     "usage": command_info.usage,
                     "execution_order": command_info.execution_order
                 }
-        
+
         return legacy_format

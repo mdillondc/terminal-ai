@@ -10,6 +10,7 @@ A terminal AI assistant with advanced features including RAG (Retrieval-Augmente
 - **RAG System**: Query your own documents with intelligent retrieval
 - **Web Search**: Real-time information via Tavily API
 - **YouTube Integration**: Extract and analyze video transcripts
+- **URL Content Extraction**: Extract and analyze content from any website
 - **Text-to-Speech**: Convert responses to natural speech
 - **Conversation Management**: Save, resume, and organize conversations
 - **Rich Commands**: Extensible command system with tab completion
@@ -67,6 +68,9 @@ A terminal AI assistant with advanced features including RAG (Retrieval-Augmente
 
 # Analyze YouTube video
 > --youtube https://youtube.com/watch?v=example
+
+# Extract content from any website
+> --url https://example.com/article
 
 # Use clipboard content
 > --cb

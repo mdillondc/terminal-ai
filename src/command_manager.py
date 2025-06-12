@@ -8,6 +8,7 @@ from openai import OpenAI
 
 from command_completer import CommandCompleter
 from tavily_search import create_tavily_search, TavilySearchError
+from web_content_extractor import WebContentExtractor
 
 
 class CommandManager:
@@ -19,7 +20,7 @@ class CommandManager:
         self.completer = CommandCompleter(self.command_registry)
         self.working_dir = self.settings_manager.setting_get("working_dir")
         self.client = OpenAI()
-        
+
         # Initialize RAG engine
         try:
             from rag_engine import RAGEngine
@@ -75,7 +76,7 @@ class CommandManager:
                     self.print_command_result(" - Cannot rename log: incognito mode is enabled (no logging active)")
                     command_processed = True
                     continue
-                    
+
                 title = None
                 if arg is None:
                     print("\n - No log file name specified. AI will suggest log filename for you.")
@@ -96,7 +97,7 @@ class CommandManager:
                     self.print_command_result(" - Cannot load log: incognito mode is enabled (no logging active)")
                     command_processed = True
                     continue
-                    
+
                 if arg is None:
                     print(" - (!) Please specify the log you want to use.")
                 else:
@@ -121,6 +122,13 @@ class CommandManager:
                     print(" - (!) please specify a youtube url.")
                 else:
                     self.youtube(arg)
+
+                command_processed = True
+            elif command.startswith("--url"):
+                if arg is None:
+                    print(" - (!) please specify a URL.")
+                else:
+                    self.url(arg)
 
                 command_processed = True
             elif command == "--search":
@@ -249,13 +257,13 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         collections = self.rag_engine.list_collections()
         if not collections:
             print(" - No RAG collections found in rag/ directory")
             print(" - Create collections by making directories in rag/collection_name/")
             return
-        
+
         print(" - Available RAG collections:")
         for i, collection in enumerate(collections, 1):
             status_info = []
@@ -266,10 +274,10 @@ class CommandManager:
                     status_info.append("- needs rebuild")
             else:
                 status_info.append("- not built")
-            
+
             status = f"({', '.join(status_info)})" if status_info else ""
             print(f"   {i}. {collection['name']} - {collection['file_count']} files {status}")
-        
+
         print("\n - Usage:")
         print("   --rag <collection_name>  # Activate collection")
         print("   --rag-build <name>       # Build/rebuild collection index")
@@ -279,7 +287,7 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         success = self.rag_engine.activate_collection(collection_name)
         if not success:
             # Error messages are printed by the RAG engine
@@ -292,7 +300,7 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         self.rag_engine.deactivate_collection()
 
     def rag_build(self, collection_name: str) -> None:
@@ -300,7 +308,7 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         self.rag_engine.build_collection(collection_name, force_rebuild=True)
 
     def rag_refresh(self, collection_name: str) -> None:
@@ -308,7 +316,7 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         self.rag_engine.refresh_collection(collection_name)
 
     def rag_show(self, filename: str) -> None:
@@ -316,7 +324,7 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         result = self.rag_engine.show_chunk_in_file(filename)
         print(result)
 
@@ -325,21 +333,21 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         status = self.rag_engine.get_status()
         print(" - RAG Status:")
         print(f"   Active: {status['active']}")
         if status['active']:
             print(f"   Collection: {status['active_collection']}")
             print(f"   Chunks loaded: {status['chunk_count']}")
-        
+
         print(f"   Available collections: {status['available_collections']}")
-        
+
         # Show embedding provider information
         try:
             provider = self.settings_manager.setting_get("embedding_provider")
             print(f"   Embedding provider: {provider}")
-            
+
             if provider == "openai":
                 model = self.settings_manager.setting_get("openai_embedding_model")
                 print(f"   OpenAI model: {model}")
@@ -350,7 +358,7 @@ class CommandManager:
                 print(f"   Ollama URL: {ollama_url}")
         except Exception as e:
             print(f"   Provider info: Error getting provider details")
-        
+
         print(f"   Settings:")
         for key, value in status['settings'].items():
             print(f"     {key}: {value}")
@@ -360,26 +368,26 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         if not self.rag_engine.is_active():
             print(" - No RAG collection is active")
             print(" - Use --rag <collection> to activate a collection first")
             return
-            
+
         print(f" - Testing RAG query: '{query}'")
         print(" - " + "="*50)
-        
+
         try:
             # Test the full RAG context generation
             rag_context, rag_sources = self.rag_engine.get_context_for_query(query)
-            
+
             if rag_context:
                 print(f" - Found {len(rag_sources)} relevant chunks")
                 print(" - Context that would be sent to AI:")
                 print(" - " + "-"*30)
                 print(f" - {rag_context}")
                 print(" - " + "-"*30)
-                
+
                 if rag_sources:
                     print(" - Source details:")
                     for i, source in enumerate(rag_sources, 1):
@@ -389,7 +397,7 @@ class CommandManager:
             else:
                 print("- No relevant content found for this query")
                 print(" - This means the query didn't match any document content")
-                
+
         except Exception as e:
             print(f" - Error during RAG query: {e}")
 
@@ -400,32 +408,32 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         try:
             provider = self.settings_manager.setting_get("embedding_provider")
             print(f" - Testing connection to {provider} embedding service...")
-            
+
             # Test using the embedding service
             success = self.rag_engine.embedding_service.test_connection()
-            
+
             if success:
                 print(f" - Connection to {provider} successful!")
-                
+
                 # Show additional info
                 model_info = self.rag_engine.embedding_service.get_embedding_model_info()
                 model = model_info.get("model", "unknown")
                 dimensions = self.rag_engine.embedding_service.get_embedding_dimensions()
                 print(f" - Model: {model}")
                 print(f" - Dimensions: {dimensions}")
-                
+
                 if provider == "ollama":
                     info = model_info.get("info", {})
                     if info.get("multilingual"):
                         print(f" - Languages: {info.get('languages', 'Multiple languages supported')}")
-                
+
             else:
                 print(f" - Connection to {provider} failed!")
-                
+
                 if provider == "ollama":
                     ollama_url = self.settings_manager.setting_get("ollama_base_url")
                     print(f" - Check that Ollama is running at: {ollama_url}")
@@ -433,7 +441,7 @@ class CommandManager:
                     print(f" - Check that model '{model}' is available in Ollama")
                 elif provider == "openai":
                     print(" - Check your OpenAI API key and internet connection")
-                    
+
         except Exception as e:
             print(f" - Error testing connection: {e}")
 
@@ -442,19 +450,19 @@ class CommandManager:
         if not self.rag_engine:
             print(" - RAG engine not available")
             return
-            
+
         try:
             model_info = self.rag_engine.embedding_service.get_embedding_model_info()
             provider = model_info.get("provider", "unknown")
             model = model_info.get("model", "unknown")
             info = model_info.get("info", {})
-            
+
             print("- Embedding Model Information:")
             print(f" - Provider: {provider}")
             print(f" - Model: {model}")
             print(f" - Dimensions: {info.get('dimensions', 'unknown')}")
             print(f" - Max tokens: {info.get('max_tokens', 'unknown')}")
-            
+
             if provider == "openai":
                 cost = info.get('cost_per_1k_tokens', 0)
                 print(f" - Cost per 1K tokens: ${cost}")
@@ -465,13 +473,13 @@ class CommandManager:
                     languages = info.get('languages')
                     if languages:
                         print(f" - Languages: {languages}")
-                        
+
             # Show current settings
             print("- Current RAG Settings:")
             print(f" - Chunk size: {self.settings_manager.setting_get('rag_chunk_size')} tokens")
             print(f" - Chunk overlap: {self.settings_manager.setting_get('rag_chunk_overlap')} tokens")
             print(f" - Top K results: {self.settings_manager.setting_get('rag_top_k')}")
-            
+
         except Exception as e:
             print(f" - Error getting model info: {e}")
 
@@ -484,24 +492,24 @@ class CommandManager:
     def _validate_model(self, model_name: str) -> bool:
         """
         Validate if a model name is available from OpenAI, Google, or Ollama APIs.
-        
+
         Args:
             model_name: The model name to validate
-            
+
         Returns:
             bool: True if model is valid, False otherwise
         """
         try:
             # Get available models using the same logic as command completer
             available_models = self.completer._get_available_models()
-            
+
             # Check if model exists in available models
             for model_info in available_models:
                 if model_info["name"] == model_name:
                     return True
-            
+
             return False
-            
+
         except Exception:
             # If we can't fetch models, allow the model (fallback behavior)
             return True
@@ -527,41 +535,41 @@ class CommandManager:
         if not self._validate_model(model):
             print(f" - (!) Invalid model: {model}")
             print(" - Model not found in OpenAI, Google, or Ollama APIs")
-            
+
             # Show available models
             try:
                 available_models = self.completer._get_available_models()
                 if available_models:
                     print(" - Available models:")
-                    
+
                     # Group by source
                     openai_models = [m["name"] for m in available_models if m["source"] == "OpenAI"]
                     ollama_models = [m["name"] for m in available_models if m["source"] == "Ollama"]
                     google_models = [m["name"] for m in available_models if m["source"] == "Google"]
-                    
+
                     if openai_models:
-                        print(f"   OpenAI: {', '.join(openai_models[:5])}" + 
+                        print(f"   OpenAI: {', '.join(openai_models[:5])}" +
                               (f" (and {len(openai_models)-5} more)" if len(openai_models) > 5 else ""))
-                    
+
                     if google_models:
                         print(f"   Google: {', '.join(google_models)}")
-                    
+
                     if ollama_models:
                         print(f"   Ollama: {', '.join(ollama_models)}")
-                        
+
                     if not openai_models and not ollama_models and not google_models:
                         print("   (No models available - check API keys and network connection)")
                 else:
                     print("   (Unable to fetch available models)")
             except Exception:
                 print("   (Unable to fetch available models)")
-            
+
             return
 
         # Set the model (this will trigger client update in conversation manager)
         self.conversation_manager.model = model
         self.settings_manager.setting_set("model", model)
-        
+
         # Determine model source and show appropriate message
         if self.conversation_manager._is_ollama_model(model):
             ollama_url = self.settings_manager.setting_get("ollama_base_url")
@@ -634,19 +642,19 @@ class CommandManager:
                         'skip_download': True,
                         'extract_flat': False
                     }
-                    
+
                     # Get subtitle information
                     with yt_dlp.YoutubeDL(subtitle_opts) as ydl:
                         subtitle_info = ydl.extract_info(video_url, download=False)
-                        
+
                         transcript_text = None
                         subtitles = subtitle_info.get('subtitles', {}) if subtitle_info else {}
                         automatic_captions = subtitle_info.get('automatic_captions', {}) if subtitle_info else {}
-                        
+
                         # Try to find English subtitles in order of preference
                         subtitle_data = None
                         subtitle_source = None
-                        
+
                         # First try manual English subtitles
                         for lang in ['en', 'en-US', 'en-GB', 'en-CA', 'en-AU']:
                             if lang in subtitles and subtitles[lang]:
@@ -654,7 +662,7 @@ class CommandManager:
                                 subtitle_source = f"manual {lang}"
                                 print(f" - Found manual {lang} subtitles")
                                 break
-                        
+
                         # If no manual subtitles, try automatic captions
                         if not subtitle_data:
                             for lang in ['en', 'en-US', 'en-GB', 'en-CA', 'en-AU']:
@@ -663,12 +671,12 @@ class CommandManager:
                                     subtitle_source = f"auto-generated {lang}"
                                     print(f" - Found auto-generated {lang} captions")
                                     break
-                        
+
                         if subtitle_data:
                             # Find the best subtitle format (prefer vtt, then srv3, then srv2, then srv1)
                             preferred_formats = ['vtt', 'srv3', 'srv2', 'srv1']
                             subtitle_url = None
-                            
+
                             for fmt in preferred_formats:
                                 for sub in subtitle_data:
                                     if sub.get('ext') == fmt:
@@ -676,53 +684,53 @@ class CommandManager:
                                         break
                                 if subtitle_url:
                                     break
-                            
+
                             if not subtitle_url and subtitle_data:
                                 # Use first available subtitle format
                                 subtitle_url = subtitle_data[0].get('url')
-                            
+
                             if subtitle_url:
                                 # Download and parse the subtitle file
                                 try:
                                     response = requests.get(subtitle_url, timeout=10)
                                     if response.status_code == 200:
                                         subtitle_content = response.text
-                                        
+
                                         # Parse VTT or SRV format to extract text
                                         import re
-                                        
+
                                         # Remove VTT headers and timing information
                                         lines = subtitle_content.split('\n')
                                         text_lines = []
-                                        
+
                                         for line in lines:
                                             line = line.strip()
                                             # Skip empty lines, headers, and timing lines
-                                            if (line and 
+                                            if (line and
                                                 not line.startswith('WEBVTT') and
                                                 not line.startswith('NOTE') and
                                                 not '-->' in line and
                                                 not re.match(r'^\d+$', line) and
                                                 not line.startswith('<') and
                                                 not line.startswith('{')):
-                                                
+
                                                 # Clean up HTML tags and formatting
                                                 clean_line = re.sub(r'<[^>]+>', '', line)
                                                 clean_line = re.sub(r'&[a-zA-Z]+;', '', clean_line)
                                                 clean_line = clean_line.strip()
-                                                
+
                                                 if clean_line:
                                                     text_lines.append(clean_line)
-                                        
+
                                         transcript_text = ' '.join(text_lines)
-                                        
+
                                         if transcript_text:
                                             print(f" - Successfully extracted transcript from {subtitle_source}")
                                             print(f" - Processing {len(transcript_text)} characters as input...")
-                                            
+
                                             user_input = (
-                                                "Channel title: " + channel_title + 
-                                                "\nVideo title: " + video_title + 
+                                                "Channel title: " + channel_title +
+                                                "\nVideo title: " + video_title +
                                                 "\nVideo transcript: " + transcript_text
                                             )
                                             self.conversation_manager.conversation_history.append(
@@ -733,7 +741,7 @@ class CommandManager:
                                             raise Exception("Transcript text was empty after parsing")
                                     else:
                                         raise Exception(f"Failed to download subtitles: HTTP {response.status_code}")
-                                        
+
                                 except Exception as subtitle_error:
                                     print(f" - Error processing subtitle file: {subtitle_error}")
                                     raise subtitle_error
@@ -754,8 +762,8 @@ class CommandManager:
                     print(" - Continuing with video info only...")
                     # Still provide video info even without transcript
                     user_input = (
-                        "Channel title: " + channel_title + 
-                        "\nVideo title: " + video_title + 
+                        "Channel title: " + channel_title +
+                        "\nVideo title: " + video_title +
                         "\nNote: No transcript could be extracted for this video."
                     )
                     self.conversation_manager.conversation_history.append(
@@ -769,6 +777,42 @@ class CommandManager:
         else:
             print(" - Could not determine the YouTube video URL.")
             return
+
+    def url(self, url: str) -> None:
+        """
+        Extract content from a website URL and send to conversation manager as input.
+        """
+        # Check if this is a YouTube URL and redirect to YouTube command
+        if "youtube.com" in url.lower() or "youtu.be" in url.lower():
+            print(" - YouTube URL detected - redirecting to --youtube command for better transcript extraction...")
+            self.youtube(url)
+            return
+
+        print(" - Extracting content from URL...")
+
+        extractor = WebContentExtractor()
+        result = extractor.extract_content(url)
+
+        if result['error']:
+            print(f" - Error: {result['error']}")
+            return
+
+        if not result['content']:
+            print(" - No content could be extracted from the URL.")
+            return
+
+        # Format the content for the conversation
+        title = result['title'] or "Web Content"
+        formatted_content = f"Website: {title}\n\nSource: {url}\n\n{result['content']}"
+
+        # Add to conversation history
+        self.conversation_manager.conversation_history.append(
+            {"role": "user", "content": formatted_content}
+        )
+
+        print(" - Content added to conversation context.")
+        print(" - You can now ask questions about this content.")
+
 
 
 
