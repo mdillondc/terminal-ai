@@ -38,7 +38,7 @@ As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I 
    
 2. **Clone and set up environment**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/mdillondc/samantha
    cd samantha
    conda create -n samantha python=3.10
    conda activate samantha
