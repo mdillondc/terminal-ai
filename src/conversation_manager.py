@@ -736,7 +736,7 @@ The system will handle permission prompts - your job is to suggest the right com
             )
 
             # Inform user
-            notice = f" - Applied instructions {file_name}"
+            notice = f"- Applied instructions {file_name}"
             if old_file_name:
                 print(notice)
 

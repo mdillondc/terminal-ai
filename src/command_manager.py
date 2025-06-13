@@ -58,7 +58,7 @@ class CommandManager:
 
         try:
             # Execute the command safely
-            self.print_command_result(f" - Running: {command}")
+            self.print_command_result(f"- Running: {command}")
 
             # Use shell=True for complex commands but be aware of security implications
             # In a production environment, you might want to restrict this further
@@ -80,12 +80,12 @@ class CommandManager:
             if result.returncode == 0:
                 self.print_command_result(" - Command ran successfully")
             else:
-                self.print_command_result(f" - Command finished with exit code: {result.returncode}")
+                self.print_command_result(f"- Command finished with exit code: {result.returncode}")
 
             return output
 
         except Exception as e:
-            error_msg = f" - Could not run command: {str(e)}"
+            error_msg = f"- Could not run command: {str(e)}"
             self.print_command_result(error_msg)
             return error_msg
 
@@ -224,7 +224,7 @@ class CommandManager:
                     self.settings_manager.setting_set("execute_enabled", True)
                     require_permission = self.settings_manager.setting_get("execute_require_permission")
                     permission_text = " (requires permission for each command)" if require_permission else " (automatic execution enabled)"
-                    self.print_command_result(f" - Execute mode enabled - AI can run system commands{permission_text}")
+                    self.print_command_result(f"- Execute mode enabled - AI can run system commands{permission_text}")
 
                 command_processed = True
             elif command.startswith("--clear"):
@@ -238,9 +238,9 @@ class CommandManager:
                     valid_models = ["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
                     if arg in valid_models:
                         self.settings_manager.setting_set("tts_model", arg)
-                        self.print_command_result(f" - TTS model set to: {arg}")
+                        self.print_command_result(f"- TTS model set to: {arg}")
                     else:
-                        self.print_command_result(f" - (!) Invalid TTS model: {arg}\n - Available models: {', '.join(valid_models)}")
+                        self.print_command_result(f"- (!) Invalid TTS model: {arg}\n - Available models: {', '.join(valid_models)}")
 
                 command_processed = True
             elif command.startswith("--tts-voice"):
@@ -250,9 +250,9 @@ class CommandManager:
                     valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
                     if arg in valid_voices:
                         self.settings_manager.setting_set("tts_voice", arg)
-                        self.print_command_result(f" - TTS voice set to: {arg}")
+                        self.print_command_result(f"- TTS voice set to: {arg}")
                     else:
-                        self.print_command_result(f" - (!) Invalid TTS voice: {arg}\n - Available voices: {', '.join(valid_voices)}")
+                        self.print_command_result(f"- (!) Invalid TTS voice: {arg}\n - Available voices: {', '.join(valid_voices)}")
 
                 command_processed = True
             elif command.startswith("--tts-save-as-mp3"):
