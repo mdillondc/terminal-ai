@@ -48,11 +48,25 @@ class SettingsManager:
         # RAG Settings
         self.embedding_provider = "ollama"  # "openai" or "ollama"
         self.openai_embedding_model = "text-embedding-3-small"
-        self.ollama_embedding_model = "nomic-embed-text"
-        self.rag_chunk_size = 800
-        self.rag_chunk_overlap = 100
-        self.rag_top_k = 5
+        self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
+        self.rag_chunk_size = 400
+        self.rag_chunk_overlap = 80
+        self.rag_top_k = 8
         self.rag_active_collection = None
+
+        # Hybrid Search Settings
+        self.rag_enable_hybrid_search = True
+        self.rag_semantic_weight = 0.6  # Weight for semantic similarity (0.0-1.0)
+        self.rag_temporal_weight = 0.3  # Weight for temporal recency (0.0-1.0)
+        self.rag_keyword_weight = 0.1   # Weight for BM25 keyword search (0.0-1.0)
+        self.rag_temporal_boost_months = 6  # Boost chunks from last N months
+        self.rag_temporal_detection_threshold = 0.15  # Confidence threshold for temporal query detection
+
+        # LLM Query Analysis Settings (uses self.model)
+        self.rag_enable_llm_query_analysis = True  # Use LLM for intelligent query analysis
+        self.rag_query_analysis_temperature = 0.1  # Temperature for analysis (low for consistency)
+        self.rag_query_analysis_cache_duration = 300  # Cache duration in seconds (5 minutes)
+        self.rag_analysis_confidence_threshold = 0.7  # Minimum confidence for LLM analysis
 
         # Context Management Settings
         self.rag_max_context_tokens = 10000
