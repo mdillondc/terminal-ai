@@ -636,18 +636,18 @@ class CommandManager:
         if self.conversation_manager._is_ollama_model(model):
             ollama_url = self.settings_manager.setting_get("ollama_base_url")
             if self.conversation_manager._is_ollama_available():
-                print(f" - Switched to Ollama model: {model}")
-                print(f"   Running locally via Ollama at {ollama_url}")
+                print(f"- Switched to Ollama model: {model}")
+                print(f"- Running locally via Ollama at {ollama_url}")
             else:
                 print(f" - Warning: Selected Ollama model '{model}' but Ollama not available")
                 print(f"   Make sure Ollama is running at {ollama_url}")
         elif self.conversation_manager._is_google_model(model):
             print(f" - Switched to Google Gemini model: {model}")
-            print("   Documentation: https://ai.google.dev/gemini-api/docs/models")
+            print(f" - https://ai.google.dev/gemini-api/docs/models")
         else:
             print(f" - Using OpenAI for model: {model}")
             print(f" - Switched to OpenAI model: {model}")
-            print("   Documentation: https://platform.openai.com/docs/models")
+            print(f" - https://platform.openai.com/docs/models")
 
     def youtube(self, arg: str) -> None:
         """

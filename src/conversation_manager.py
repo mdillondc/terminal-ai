@@ -720,7 +720,6 @@ The system will handle permission prompts - your job is to suggest the right com
         else:
             if old_file_name:
                 # Remove old instructions from conversation_history
-                print(old_file_name)
                 self.conversation_history = [entry for entry in self.conversation_history if f'instructions:{old_file_name}' not in entry['content']]
 
             # Update settings
