@@ -26,11 +26,12 @@ from rag_config import get_supported_extensions
 
 
 class CompletionCache:
-    """Simple cache for file system completions and API calls to improve performance"""
+    """Enhanced cache for completions with better state management"""
 
     def __init__(self, cache_duration: float = 2.0):
         self.cache_duration = cache_duration
         self._cache: Dict[str, tuple[float, List[str]]] = {}
+        self._last_completion_text: str = ""
 
     def get(self, key: str) -> Optional[Any]:
         """Get cached results if they're still valid"""
@@ -47,6 +48,21 @@ class CompletionCache:
     def clear(self) -> None:
         """Clear all cached results"""
         self._cache.clear()
+        self._last_completion_text = ""
+
+    def should_refresh(self, current_text: str) -> bool:
+        """Check if completion should be refreshed based on text changes"""
+        # If text got shorter (backspace), we should refresh
+        if len(current_text) < len(self._last_completion_text):
+            return True
+        self._last_completion_text = current_text
+        return False
+
+    def invalidate_pattern(self, pattern: str) -> None:
+        """Invalidate cache entries that match a pattern"""
+        keys_to_remove = [key for key in self._cache.keys() if pattern in key]
+        for key in keys_to_remove:
+            del self._cache[key]
 
 
 class CommandCompleter(Completer):
@@ -71,7 +87,7 @@ class CommandCompleter(Completer):
 
     def get_completions(self, document: Document, complete_event: Any) -> Generator[Completion, None, None]:
         """
-        Generate completion suggestions based on current input context.
+        Generate completion suggestions with enhanced backspace handling.
 
         Args:
             document: The current document/input
@@ -83,6 +99,9 @@ class CommandCompleter(Completer):
         try:
             text_before_cursor = document.text_before_cursor
 
+            # Always clear cache to ensure fresh completions
+            self.cache.clear()
+
             # Find the last command in the input
             last_command_info = self._parse_current_command(text_before_cursor)
 
@@ -92,7 +111,7 @@ class CommandCompleter(Completer):
             command_name, argument_part = last_command_info
 
             if not command_name:
-                # Complete command names
+                # Complete command names - always generate fresh results
                 yield from self._complete_command_names(argument_part)
             else:
                 # Complete arguments for specific command
@@ -133,7 +152,7 @@ class CommandCompleter(Completer):
 
     def _fuzzy_match(self, partial: str, target: str) -> tuple[bool, int]:
         """
-        Reusable fuzzy matching function for any string matching.
+        Enhanced fuzzy matching function with improved scoring.
 
         Args:
             partial: Partial input to match against
@@ -150,31 +169,42 @@ class CommandCompleter(Completer):
 
         # Strategy 1: Exact start match (highest score)
         if target_lower.startswith(partial_lower):
-            return True, 1000 + len(partial)
+            return True, 1000 + len(partial) * 2
 
-        # Strategy 2: Subsequence match (e.g., "ragb" matches "rag-build")
+        # Strategy 2: Word boundary match (after dash, underscore, space)
+        import re
+        word_boundary_pattern = r'[\-_\s]' + re.escape(partial_lower)
+        if re.search(word_boundary_pattern, target_lower):
+            return True, 800 + len(partial)
+
+        # Strategy 3: Subsequence match (e.g., "ragb" matches "rag-build")
         partial_idx = 0
-        for char in target_lower:
+        last_match_pos = -1
+        for i, char in enumerate(target_lower):
             if partial_idx < len(partial_lower) and char == partial_lower[partial_idx]:
                 partial_idx += 1
+                last_match_pos = i
 
         if partial_idx == len(partial_lower):
-            # All characters found in order
-            return True, 500 + (100 - len(target)) + len(partial)
+            # All characters found in order - bonus for consecutive matches
+            consecutive_bonus = 50 if last_match_pos - len(partial) >= 0 else 0
+            return True, 500 + consecutive_bonus + len(partial)
 
-        # Strategy 3: Contains substring anywhere
+        # Strategy 4: Contains substring anywhere
         if partial_lower in target_lower:
             return True, 300 + len(partial)
 
-        # Strategy 4: Edit distance (simple version - count matching characters)
+        # Strategy 5: Character overlap with minimum threshold
         matching_chars = sum(1 for c in partial_lower if c in target_lower)
-        if matching_chars >= len(partial_lower) * 0.7:  # At least 70% of characters match
+        overlap_ratio = matching_chars / len(partial_lower) if partial_lower else 0
+
+        if overlap_ratio >= 0.6:  # Lowered threshold for better matching
             return True, 100 + matching_chars
 
         return False, 0
 
     def _complete_command_names(self, partial_command: str) -> Generator[Completion, None, None]:
-        """Complete command names with fuzzy matching based on partial input"""
+        """Complete command names with enhanced fuzzy matching - always fresh results"""
         matches = []
 
         for command in self.available_commands:

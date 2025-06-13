@@ -55,6 +55,20 @@ def main() -> None:
     # KeyBindings
     kb = KeyBindings()
 
+    @kb.add('backspace')
+    def custom_backspace(event):
+        """Custom backspace that forces completion refresh"""
+        # Perform normal backspace
+        event.current_buffer.delete_before_cursor()
+
+        # Force completion refresh for command contexts
+        text = event.current_buffer.text
+        if text.lstrip().startswith('--'):
+            # Clear any existing completion state
+            event.current_buffer.complete_state = None
+            # Force start new completion
+            event.current_buffer.start_completion(select_first=False)
+
     first_ai_interaction = True
     while True:
         try:
@@ -98,6 +112,7 @@ def main() -> None:
                     history=user_input_history,
                     key_bindings=kb,
                     validator=NonEmptyValidator(),
+                    complete_while_typing=True,
                 )
 
                 # Check if user wants to interrupt TTS playback
