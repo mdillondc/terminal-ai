@@ -59,7 +59,7 @@ class SettingsManager:
         self.rag_enable_context_management = True
         self.conversation_history_limit = 50000
         self.context_management_strategy = "generous"  # "strict", "balanced", or "generous"
-        
+
         # Search Context Settings
         self.search_context_window = 6  # Number of recent messages to include in search context
         self.search_context_char_limit = 1000  # Character limit for truncating long messages in search context
@@ -108,7 +108,7 @@ class SettingsManager:
     def get_enabled_toggles(self) -> str:
         """Get a formatted string of enabled toggles for display next to user name"""
         enabled_toggles = []
-        
+
         if self.tts:
             enabled_toggles.append("tts")
         if self.stt:
@@ -120,8 +120,8 @@ class SettingsManager:
         if self.incognito:
             enabled_toggles.append("incognito")
         if self.rag_active_collection:
-            enabled_toggles.append("rag")
-            
+            enabled_toggles.append(f"rag {self.rag_active_collection}")
+
         if enabled_toggles:
             return f" ({', '.join(enabled_toggles)})"
         return ""
