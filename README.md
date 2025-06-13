@@ -82,6 +82,7 @@ Typically you would set these in your `~/.bashrc` or `.zshrc`.
 
 # Analyze YouTube video
 > --youtube https://youtube.com/watch?v=example
+> Summarize video
 
 # Enable command execution (think open-interpreter)
 > --execute
@@ -242,12 +243,12 @@ All command examples with --input can of course be used within the actual app.
 python src/main.py --input "Hello Samantha!"
 
 # You can add any available commands to the --input command, e.g.:
-python src/main.py --input "--model qwen3:14b-q8_0 --instructions summary.md --youtube https://youtube.com/some-url"
+python src/main.py --input "--model qwen3:14b-q8_0 --instructions summary.md --youtube https://youtube.com/some-url" --input "summarize the video"
 
 # Batch processing with multiple --input arguments (command-chaining)
-python src/main.py --input "--model gpt-4.1-mini --instructions summary.md --url https://example.com/article" --input "summarize the key points"
-# First input: configures model, applies instructions, fetches URL content
-# Second input: asks AI to summarize the fetched content
+python src/main.py --input "--model gpt-4.1-mini --instructions summary.md --youtube https://youtube.com/watch?v=example" --input "summarize the key points from this video"
+# First input: configures model, applies instructions, extracts YouTube transcript
+# Second input: asks AI to summarize the video content
 # Then continues to interactive mode for follow-up questions
 
 # Process local files with batch commands
@@ -291,7 +292,18 @@ summarize() {
     conda activate terminal-ai && python ~/path/to/terminal-ai/src/main.py --input "--model gpt-4.1-mini --instructions summary.md --url $*" --input "summarize"
 }
 # First the app will set desired model, apply instructions, extract content from url, then summarize content from url
-# Usage: analyze https://example.com/article
+# Usage: analyze "https://example.com/article"
+
+youtube() {
+    if [ -z "$1" ]; then
+        echo "Usage: youtube <youtube_url>"
+        return 1
+    fi
+
+    conda activate terminal-ai && python ~/Sync/scripts/terminal-ai/src/main.py --input "--model gpt-4.1-mini --instructions summary.md --youtube $*" --input "Summarize video"
+}
+# First the app will set desired model, apply instructions, extract the youtube transcript, then summarize content from url
+# Usage: youtube "https://www.youtube.com/watch?v=9cgbsavrFpA"
 ```
 
 ## Exiting

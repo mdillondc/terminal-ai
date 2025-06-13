@@ -102,8 +102,8 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--youtube",
-            description="Extract transcript, send to AI. Use appropriate instructions to e.g. summarize video.",
-            usage="--youtube https://www.youtube.com/watch?v=9gCHMuC7T40",
+            description="Extract video transcript and add to conversation context.",
+            usage="--youtube https://youtube.com/watch?v=example",
             execution_order=2,
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=True

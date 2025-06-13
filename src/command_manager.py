@@ -798,7 +798,7 @@ class CommandManager:
                                             self.conversation_manager.conversation_history.append(
                                                 {"role": "user", "content": user_input}
                                             )
-                                            self.conversation_manager.generate_response()
+                                            print(" - YouTube content added to conversation context.")
                                         else:
                                             raise Exception("Transcript text was empty after parsing")
                                     else:
@@ -831,7 +831,7 @@ class CommandManager:
                     self.conversation_manager.conversation_history.append(
                         {"role": "user", "content": user_input}
                     )
-                    self.conversation_manager.generate_response()
+                    print(" - YouTube content added to conversation context.")
 
             except Exception as e:
                 print(" - An error occurred:", e)
