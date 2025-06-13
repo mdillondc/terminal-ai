@@ -64,12 +64,12 @@ Typically you would set these in your `~/.bashrc` or `.zshrc`.
 
 ```bash
 # Switch AI models
-> --model gpt-4o-mini
+> --model gpt-4.1
 
 # Enable web search
 > --search
 
-# Enable command execution
+# Enable command execution (think open-interpreter)
 > --execute
 
 # Apply instruction (think gpts) templates
@@ -101,32 +101,33 @@ Typically you would set these in your `~/.bashrc` or `.zshrc`.
 ```bash
 # Create document collection (supports various formats, see `rag_config.py`)
 mkdir -p rag/my-docs
-mkdir -p rag/my-docs/api          # Subdirectories supported
-cp your-files.txt rag/my-docs/
+mkdir -p rag/my-docs/api # Subdirectories supported
+cp hello-world.md rag/my-docs/
 cp api-docs/*.md rag/my-docs/api/
 
 # Build and activate collection
 > --rag-build my-docs
-> --rag my-docs
+> --rag my-docs # enables RAG collection
 
 # Query your documents
 > What are the main topics in my documents?
-> --rag-show filename.txt         # View specific file chunks
-> --rag-status                    # Check RAG configuration
-> --rag-test                      # Test embedding provider
+> --rag-show filename.txt # View specific file chunks
+> --rag-status            # Check RAG configuration
+> --rag-test              # Test RAG connection
 ```
 
 ### Embedding Providers
 
 **OpenAI** (cloud-based):
 - High quality, requires API key
+- No privacy
 
 **Ollama** (local, private):
 - Free, runs locally, works offline
 - Install: `curl -fsSL https://ollama.com/install.sh | sh`
-- Setup: `ollama pull snowflake-arctic-embed2:latest`
+- Setup (example embedding model): `ollama pull snowflake-arctic-embed2:latest`
 
-Configure in `src/settings_manager.py`:
+Configure models/providers in `src/settings_manager.py`:
 ```python
 self.embedding_provider = "ollama"  # or "openai"
 ```
@@ -135,16 +136,17 @@ self.embedding_provider = "ollama"  # or "openai"
 
 ```bash
 # Resume previous conversation
-# AI will suggest log names automatically
+# AI will suggest log names automatically, so you really don't have to about this
 > --log name-of-conversation.md
 
-# Rename current conversation with AI suggested title
+# Rename current conversation with AI suggested title (if you're unhappy about the first suggestion)
 > --logmv
 
 # Rename current conversation with your own title
 > --logmv project-planning-discussion
+> --logmv "Title with spaces"
 
-# Private mode (no logging)
+# Private mode (no logs)
 > --incognito
 ```
 
@@ -196,12 +198,15 @@ A good resource for instructions can be found at [fabric/patterns](https://githu
 Key settings in `src/settings_manager.py`:
 - Default model selection and API configuration
 - RAG parameters (chunk size, top-k results, embedding provider)
-- TTS voice and model settings (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`)
-- Cache duration for model listings
-- Audio file saving (experimental `--tts-save-as-mp3` feature)
+   - Adjust based on your embedding model's capabilities
+- Logging parameters (log directory, log level)
+- TTS voice and model settings
+- Much more. See `src/settings_manager.py` for details
 
 ### Audio Files
+
 When `--tts-save-as-mp3` is enabled, audio files are saved as:
+
 ```
 tts_{timestamp}_{text_preview}.mp3
 ```
@@ -210,12 +215,12 @@ tts_{timestamp}_{text_preview}.mp3
 
 ```
 terminal-ai/
-├── src/                   # Application source code
-├── instructions/          # Instruction templates
-├── rag/                   # Document collections
-├── logs/                  # Conversation logs
-├── cache/                 # Model and completion cache
-└── requirements.txt       # Python dependencies
+├── src/              # Application source code
+├── instructions/     # Instruction templates
+├── rag/              # Document collections
+├── logs/             # Conversation logs
+├── cache/            # Model and completion cache
+└── requirements.txt  # Python dependencies
 ```
 
 ## Dependencies
@@ -225,20 +230,23 @@ See requirements.txt
 ## API Costs & Privacy
 
 - **OpenAI**: Pay per token
-- **Tavily**: Free tier available, paid plans for higher usage
+- **Tavily**: Free tier available, paid plans for higher usage (generous free-tier)
 - **Google**: Free tier available
 - **Ollama**: Free (runs locally, fully private)
 
-**Privacy Note**: Use Ollama for sensitive documents - data never leaves your machine.
+**Privacy Note**: Use Ollama for sensitive documents/RAG - data never leaves your machine.
 
 ## Quick Start Example
 
+All command examples with --input can of course be used within the actual app.
+
 ```bash
 python src/main.py --input "Hello Samantha!"
+
 # You can add any commands from --help to the --input command, e.g.:
 python src/main.py --input "--model qwen3:14b-q8_0 --instructions summary.md --youtube https://youtube.com/some-url"
 
-# Batch processing with multiple --input arguments
+# Batch processing with multiple --input arguments (command-chaining)
 python src/main.py --input "--model gpt-4.1-mini --instructions summary.md --url https://example.com/article" --input "summarize the key points"
 # First input: configures model, applies instructions, fetches URL content
 # Second input: asks AI to summarize the fetched content
@@ -249,44 +257,56 @@ python src/main.py --input "--file report.pdf --instructions summary.md" --input
 
 # Enable features and start chatting
 > --tts --search
+# App will tell you which features you've enabled
+# User (tts, search):
 > What's the latest news about AI?
 
 # Work with documents (private with Ollama)
-> --rag-build my-research
-> --rag my-research
+> --rag-build my-docs
+> --rag my-docs
 > Summarize the key findings from my research papers
+
+# If you add a new document or change the content of an existing document
+# in a collection, the RAG collection will automatically rebuild the next
+# time you enable the RAG collection in question
 
 # Configure for privacy in src/settings_manager.py:
 # self.embedding_provider = "ollama"
-# self.ollama_embedding_model = "nomic-embed-text"
+# self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
 ```
 
-## RAG Collections & Source Citations
+## Shell Aliases & Command Chaining
 
-RAG responses include source citations:
-```
-**Sources:**
-• config.md (lines 12-18, relevance: 89%)
-• readme.txt (lines 45-52, relevance: 76%)
-```
+Create powerful AI aliases/workflows in your `~/.bashrc` or `~/.zshrc`:
 
-**Important**: When switching embedding providers, rebuild collections:
 ```bash
-> --rag-build collection-name  # Required after provider change
+# Basic alias
+alias ai='python ~/terminal-ai/src/main.py --input "--model gpt-4.1"'
+
+# Article summarizer
+summarize() {
+    if [ -z "$1" ]; then
+        echo "Usage: youtube <url>"
+        return 1
+    fi
+
+    conda activate terminal-ai && python ~/path/to/terminal-ai/src/main.py --input "--model gpt-4.1-mini --instructions summary.md --url $*" --input "summarize"
+}
+# First the app will set desired model, apply instructions, extract content from url, then summarize content from url
+# Usage: analyze https://example.com/article
 ```
 
 ## Exiting
 
-Use `q`, `quit`, `:q`, `:wq`, or `Ctrl+C` to exit the application.
+Use `quit`, `q`, `:q`, `:wq`, or `Ctrl+C` to exit the application.
 
 **Note**: Press `q` + `Enter` during AI responses to interrupt streaming, not to exit.
-
 
 ## Todo
 
 Honestly, I just keep adding features whenever I miss something.
 
-Suggestions are welcome, please open an issue on the repository.
+Suggestions are welcome, please open an [issue](https://github.com/mdillondc/terminal-ai/issues).
 
 * [ ] Maybe create a pip package for easy installation?
 * [ ] Add lots of helpful `instructions/*.md`
