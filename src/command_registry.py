@@ -179,7 +179,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--cb",
-            description="Use clipboard contents as input.",
+            description="Add clipboard contents to conversation context.",
             usage="--cb",
             execution_order=2,
             completion_rules=CompletionRules(CompletionType.NONE),

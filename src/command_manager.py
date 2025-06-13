@@ -158,11 +158,10 @@ class CommandManager:
             elif command.startswith("--cb"):
                 clipboard_content = clipboard.paste()
                 if clipboard_content:
-                    print(" - Using clipboard content as input.")
+                    print(" - Clipboard content added to conversation context.")
                     self.conversation_manager.conversation_history.append(
                         {"role": "user", "content": clipboard_content}
                     )
-                    self.conversation_manager.generate_response()
                 else:
                     print(" - Clipboard is empty. Please type your input.")
 
