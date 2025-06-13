@@ -16,7 +16,9 @@ import magic
 BINARY_FILE_EXTENSIONS: Set[str] = {
     '.pdf',   # PDF documents
     '.docx',  # Microsoft Word documents
+    '.doc',   # Legacy Microsoft Word documents
     '.xlsx',  # Microsoft Excel spreadsheets
+    '.xls',   # Legacy Microsoft Excel spreadsheets
     '.rtf',   # Rich Text Format
 }
 
@@ -32,10 +34,20 @@ BINARY_FILE_TYPE_INFO: Dict[str, Dict[str, Any]] = {
         'description': 'Microsoft Word documents',
         'processor': 'docx'
     },
+    '.doc': {
+        'name': 'Word Document (Legacy)',
+        'description': 'Legacy Microsoft Word documents',
+        'processor': 'doc'
+    },
     '.xlsx': {
         'name': 'Excel Spreadsheet',
         'description': 'Microsoft Excel spreadsheets',
         'processor': 'xlsx'
+    },
+    '.xls': {
+        'name': 'Excel Spreadsheet (Legacy)',
+        'description': 'Legacy Microsoft Excel spreadsheets',
+        'processor': 'xls'
     },
     '.rtf': {
         'name': 'Rich Text Format',

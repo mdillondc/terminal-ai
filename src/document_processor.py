@@ -5,26 +5,10 @@ import tiktoken
 import PyPDF2
 from settings_manager import SettingsManager
 from rag_config import is_supported_file, get_file_type_info
-
-# Import libraries for additional file types
-try:
-    from docx import Document as DocxDocument
-    DOCX_AVAILABLE = True
-except ImportError:
-    DOCX_AVAILABLE = False
-
-try:
-    import openpyxl
-    XLSX_AVAILABLE = True
-except ImportError:
-    XLSX_AVAILABLE = False
-
-try:
-    from striprtf.striprtf import rtf_to_text
-    RTF_AVAILABLE = True
-except ImportError:
-    RTF_AVAILABLE = False
-
+import docx2txt
+import xlrd
+import openpyxl
+from striprtf.striprtf import rtf_to_text
 
 class DocumentProcessor:
     def __init__(self):
@@ -44,8 +28,12 @@ class DocumentProcessor:
             return self.load_pdf_file(file_path)
         elif processor == 'docx':
             return self.load_docx_file(file_path)
+        elif processor == 'doc':
+            return self.load_docx_file(file_path)  # docx2txt handles both formats
         elif processor == 'xlsx':
             return self.load_xlsx_file(file_path)
+        elif processor == 'xls':
+            return self.load_xls_file(file_path)
         elif processor == 'rtf':
             return self.load_rtf_file(file_path)
         else:
@@ -92,40 +80,17 @@ class DocumentProcessor:
             return ""
 
     def load_docx_file(self, file_path: str) -> str:
-        """Load content from a Word (.docx) file"""
-        if not DOCX_AVAILABLE:
-            print(f"Cannot process Word file {file_path}: python-docx not installed")
-            return ""
-
+        """Load content from a Word (.docx or .doc) file using docx2txt"""
         try:
-            doc = DocxDocument(file_path)
-            content = []
-
-            for paragraph in doc.paragraphs:
-                if paragraph.text.strip():
-                    content.append(paragraph.text)
-
-            # Also extract text from tables
-            for table in doc.tables:
-                for row in table.rows:
-                    row_text = []
-                    for cell in row.cells:
-                        if cell.text.strip():
-                            row_text.append(cell.text.strip())
-                    if row_text:
-                        content.append(" | ".join(row_text))
-
-            return "\n\n".join(content)
+            # docx2txt handles both .doc and .docx formats
+            content = docx2txt.process(file_path)
+            return content if content else ""
         except Exception as e:
             print(f"Error loading Word file {file_path}: {e}")
             return ""
 
     def load_xlsx_file(self, file_path: str) -> str:
         """Load content from an Excel (.xlsx) file"""
-        if not XLSX_AVAILABLE:
-            print(f"Cannot process Excel file {file_path}: openpyxl not installed")
-            return ""
-
         try:
             workbook = openpyxl.load_workbook(file_path, data_only=True)
             content = []
@@ -154,12 +119,40 @@ class DocumentProcessor:
             print(f"Error loading Excel file {file_path}: {e}")
             return ""
 
-    def load_rtf_file(self, file_path: str) -> str:
-        """Load content from an RTF file"""
-        if not RTF_AVAILABLE:
-            print(f"Cannot process RTF file {file_path}: striprtf not installed")
+    def load_xls_file(self, file_path: str) -> str:
+        """Load content from a legacy Excel (.xls) file"""
+        try:
+            workbook = xlrd.open_workbook(file_path)
+            content = []
+
+            for sheet_idx in range(workbook.nsheets):
+                sheet = workbook.sheet_by_index(sheet_idx)
+                sheet_name = sheet.name
+                content.append(f"--- Sheet: {sheet_name} ---")
+
+                # Extract all non-empty cells
+                sheet_content = []
+                for row_idx in range(sheet.nrows):
+                    row_text = []
+                    for col_idx in range(sheet.ncols):
+                        cell_value = sheet.cell(row_idx, col_idx).value
+                        if cell_value is not None and str(cell_value).strip():
+                            row_text.append(str(cell_value).strip())
+                    if row_text:
+                        sheet_content.append(" | ".join(row_text))
+
+                if sheet_content:
+                    content.extend(sheet_content)
+                else:
+                    content.append("(empty sheet)")
+
+            return "\n\n".join(content)
+        except Exception as e:
+            print(f"Error loading legacy Excel file {file_path}: {e}")
             return ""
 
+    def load_rtf_file(self, file_path: str) -> str:
+        """Load content from an RTF file"""
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 rtf_content = file.read()
