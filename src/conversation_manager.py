@@ -256,14 +256,12 @@ class ConversationManager:
             ollama_client = self._create_ollama_client()
             if ollama_client:
                 self.client = ollama_client
-                print(f"- Using Ollama for model: {model_name}")
             else:
                 print(f"- Warning: Could not create Ollama client for {model_name}")
         elif self._is_google_model(model_name):
             google_client = self._create_google_client()
             if google_client:
                 self.client = google_client
-                print(f"- Using Google Gemini for model: {model_name}")
             else:
                 print(f"- Warning: Could not create Google client for {model_name}")
                 print(f"- Make sure GOOGLE_API_KEY environment variable is set")

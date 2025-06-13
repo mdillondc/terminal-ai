@@ -645,7 +645,6 @@ class CommandManager:
             print(f"- Switched to Google Gemini model: {model}")
             print(f"- https://ai.google.dev/gemini-api/docs/models")
         else:
-            print(f"- Using OpenAI for model: {model}")
             print(f"- Switched to OpenAI model: {model}")
             print(f"- https://platform.openai.com/docs/models")
 
