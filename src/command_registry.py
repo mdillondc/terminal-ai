@@ -39,7 +39,7 @@ class CompletionRules:
 @dataclass
 class CommandInfo:
     """Complete information about a command"""
-    name: str  # Command name (e.g., "--help")
+    name: str  # Command name (e.g., "--model")
     description: str  # Human-readable description
     usage: str  # Usage example
     execution_order: int  # Order of execution when chaining commands
@@ -66,18 +66,9 @@ class CommandRegistry:
 
         # Core commands
         self.register_command(CommandInfo(
-            name="--help",
-            description="Displays a list of all available commands along with brief descriptions. You can chain multiple commands together.",
-            usage="--help",
-            execution_order=1,
-            completion_rules=CompletionRules(CompletionType.NONE),
-            requires_argument=False
-        ))
-
-        self.register_command(CommandInfo(
             name="--model",
             description="Switches the underlying AI model. Use this to select a different AI model for processing commands (dynamically fetched from OpenAI, Google, and Ollama APIs).",
-            usage="--model gpt-4",
+            usage="--model gpt-4.1",
             execution_order=1,
             completion_rules=CompletionRules(
                 CompletionType.MODEL_NAME,
@@ -129,7 +120,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--file",
-            description="Load and add file contents to conversation context. Supports text, markdown, PDF, Word, Excel, and RTF files.",
+            description="Load and add file contents to conversation context. Supports text and multiple binary formats (see rag_config.py).",
             usage="--file path/to/document.pdf",
             execution_order=2,
             completion_rules=CompletionRules(

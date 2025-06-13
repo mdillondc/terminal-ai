@@ -108,10 +108,7 @@ class CommandManager:
                 print(f" - {error_msg}")
                 continue
 
-            if command.startswith("--help"):
-                self.help()
-                command_processed = True
-            elif command.startswith("--model"):
+            if command.startswith("--model"):
                 self.model(arg)
                 command_processed = True
             elif command.startswith("--refresh-models"):
@@ -554,12 +551,6 @@ class CommandManager:
 
         except Exception as e:
             print(f" - Error getting model info: {e}")
-
-    def help(self) -> None:
-        for cmd in self.available_commands:
-            command_info = self.command_registry.get_command_info(cmd)
-            if command_info:
-                print(f"{cmd}: {command_info.description} - Usage: {command_info.usage}")
 
     def _validate_model(self, model_name: str) -> bool:
         """
