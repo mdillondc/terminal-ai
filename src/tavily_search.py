@@ -99,7 +99,7 @@ class TavilySearch:
         
         # Include AI-generated answer if available
         if 'answer' in search_results and search_results['answer']:
-            formatted_output.append("\n📝 **AI Summary:**")
+            formatted_output.append("**AI Summary:**")
             formatted_output.append(search_results['answer'])
             formatted_output.append("\n" + "-" * 40)
         
@@ -119,7 +119,7 @@ class TavilySearch:
             
             # Add published date if available
             if 'published_date' in result:
-                formatted_output.append(f"📅 Published: {result['published_date']}")
+                formatted_output.append(f"Published: {result['published_date']}")
             
             formatted_output.append("-" * 40)
         
