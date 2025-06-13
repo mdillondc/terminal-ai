@@ -945,7 +945,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
             # Adjust spacing based on whether response was interrupted
             if interrupted:
-                print(f" - Log renamed to: {new_filename}")
+                print(f"\n - Log renamed to: {new_filename}")
             else:
                 print(f"\n - Log renamed to: {new_filename}")
 

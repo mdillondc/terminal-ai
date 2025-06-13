@@ -138,7 +138,7 @@ class CommandManager:
                 # Use the proper renaming method that preserves date/timestamp
                 actual_filename = self.conversation_manager.manual_log_rename(title)
                 self.conversation_manager.log_save()
-                self.print_command_result(f" - Log renamed to: {actual_filename}")
+                self.print_command_result(f"\n - Log renamed to: {actual_filename}")
 
                 command_processed = True
             elif command.startswith("--log"):
