@@ -14,3 +14,4 @@ numpy
 python-docx
 openpyxl
 striprtf
+python-magic

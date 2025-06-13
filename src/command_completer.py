@@ -22,7 +22,7 @@ from vector_store import VectorStore
 
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
-from rag_config import get_supported_extensions, SUPPORTED_FILE_EXTENSIONS, get_file_type_info
+from rag_config import get_supported_extensions, get_file_type_info, is_supported_file
 
 
 class CompletionCache:
@@ -286,11 +286,11 @@ class CommandCompleter(Completer):
 
             # Use supported file extensions from rag_config for --file command
             if rules.file_extensions:
-                extensions_tuple = tuple(SUPPORTED_FILE_EXTENSIONS)
+                use_file_filtering = True
             else:
-                extensions_tuple = None
+                use_file_filtering = False
 
-            files = self._get_files_in_directory(directory, filename_prefix, extensions_tuple)
+            files = self._get_files_in_directory(directory, filename_prefix, use_file_filtering)
 
             for file_path in files:
                 # Calculate the completion text and start position
@@ -565,8 +565,8 @@ class CommandCompleter(Completer):
             )
 
     @lru_cache(maxsize=100)
-    def _get_files_in_directory(self, directory: str, prefix: str, extensions: Optional[tuple] = None) -> List[str]:
-        """Get files in directory with optional prefix and extension filtering (cached)"""
+    def _get_files_in_directory(self, directory: str, prefix: str, filter_supported: bool = False) -> List[str]:
+        """Get files in directory with optional prefix and supported file filtering (cached)"""
         try:
             if not os.path.exists(directory):
                 return []
@@ -580,10 +580,9 @@ class CommandCompleter(Completer):
                     candidates.append((item_path + "/", True))  # (path, is_directory)
                     continue
 
-                # Filter by extensions if specified - only include supported file types
-                if extensions:
-                    item_ext = os.path.splitext(item)[1].lower()
-                    if item_ext in extensions:
+                # Filter by supported file types if specified
+                if filter_supported:
+                    if is_supported_file(item_path):
                         candidates.append((item_path, False))
                 else:
                     candidates.append((item_path, False))

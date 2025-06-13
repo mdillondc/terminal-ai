@@ -3,36 +3,25 @@ RAG Configuration Module
 
 Central configuration for RAG system settings including supported file types.
 This ensures DRY principle - all RAG-related file type definitions are in one place.
+Uses MIME type detection to automatically support text-based files.
 """
 
+import os
+import mimetypes
 from typing import Set, Dict, Any
 
-# Supported file extensions for RAG processing
-# To add support for a new file type, add it here and implement processing in DocumentProcessor
-SUPPORTED_FILE_EXTENSIONS: Set[str] = {
-    '.txt',   # Plain text files
-    '.md',    # Markdown files  
+import magic
+
+# Binary file extensions that require special processing
+BINARY_FILE_EXTENSIONS: Set[str] = {
     '.pdf',   # PDF documents
     '.docx',  # Microsoft Word documents
     '.xlsx',  # Microsoft Excel spreadsheets
     '.rtf',   # Rich Text Format
-    # To add more file types, simply add them here:
-    # '.html',  # HTML documents
-    # '.pptx',  # PowerPoint presentations
 }
 
-# File type metadata for display purposes
-FILE_TYPE_INFO: Dict[str, Dict[str, Any]] = {
-    '.txt': {
-        'name': 'Text',
-        'description': 'Plain text documents',
-        'processor': 'text'
-    },
-    '.md': {
-        'name': 'Markdown',
-        'description': 'Markdown formatted documents',
-        'processor': 'text'
-    },
+# File type metadata for binary files
+BINARY_FILE_TYPE_INFO: Dict[str, Dict[str, Any]] = {
     '.pdf': {
         'name': 'PDF',
         'description': 'Portable Document Format files',
@@ -53,54 +42,106 @@ FILE_TYPE_INFO: Dict[str, Dict[str, Any]] = {
         'description': 'Rich Text Format documents',
         'processor': 'rtf'
     }
-    # When adding new file types above, also add their metadata here:
-    # '.html': {
-    #     'name': 'HTML Document',
-    #     'description': 'HTML web documents',
-    #     'processor': 'html'
-    # }
 }
+
+def is_text_file_by_mime(file_path: str) -> bool:
+    """
+    Check if a file is a text file using MIME type detection.
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if the file is detected as text, False otherwise
+    """
+    try:
+        # Use python-magic for accurate MIME detection
+        mime_type = magic.from_file(file_path, mime=True)
+        return mime_type.startswith('text/') or mime_type in [
+            'application/json',
+            'application/xml',
+            'application/javascript',
+            'application/x-yaml',
+            'application/x-sh'
+        ]
+    except Exception:
+        # Fallback to built-in mimetypes
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type:
+            return mime_type.startswith('text/') or mime_type in [
+                'application/json',
+                'application/xml',
+                'application/javascript',
+                'application/x-yaml',
+                'application/x-sh'
+            ]
+        return False
 
 def get_supported_extensions() -> Set[str]:
     """
-    Get the set of supported file extensions.
-    
-    Returns:
-        Set of file extensions (including the dot, e.g., '.txt')
-    """
-    return SUPPORTED_FILE_EXTENSIONS.copy()
+    Get the set of binary file extensions that require special processing.
+    Note: Text files are detected dynamically via MIME types.
 
-def is_supported_file(filename: str) -> bool:
+    Returns:
+        Set of binary file extensions (including the dot, e.g., '.pdf')
     """
-    Check if a file is supported by the RAG system based on its extension.
-    
+    return BINARY_FILE_EXTENSIONS.copy()
+
+def is_supported_file(file_path: str) -> bool:
+    """
+    Check if a file is supported by the RAG system.
+    Supports binary files (PDF, DOCX, etc.) and text files (detected via MIME type).
+
     Args:
-        filename: Name or path of the file to check
-        
+        file_path: Path to the file to check
+
     Returns:
         True if the file type is supported, False otherwise
     """
-    import os
-    file_ext = os.path.splitext(filename)[1].lower()
-    return file_ext in SUPPORTED_FILE_EXTENSIONS
+    file_ext = os.path.splitext(file_path)[1].lower()
 
-def get_file_type_info(extension: str) -> Dict[str, Any]:
+    # Check if it's a known binary file type
+    if file_ext in BINARY_FILE_EXTENSIONS:
+        return True
+
+    # Check if it's a text file using MIME detection
+    if os.path.exists(file_path):
+        return is_text_file_by_mime(file_path)
+
+    return False
+
+def get_file_type_info(file_path: str) -> Dict[str, Any]:
     """
     Get metadata information for a file type.
-    
+
     Args:
-        extension: File extension (e.g., '.pdf')
-        
+        file_path: Path to the file (used for MIME detection if needed)
+
     Returns:
-        Dictionary with file type information, or empty dict if not supported
+        Dictionary with file type information
     """
-    return FILE_TYPE_INFO.get(extension.lower(), {})
+    extension = os.path.splitext(file_path)[1].lower()
+
+    # Check binary file types first
+    if extension in BINARY_FILE_TYPE_INFO:
+        return BINARY_FILE_TYPE_INFO[extension].copy()
+
+    # For all other supported files (text files), return generic text info
+    if is_supported_file(file_path):
+        return {
+            'name': 'Text file',
+            'description': 'Text file',
+            'processor': 'text'
+        }
+
+    return {}
 
 def get_supported_extensions_display() -> str:
     """
     Get a human-readable string of supported file types for help messages.
-    
+
     Returns:
-        Comma-separated string of supported extensions (e.g., ".txt, .md, .pdf")
+        Description of supported file types
     """
-    return ", ".join(sorted(SUPPORTED_FILE_EXTENSIONS))
+    binary_exts = ", ".join(sorted(BINARY_FILE_EXTENSIONS))
+    return f"Binary files: {binary_exts}; Text files: auto-detected via MIME type"

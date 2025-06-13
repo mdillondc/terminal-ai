@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Any, Callable
 from enum import Enum
 from dataclasses import dataclass
 import os
-from rag_config import SUPPORTED_FILE_EXTENSIONS
 
 
 class CompletionType(Enum):
@@ -135,7 +134,7 @@ class CommandRegistry:
             execution_order=2,
             completion_rules=CompletionRules(
                 CompletionType.FILE_PATH,
-                file_extensions=list(SUPPORTED_FILE_EXTENSIONS),
+                file_extensions=True,
                 base_directory=self.working_dir
             ),
             requires_argument=True
