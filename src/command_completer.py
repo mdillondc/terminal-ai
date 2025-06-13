@@ -294,16 +294,20 @@ class CommandCompleter(Completer):
 
             for file_path in files:
                 # Calculate the completion text and start position
-                if partial_path.endswith("/") or not filename_prefix:
-                    if partial_path.strip() in ["/", "~"]:
-                        # For special paths, show full relative path
-                        completion_text = os.path.basename(file_path.rstrip("/"))
-                    else:
-                        completion_text = os.path.basename(file_path.rstrip("/"))
-                    start_pos = -len(partial_path) if partial_path else 0
-                else:
-                    completion_text = os.path.basename(file_path.rstrip("/"))
+                completion_text = os.path.basename(file_path.rstrip("/"))
+
+                if partial_path.endswith("/"):
+                    # Directory path - append to the existing path
+                    start_pos = 0
+                elif filename_prefix:
+                    # Partial filename - replace the filename part
                     start_pos = -len(filename_prefix)
+                else:
+                    # Empty or special paths - handle appropriately
+                    if partial_path.strip() in ["/", "~"]:
+                        start_pos = -len(partial_path)
+                    else:
+                        start_pos = 0
 
                 yield Completion(
                     text=completion_text,
@@ -567,28 +571,38 @@ class CommandCompleter(Completer):
             if not os.path.exists(directory):
                 return []
 
-            files = []
+            candidates = []
             for item in os.listdir(directory):
                 item_path = os.path.join(directory, item)
 
-                # Skip if doesn't match prefix
-                if prefix and not item.lower().startswith(prefix.lower()):
-                    continue
-
                 # Include directories for navigation
                 if os.path.isdir(item_path):
-                    files.append(item_path + "/")
+                    candidates.append((item_path + "/", True))  # (path, is_directory)
                     continue
 
                 # Filter by extensions if specified - only include supported file types
                 if extensions:
                     item_ext = os.path.splitext(item)[1].lower()
                     if item_ext in extensions:
-                        files.append(item_path)
+                        candidates.append((item_path, False))
                 else:
-                    files.append(item_path)
+                    candidates.append((item_path, False))
 
-            return sorted(files)
+            # Apply fuzzy matching if prefix is provided
+            if prefix:
+                matches = []
+                for item_path, is_dir in candidates:
+                    item_name = os.path.basename(item_path.rstrip("/"))
+                    is_match, score = self._fuzzy_match(prefix, item_name)
+                    if is_match:
+                        matches.append((score, item_path))
+
+                # Sort by score (higher is better), then alphabetically
+                matches.sort(key=lambda x: (-x[0], x[1]))
+                return [item_path for score, item_path in matches]
+            else:
+                # No prefix - return all candidates sorted
+                return sorted([item_path for item_path, is_dir in candidates])
 
         except (OSError, PermissionError):
             return []
