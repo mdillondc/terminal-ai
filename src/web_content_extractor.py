@@ -1,9 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
-import re
 from typing import Dict, Optional, List, Tuple
-import time
+import re
 
 
 class WebContentExtractor:
@@ -15,7 +14,7 @@ class WebContentExtractor:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
         self.timeout = 30
 
@@ -44,8 +43,19 @@ class WebContentExtractor:
             print(" - Fetching webpage...")
             normal_result = self._basic_extraction(url)
 
+            # Check if we got an error that might be bypassed (403, 429, etc.)
             if normal_result['error']:
-                return normal_result
+                error_msg = normal_result['error'].lower()
+                if any(code in error_msg for code in ['403', '429', 'forbidden', 'blocked', 'bot']):
+                    print(" - Access blocked, trying alternative methods...")
+                    bypass_result = self._try_paywall_bypass(url)
+                    if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
+                        return bypass_result
+                    else:
+                        print(" - ⚠️ All bypass methods failed")
+                        return normal_result
+                else:
+                    return normal_result
 
             # Check for paywall
             if self._is_paywall_content(normal_result['content']):
@@ -378,6 +388,8 @@ class WebContentExtractor:
         # All methods failed
         return {'content': None, 'error': 'All bypass methods failed'}
 
+
+
     def _try_archive_org(self, url: str) -> Dict[str, Optional[str]]:
         """Try to fetch content from Archive.org (Wayback Machine)."""
         # Try recent snapshots first, then go back in time
@@ -429,24 +441,67 @@ class WebContentExtractor:
         return {'content': None, 'error': 'Archive.org lookup failed'}
 
     def _try_bot_user_agent(self, url: str) -> Dict[str, Optional[str]]:
-        """Try with search engine bot user agent."""
-        bot_user_agents = [
-            'Googlebot/2.1 (+http://www.google.com/bot.html)',
-            'Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)',
-            'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+        """Try with various user agents including search engine bots and realistic browsers."""
+        user_agent_configs = [
+            # Search engine bots
+            {
+                'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive'
+            },
+            {
+                'User-Agent': 'Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive'
+            },
+            # Realistic browser user agents
+            {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0'
+            },
+            {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1'
+            },
+            # Social media crawlers
+            {
+                'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive'
+            }
         ]
 
-        for user_agent in bot_user_agents:
+        for headers in user_agent_configs:
             try:
                 bot_session = requests.Session()
-                bot_session.headers.update({
-                    'User-Agent': user_agent,
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Connection': 'keep-alive'
-                })
+                bot_session.headers.update(headers)
 
+                # No delay needed here - only between bypass method attempts
                 response = bot_session.get(url, timeout=self.timeout)
                 response.raise_for_status()
 
