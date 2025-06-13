@@ -48,7 +48,7 @@ def main() -> None:
     # Parse arguments
     parser = argparse.ArgumentParser(description="I am Samantha.")
     parser.add_argument(
-        "--input", type=str, help="Optional input string to start the conversation..."
+        "--input", type=str, action='append', help="Input string(s) to process sequentially. Can be used multiple times for batch processing."
     )
     args = parser.parse_args()
 
@@ -65,9 +65,31 @@ def main() -> None:
                 first_ai_interaction = False
 
                 if args.input:
-                    command_processed = command_manager.parse_commands(args.input)
-                    if command_processed:
-                        continue
+                    # Process each input sequentially
+                    for input_text in args.input:
+                        print(f"\n{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
+                        print(f"> {input_text}")
+
+                        # Check for commands first
+                        if "--" in input_text:
+                            command_processed = command_manager.parse_commands(input_text)
+                            if command_processed:
+                                continue
+
+                        # Check if nothink mode is enabled and prepend /nothink prefix
+                        final_user_input = input_text
+                        if settings_manager.setting_get("nothink"):
+                            final_user_input = "/nothink " + input_text
+
+                        # Add to conversation and generate response
+                        conversation_manager.conversation_history.append(
+                            {"role": "user", "content": final_user_input}
+                        )
+
+                        conversation_manager.generate_response()
+
+                    # After processing all inputs, continue to interactive mode
+                    continue
             else:
                 print(f"\n{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                 user_input = prompt(
@@ -101,7 +123,7 @@ def main() -> None:
                 final_user_input = user_input
                 if settings_manager.setting_get("nothink"):
                     final_user_input = "/nothink " + user_input
-                
+
                 conversation_manager.conversation_history.append(
                     {"role": "user", "content": final_user_input}
                 )

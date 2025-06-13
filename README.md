@@ -137,7 +137,7 @@ self.embedding_provider = "ollama"  # or "openai"
 > --url https://nytimes.com/some-article
  - Extracting content from URL...
  - Paywall detected, trying alternative methods...
- - ✅ Paywall bypassed using Archive.org
+ - Paywall bypassed using Archive.org
  - Content added to conversation context.
 
 # YouTube URLs automatically redirect to --youtube command
@@ -216,6 +216,12 @@ See requirements.txt
 python src/main.py --input "Hello Samantha!"
 # You can add any commands from --help to the --input command, e.g.:
 python src/main.py --input "--model qwen3:14b-q8_0 --instructions summary.md --youtube https://youtube.com/some-url"
+
+# Batch processing with multiple --input arguments
+python src/main.py --input "--model gpt-4.1-mini --instructions summary.md --url https://example.com/article" --input "summarize the key points"
+# First input: configures model, applies instructions, fetches URL content
+# Second input: asks AI to summarize the fetched content
+# Then continues to interactive mode for follow-up questions
 
 # Enable features and start chatting
 > --tts --search
