@@ -22,7 +22,7 @@ from vector_store import VectorStore
 
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
-from rag_config import get_supported_extensions, get_file_type_info, is_supported_file
+from rag_config import get_file_type_info, is_supported_file
 
 
 class CompletionCache:
@@ -507,16 +507,15 @@ class CommandCompleter(Completer):
                 return
 
             # Get all supported files in the collection (recursively)
-            supported_extensions = get_supported_extensions()
             files = []
 
             for root, dirs, filenames in os.walk(collection_path):
                 for filename in filenames:
-                    file_ext = os.path.splitext(filename)[1].lower()
+                    # Get full path for proper file type detection (including MIME type for text files)
+                    file_path = os.path.join(root, filename)
 
-                    if file_ext in supported_extensions:
+                    if is_supported_file(file_path):
                         # Get relative path from collection root
-                        file_path = os.path.join(root, filename)
                         relative_path = os.path.relpath(file_path, collection_path)
                         files.append(relative_path)
 
