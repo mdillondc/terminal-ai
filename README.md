@@ -1,10 +1,10 @@
-# Samantha AI Assistant
+# Terminal AI Assistant
 
-![Samantha AI Assistant Screenshot](screenshot.png)
+![Terminal AI Assistant Screenshot](screenshot.png)
 
 A terminal AI assistant with advanced features including RAG (Retrieval-Augmented Generation), web search, TTS, and more.
 
-As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I found myself preferring terminal-based workflows. I created Samantha AI to bring the powerful features I love from modern AI interfaces directly to the command line.
+As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I found myself preferring terminal-based workflows. I created Terminal AI to bring the powerful features I love from modern AI interfaces directly to the command line.
 
 ## Features
 
@@ -38,10 +38,10 @@ As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I 
    
 2. **Clone and set up environment**
    ```bash
-   git clone https://github.com/mdillondc/samantha
-   cd samantha
-   conda create -n samantha python=3.10
-   conda activate samantha
+   git clone https://github.com/mdillondc/terminal-ai
+   cd terminal-ai
+   conda create -n terminal-ai python=3.10
+   conda activate terminal-ai
    pip install -r requirements.txt
    ```
 3. **Run**
@@ -191,7 +191,7 @@ tts_{timestamp}_{text_preview}.mp3
 ## File Structure
 
 ```
-samantha/
+terminal-ai/
 ├── src/                   # Application source code
 ├── instructions/          # Instruction templates
 ├── rag/                   # Document collections

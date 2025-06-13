@@ -1,5 +1,5 @@
 """
-Audio Utilities for Samantha AI Assistant
+Audio Utilities for Terminal AI Assistant
 
 This module provides cross-platform audio playback functionality using pygame.
 It handles playing audio from bytes or files with proper error handling and
@@ -49,7 +49,6 @@ class AudioPlayer:
             pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
             pygame.mixer.init()
             self.initialized = True
-            print(f"- Samantha Audio System Ready - pygame {pygame.version.ver}")
             print("- Audio playback initialized successfully!")
             return True
         except Exception as e:

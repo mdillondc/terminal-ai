@@ -40,7 +40,7 @@ def main() -> None:
 
     # Display startup information
     current_model = settings_manager.setting_get("model")
-    # print("Samantha AI Assistant")
+    # print("Terminal AI Assistant")
     print(f"Using model: {current_model}")
     print("Type '--help' for available commands or start chatting!")
     # print("- Tip: Press 'q' + Enter during AI responses to interrupt streaming and regain control")

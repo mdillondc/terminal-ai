@@ -1,5 +1,5 @@
 """
-TTS Service for Samantha AI Assistant
+TTS Service for Terminal AI Assistant
 
 This module provides Text-to-Speech functionality using OpenAI's TTS API.
 It supports multiple models and voices with optional audio file saving.

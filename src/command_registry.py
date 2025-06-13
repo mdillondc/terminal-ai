@@ -1,5 +1,5 @@
 """
-Command Registry System for Samantha AI Assistant
+Command Registry System for Terminal AI Assistant
 
 This module provides a centralized registry for all commands, their metadata,
 and completion rules. It separates command definition from execution and
@@ -98,7 +98,7 @@ class CommandRegistry:
         # Content processing commands
         self.register_command(CommandInfo(
             name="--instructions",
-            description="Activates a specific skill for Samantha. Skills are specialized functions like summarizing YouTube videos.",
+            description="Activates a specific skill for your AI. Skills are specialized functions like summarizing YouTube videos.",
             usage="--instructions wisdom.md",
             execution_order=1,
             completion_rules=CompletionRules(

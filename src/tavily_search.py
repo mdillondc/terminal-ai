@@ -1,5 +1,5 @@
 """
-Tavily Search Integration for Samantha AI Assistant
+Tavily Search Integration for Terminal AI Assistant
 
 This module provides web search capabilities using the Tavily API,
 allowing the AI to access current information from the internet.

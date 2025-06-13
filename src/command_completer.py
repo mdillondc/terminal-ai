@@ -1,5 +1,5 @@
 """
-Improved Command Completer for Samantha AI Assistant
+Improved Command Completer for Terminal AI Assistant
 
 This module provides intelligent tab completion for commands using the
 centralized command registry system. It supports various completion types
