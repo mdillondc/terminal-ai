@@ -167,10 +167,10 @@ def create_tavily_search() -> Optional[TavilySearch]:
     try:
         return TavilySearch()
     except TavilySearchError as e:
-        print(f" - (!) Tavily search error: {e}")
+        print(f"- (!) Tavily search error: {e}")
         return None
     except Exception as e:
-        print(f" - (!) Unexpected error initializing Tavily search: {e}")
+        print(f"- (!) Unexpected error initializing Tavily search: {e}")
         return None
 
 
@@ -193,5 +193,5 @@ def quick_search(query: str, max_results: int = 5) -> Optional[str]:
     try:
         return search_client.search_and_format(query, max_results)
     except TavilySearchError as e:
-        print(f" - (!) Search failed: {e}")
+        print(f"- (!) Search failed: {e}")
         return None

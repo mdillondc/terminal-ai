@@ -105,7 +105,7 @@ class CommandManager:
             # Validate command using registry
             is_valid, error_msg = self.command_registry.validate_command_input(command_name, arg)
             if not is_valid:
-                print(f" - {error_msg}")
+                print(f"- {error_msg}")
                 continue
 
             if command.startswith("--model"):
@@ -361,7 +361,7 @@ class CommandManager:
             # Error messages are printed by the RAG engine
             available = self.rag_engine.vector_store.get_available_collections()
             if available:
-                print(f" - Available collections: {', '.join(available)}")
+                print(f"- Available collections: {', '.join(available)}")
 
     def rag_off(self) -> None:
         """Deactivate RAG mode"""
@@ -442,7 +442,7 @@ class CommandManager:
             print(" - Use --rag <collection> to activate a collection first")
             return
 
-        print(f" - Testing RAG query: '{query}'")
+        print(f"- Testing RAG query: '{query}'")
         print(" - " + "="*50)
 
         try:
@@ -450,24 +450,24 @@ class CommandManager:
             rag_context, rag_sources = self.rag_engine.get_context_for_query(query)
 
             if rag_context:
-                print(f" - Found {len(rag_sources)} relevant chunks")
+                print(f"- Found {len(rag_sources)} relevant chunks")
                 print(" - Context that would be sent to AI:")
                 print(" - " + "-"*30)
-                print(f" - {rag_context}")
+                print(f"- {rag_context}")
                 print(" - " + "-"*30)
 
                 if rag_sources:
                     print(" - Source details:")
                     for i, source in enumerate(rag_sources, 1):
                         score = source.get('similarity_score', 0)
-                        print(f" - {i}. {source['filename']} (score: {score:.3f})")
-                        print(f" -    Content preview: {source['content'][:100]}...")
+                        print(f"- {i}. {source['filename']} (score: {score:.3f})")
+                        print(f"- Content preview: {source['content'][:100]}...")
             else:
                 print("- No relevant content found for this query")
                 print(" - This means the query didn't match any document content")
 
         except Exception as e:
-            print(f" - Error during RAG query: {e}")
+            print(f"- Error during RAG query: {e}")
 
 
 
@@ -479,39 +479,39 @@ class CommandManager:
 
         try:
             provider = self.settings_manager.setting_get("embedding_provider")
-            print(f" - Testing connection to {provider} embedding service...")
+            print(f"- Testing connection to {provider} embedding service...")
 
             # Test using the embedding service
             success = self.rag_engine.embedding_service.test_connection()
 
             if success:
-                print(f" - Connection to {provider} successful!")
+                print(f"- Connection to {provider} successful!")
 
                 # Show additional info
                 model_info = self.rag_engine.embedding_service.get_embedding_model_info()
                 model = model_info.get("model", "unknown")
                 dimensions = self.rag_engine.embedding_service.get_embedding_dimensions()
-                print(f" - Model: {model}")
-                print(f" - Dimensions: {dimensions}")
+                print(f"- Model: {model}")
+                print(f"- Dimensions: {dimensions}")
 
                 if provider == "ollama":
                     info = model_info.get("info", {})
                     if info.get("multilingual"):
-                        print(f" - Languages: {info.get('languages', 'Multiple languages supported')}")
+                        print(f"- Languages: {info.get('languages', 'Multiple languages supported')}")
 
             else:
-                print(f" - Connection to {provider} failed!")
+                print(f"- Connection to {provider} failed!")
 
                 if provider == "ollama":
                     ollama_url = self.settings_manager.setting_get("ollama_base_url")
-                    print(f" - Check that Ollama is running at: {ollama_url}")
+                    print(f"- Check that Ollama is running at: {ollama_url}")
                     model = self.settings_manager.setting_get("ollama_embedding_model")
-                    print(f" - Check that model '{model}' is available in Ollama")
+                    print(f"- Check that model '{model}' is available in Ollama")
                 elif provider == "openai":
                     print(" - Check your OpenAI API key and internet connection")
 
         except Exception as e:
-            print(f" - Error testing connection: {e}")
+            print(f"- Error testing connection: {e}")
 
     def rag_model_info(self) -> None:
         """Show detailed information about current embedding model"""
@@ -526,30 +526,30 @@ class CommandManager:
             info = model_info.get("info", {})
 
             print("- Embedding Model Information:")
-            print(f" - Provider: {provider}")
-            print(f" - Model: {model}")
-            print(f" - Dimensions: {info.get('dimensions', 'unknown')}")
-            print(f" - Max tokens: {info.get('max_tokens', 'unknown')}")
+            print(f"- Provider: {provider}")
+            print(f"- Model: {model}")
+            print(f"- Dimensions: {info.get('dimensions', 'unknown')}")
+            print(f"- Max tokens: {info.get('max_tokens', 'unknown')}")
 
             if provider == "openai":
                 cost = info.get('cost_per_1k_tokens', 0)
-                print(f" - Cost per 1K tokens: ${cost}")
+                print(f"- Cost per 1K tokens: ${cost}")
             elif provider == "ollama":
-                print(f" - Cost per 1K tokens: Free (local)")
+                print(f"- Cost per 1K tokens: Free (local)")
                 if info.get('multilingual'):
-                    print(f" - Multilingual: Yes")
+                    print(f"- Multilingual: Yes")
                     languages = info.get('languages')
                     if languages:
-                        print(f" - Languages: {languages}")
+                        print(f"- Languages: {languages}")
 
             # Show current settings
             print("- Current RAG Settings:")
-            print(f" - Chunk size: {self.settings_manager.setting_get('rag_chunk_size')} tokens")
-            print(f" - Chunk overlap: {self.settings_manager.setting_get('rag_chunk_overlap')} tokens")
-            print(f" - Top K results: {self.settings_manager.setting_get('rag_top_k')}")
+            print(f"- Chunk size: {self.settings_manager.setting_get('rag_chunk_size')} tokens")
+            print(f"- Chunk overlap: {self.settings_manager.setting_get('rag_chunk_overlap')} tokens")
+            print(f"- Top K results: {self.settings_manager.setting_get('rag_top_k')}")
 
         except Exception as e:
-            print(f" - Error getting model info: {e}")
+            print(f"- Error getting model info: {e}")
 
     def _validate_model(self, model_name: str) -> bool:
         """
@@ -595,7 +595,7 @@ class CommandManager:
 
         # Validate the model before setting it
         if not self._validate_model(model):
-            print(f" - (!) Invalid model: {model}")
+            print(f"- (!) Invalid model: {model}")
             print(" - Model not found in OpenAI, Google, or Ollama APIs")
 
             # Show available models
@@ -639,15 +639,15 @@ class CommandManager:
                 print(f"- Switched to Ollama model: {model}")
                 print(f"- Running locally via Ollama at {ollama_url}")
             else:
-                print(f" - Warning: Selected Ollama model '{model}' but Ollama not available")
+                print(f"- Warning: Selected Ollama model '{model}' but Ollama not available")
                 print(f"   Make sure Ollama is running at {ollama_url}")
         elif self.conversation_manager._is_google_model(model):
-            print(f" - Switched to Google Gemini model: {model}")
-            print(f" - https://ai.google.dev/gemini-api/docs/models")
+            print(f"- Switched to Google Gemini model: {model}")
+            print(f"- https://ai.google.dev/gemini-api/docs/models")
         else:
-            print(f" - Using OpenAI for model: {model}")
-            print(f" - Switched to OpenAI model: {model}")
-            print(f" - https://platform.openai.com/docs/models")
+            print(f"- Using OpenAI for model: {model}")
+            print(f"- Switched to OpenAI model: {model}")
+            print(f"- https://platform.openai.com/docs/models")
 
     def youtube(self, arg: str) -> None:
         """
@@ -667,13 +667,13 @@ class CommandManager:
                 response = requests.get(arg)
                 video_url = response.url
             except requests.RequestException as e:
-                print(f" - Error resolving URL: {e}")
+                print(f"- Error resolving URL: {e}")
                 return
 
         if video_url:
             try:
                 video_id = video_url.split("watch?v=")[1]
-                print(f" - Video ID found: {video_id}.")
+                print(f"- Video ID found: {video_id}.")
             except IndexError:
                 print(" - Invalid YouTube URL provided.")
                 return
@@ -722,7 +722,7 @@ class CommandManager:
                             if lang in subtitles and subtitles[lang]:
                                 subtitle_data = subtitles[lang]
                                 subtitle_source = f"manual {lang}"
-                                print(f" - Found manual {lang} subtitles")
+                                print(f"- Found manual {lang} subtitles")
                                 break
 
                         # If no manual subtitles, try automatic captions
@@ -731,7 +731,7 @@ class CommandManager:
                                 if lang in automatic_captions and automatic_captions[lang]:
                                     subtitle_data = automatic_captions[lang]
                                     subtitle_source = f"auto-generated {lang}"
-                                    print(f" - Found auto-generated {lang} captions")
+                                    print(f"- Found auto-generated {lang} captions")
                                     break
 
                         if subtitle_data:
@@ -787,8 +787,8 @@ class CommandManager:
                                         transcript_text = ' '.join(text_lines)
 
                                         if transcript_text:
-                                            print(f" - Successfully extracted transcript from {subtitle_source}")
-                                            print(f" - Processing {len(transcript_text)} characters as input...")
+                                            print(f"- Successfully extracted transcript from {subtitle_source}")
+                                            print(f"- Processing {len(transcript_text)} characters as input...")
 
                                             user_input = (
                                                 "Channel title: " + channel_title +
@@ -805,7 +805,7 @@ class CommandManager:
                                         raise Exception(f"Failed to download subtitles: HTTP {response.status_code}")
 
                                 except Exception as subtitle_error:
-                                    print(f" - Error processing subtitle file: {subtitle_error}")
+                                    print(f"- Error processing subtitle file: {subtitle_error}")
                                     raise subtitle_error
                             else:
                                 raise Exception("No subtitle URL found")
@@ -813,14 +813,14 @@ class CommandManager:
                             # List available subtitle languages for debugging
                             available_langs = list(subtitles.keys()) + list(automatic_captions.keys())
                             if available_langs:
-                                print(f" - Available subtitle languages: {', '.join(set(available_langs))}")
+                                print(f"- Available subtitle languages: {', '.join(set(available_langs))}")
                                 print(" - No English subtitles found")
                             else:
                                 print(" - No subtitles available for this video")
                             raise Exception("No English subtitles available")
 
                 except Exception as e:
-                    print(f" - Could not extract transcript: {str(e)}")
+                    print(f"- Could not extract transcript: {str(e)}")
                     print(" - Continuing with video info only...")
                     # Still provide video info even without transcript
                     user_input = (
@@ -856,7 +856,7 @@ class CommandManager:
         result = extractor.extract_content(url)
 
         if result['error']:
-            print(f" - Error: {result['error']}")
+            print(f"- Error: {result['error']}")
             return
 
         if not result['content']:
@@ -865,7 +865,7 @@ class CommandManager:
 
         # Display warning if paywall was encountered
         if result.get('warning'):
-            print(f" - {result['warning']}")
+            print(f"- {result['warning']}")
 
         # Format the content for the conversation
         title = result['title'] or "Web Content"
@@ -887,16 +887,16 @@ class CommandManager:
 
         # Check if file exists
         if not os.path.exists(file_path):
-            print(f" - Error: File not found: {file_path}")
+            print(f"- Error: File not found: {file_path}")
             return
 
         # Check if file type is supported
         if not is_supported_file(file_path):
             supported_types = get_supported_extensions_display()
-            print(f" - Error: Unsupported file type. Supported types: {supported_types}")
+            print(f"- Error: Unsupported file type. Supported types: {supported_types}")
             return
 
-        print(f" - Loading file: {os.path.basename(file_path)}")
+        print(f"- Loading file: {os.path.basename(file_path)}")
 
         # Use DocumentProcessor to load the file content
         processor = DocumentProcessor()
@@ -915,7 +915,7 @@ class CommandManager:
             file_ext = os.path.splitext(filename)[1].lower()
             word_count = len(content.split())
 
-            print(f" - Extracted content from {filename} ({word_count} words)")
+            print(f"- Extracted content from {filename} ({word_count} words)")
 
             # Format the content for the conversation
             formatted_content = f"File: {filename}\n\nPath: {file_path}\n\n{content}"
@@ -929,7 +929,7 @@ class CommandManager:
             print(" - You can now ask questions about this content.")
 
         except Exception as e:
-            print(f" - Error loading file: {e}")
+            print(f"- Error loading file: {e}")
 
 
 

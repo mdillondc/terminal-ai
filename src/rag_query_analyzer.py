@@ -153,7 +153,7 @@ Now analyze the given query and respond with ONLY the JSON object:"""
             return analysis
 
         except Exception as e:
-            print(f" - Error in rag_query_analyzer: {e}")
+            print(f"- Error in rag_query_analyzer: {e}")
             # Fallback to simple analysis on error
             return self._simple_fallback_analysis(query)
 

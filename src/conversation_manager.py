@@ -256,17 +256,17 @@ class ConversationManager:
             ollama_client = self._create_ollama_client()
             if ollama_client:
                 self.client = ollama_client
-                print(f" - Using Ollama for model: {model_name}")
+                print(f"- Using Ollama for model: {model_name}")
             else:
-                print(f" - Warning: Could not create Ollama client for {model_name}")
+                print(f"- Warning: Could not create Ollama client for {model_name}")
         elif self._is_google_model(model_name):
             google_client = self._create_google_client()
             if google_client:
                 self.client = google_client
-                print(f" - Using Google Gemini for model: {model_name}")
+                print(f"- Using Google Gemini for model: {model_name}")
             else:
-                print(f" - Warning: Could not create Google client for {model_name}")
-                print(f" - Make sure GOOGLE_API_KEY environment variable is set")
+                print(f"- Warning: Could not create Google client for {model_name}")
+                print(f"- Make sure GOOGLE_API_KEY environment variable is set")
         else:
             # Use stored OpenAI client
             self.client = self._original_openai_client
@@ -456,15 +456,15 @@ class ConversationManager:
                     print(" - Command ran successfully (no output produced)")
             else:
                 if result.stderr:
-                    print(f" - Command failed: {result.stderr.rstrip()}")
+                    print(f"- Command failed: {result.stderr.rstrip()}")
                 else:
-                    print(f" - Command failed (exit code: {result.returncode})")
+                    print(f"- Command failed (exit code: {result.returncode})")
 
             return output
 
         except Exception as e:
             error_msg = f"Could not run command: {str(e)}"
-            print(f" - Error: {error_msg}")
+            print(f"- Error: {error_msg}")
             return error_msg
 
     def _get_execute_mode_prompt(self) -> str:
@@ -576,7 +576,7 @@ The system will handle permission prompts - your job is to suggest the right com
             search_queries = query_response.choices[0].message.content.strip().split('\n')
             search_queries = [q.strip() for q in search_queries if q.strip()]
 
-            print(f" - Generated search queries: {', '.join(search_queries)}")
+            print(f"- Generated search queries: {', '.join(search_queries)}")
 
             # Perform searches
             search_client = create_tavily_search()
@@ -587,13 +587,13 @@ The system will handle permission prompts - your job is to suggest the right com
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
             for query in search_queries[:max_queries]:  # Limit queries to avoid overwhelming
-                print(f" - Searching: {query}")
+                print(f"- Searching: {query}")
                 try:
                     results = search_client.search_and_format(query, max_results=3)
                     if results:
                         all_search_results.append(results)
                 except TavilySearchError as e:
-                    print(f" - Search failed for '{query}': {e}")
+                    print(f"- Search failed for '{query}': {e}")
                     continue
 
             if all_search_results:
@@ -613,7 +613,7 @@ The system will handle permission prompts - your job is to suggest the right com
                 print(" - No search results found. Continuing without search data.")
 
         except Exception as e:
-            print(f" - (!) Search workflow error: {e}. Continuing without search.")
+            print(f"- (!) Search workflow error: {e}. Continuing without search.")
             return
 
     def _extract_key_topics_from_context(self, context_text: str) -> list:
@@ -716,7 +716,7 @@ The system will handle permission prompts - your job is to suggest the right com
         new_file_path = self.settings_manager.setting_get("working_dir") + "/instructions/" + file_name
 
         if not os.path.exists(new_file_path):
-            print(f" - (!) {new_file_path} does not exist.")
+            print(f"- (!) {new_file_path} does not exist.")
         else:
             if old_file_name:
                 # Remove old instructions from conversation_history
@@ -802,7 +802,7 @@ The system will handle permission prompts - your job is to suggest the right com
                     self._rename_log_files_with_title(descriptive_title, interrupted)
                     self.log_renamed = True
             except Exception as e:
-                print(f" - Note: Could not generate descriptive log title: {e}")
+                print(f"- Note: Could not generate descriptive log title: {e}")
                 # Continue without renaming - not critical functionality
 
     def _create_title_generation_prompt(self, context: str) -> str:
@@ -862,7 +862,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                     return title
 
         except Exception as e:
-            print(f" - Error generating title: {e}")
+            print(f"- Error generating title: {e}")
 
         return None
 
@@ -898,7 +898,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 return title
 
         except Exception as e:
-            print(f" - Error generating title: {e}")
+            print(f"- Error generating title: {e}")
 
         # Fallback to generic name if all else fails
         return "general-conversation"
@@ -949,7 +949,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 print(f"\n - Log renamed to: {new_filename}")
 
         except Exception as e:
-            print(f" - Error renaming log files: {e}")
+            print(f"- Error renaming log files: {e}")
 
     def generate_ai_suggested_title(self) -> str:
         """Generate AI-suggested title using full conversation context (for --logmv command)"""
@@ -972,7 +972,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return title if title else "general-conversation"
 
         except Exception as e:
-            print(f" - Error generating AI suggested title: {e}")
+            print(f"- Error generating AI suggested title: {e}")
             return "general-conversation"
 
     def manual_log_rename(self, title: str) -> str:
@@ -1031,7 +1031,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return new_filename
 
         except Exception as e:
-            print(f" - Error renaming log files: {e}")
+            print(f"- Error renaming log files: {e}")
             # Fallback to simple filename if rename fails
             fallback_name = f"{title}.md"
             self.settings_manager.setting_set("log_file_name", fallback_name)

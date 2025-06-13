@@ -277,7 +277,7 @@ class WebContentExtractor:
                 result['error'] = "No readable content found on the page"
                 return result
 
-            print(f" - Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
+            print(f"- Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
 
         except requests.exceptions.Timeout:
             result['error'] = "Request timed out"
@@ -378,7 +378,7 @@ class WebContentExtractor:
                 if (result and result.get('content') and
                     not self._is_paywall_content(result['content']) and
                     len(result['content'].split()) > 100):  # Ensure substantial content
-                    print(f" - Paywall bypassed using {method_name}")
+                    print(f"- Paywall bypassed using {method_name}")
                     result['warning'] = f"Paywall bypassed using {method_name}"
                     return result
             except Exception as e:
