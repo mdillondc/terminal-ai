@@ -22,7 +22,7 @@ from vector_store import VectorStore
 
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
-from rag_config import get_supported_extensions
+from rag_config import get_supported_extensions, SUPPORTED_FILE_EXTENSIONS, get_file_type_info
 
 
 class CompletionCache:
@@ -258,30 +258,51 @@ class CommandCompleter(Completer):
             yield from self._complete_simple_suggestions(argument_part, completion_rules)
 
     def _complete_file_paths(self, partial_path: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete file paths with optional extension filtering"""
+        """Complete file paths with support for special paths and supported file types"""
         try:
-            # Expand user home directory
-            expanded_path = os.path.expanduser(partial_path)
-
-            # Determine directory and filename parts
-            if os.path.isdir(expanded_path):
-                directory = expanded_path
+            # Handle special paths
+            if partial_path.strip() == "":
+                # Show current working directory contents
+                directory = rules.base_directory or "."
+                filename_prefix = ""
+            elif partial_path.strip() in ["/", "~"]:
+                # Handle root and home directory
+                if partial_path.strip() == "/":
+                    directory = "/"
+                else:  # "~"
+                    directory = os.path.expanduser("~")
                 filename_prefix = ""
             else:
-                directory = os.path.dirname(expanded_path) or "."
-                filename_prefix = os.path.basename(expanded_path)
+                # Expand user home directory and handle paths
+                expanded_path = os.path.expanduser(partial_path)
 
-            # Get file suggestions (convert list to tuple for caching)
-            extensions_tuple = tuple(rules.file_extensions) if rules.file_extensions else None
+                # Determine directory and filename parts
+                if os.path.isdir(expanded_path):
+                    directory = expanded_path
+                    filename_prefix = ""
+                else:
+                    directory = os.path.dirname(expanded_path) or (rules.base_directory or ".")
+                    filename_prefix = os.path.basename(expanded_path)
+
+            # Use supported file extensions from rag_config for --file command
+            if rules.file_extensions:
+                extensions_tuple = tuple(SUPPORTED_FILE_EXTENSIONS)
+            else:
+                extensions_tuple = None
+
             files = self._get_files_in_directory(directory, filename_prefix, extensions_tuple)
 
             for file_path in files:
-                # Calculate the completion text
+                # Calculate the completion text and start position
                 if partial_path.endswith("/") or not filename_prefix:
-                    completion_text = os.path.basename(file_path)
-                    start_pos = 0
+                    if partial_path.strip() in ["/", "~"]:
+                        # For special paths, show full relative path
+                        completion_text = os.path.basename(file_path.rstrip("/"))
+                    else:
+                        completion_text = os.path.basename(file_path.rstrip("/"))
+                    start_pos = -len(partial_path) if partial_path else 0
                 else:
-                    completion_text = os.path.basename(file_path)
+                    completion_text = os.path.basename(file_path.rstrip("/"))
                     start_pos = -len(filename_prefix)
 
                 yield Completion(
@@ -559,9 +580,10 @@ class CommandCompleter(Completer):
                     files.append(item_path + "/")
                     continue
 
-                # Filter by extensions if specified
+                # Filter by extensions if specified - only include supported file types
                 if extensions:
-                    if any(item.lower().endswith(ext.lower()) for ext in extensions):
+                    item_ext = os.path.splitext(item)[1].lower()
+                    if item_ext in extensions:
                         files.append(item_path)
                 else:
                     files.append(item_path)
@@ -572,13 +594,16 @@ class CommandCompleter(Completer):
             return []
 
     def _get_file_display_meta(self, file_path: str) -> str:
-        """Get display metadata for instruction and log files"""
+        """Get display metadata for files using rag_config file type information"""
         try:
-            if os.path.isdir(file_path):
+            # Clean up file path (remove trailing slash for directories)
+            clean_path = file_path.rstrip("/")
+
+            if os.path.isdir(clean_path):
                 return "Directory"
 
             # Get file size
-            size = os.path.getsize(file_path)
+            size = os.path.getsize(clean_path)
             if size < 1024:
                 size_str = f"{size}B"
             elif size < 1024 * 1024:
@@ -586,18 +611,18 @@ class CommandCompleter(Completer):
             else:
                 size_str = f"{size // (1024 * 1024)}MB"
 
-            # Get file extension - only handle relevant types
-            ext = os.path.splitext(file_path)[1].lower()
-            if ext == '.md':
-                file_type = 'Markdown'
-            elif ext == '.json':
-                file_type = 'JSON'
+            # Get file type information from rag_config - only show supported types
+            ext = os.path.splitext(clean_path)[1].lower()
+            file_type_info = get_file_type_info(ext)
+
+            if file_type_info:
+                file_type = file_type_info.get('name', 'File')
             else:
                 file_type = 'File'
 
             return f"{file_type} ({size_str})"
 
-        except OSError:
+        except (OSError, PermissionError):
             return "File"
 
     def _get_relative_path(self, file_path: str, base_dir: str) -> str:

@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Any, Callable
 from enum import Enum
 from dataclasses import dataclass
 import os
+from rag_config import SUPPORTED_FILE_EXTENSIONS
 
 
 class CompletionType(Enum):
@@ -132,7 +133,11 @@ class CommandRegistry:
             description="Load and add file contents to conversation context. Supports text, markdown, PDF, Word, Excel, and RTF files.",
             usage="--file path/to/document.pdf",
             execution_order=2,
-            completion_rules=CompletionRules(CompletionType.NONE),
+            completion_rules=CompletionRules(
+                CompletionType.FILE_PATH,
+                file_extensions=list(SUPPORTED_FILE_EXTENSIONS),
+                base_directory=self.working_dir
+            ),
             requires_argument=True
         ))
 
