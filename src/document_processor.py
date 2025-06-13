@@ -2,7 +2,7 @@ import os
 import re
 from typing import List, Dict, Any, Optional, Tuple
 import tiktoken
-import PyPDF2
+import pypdf
 from settings_manager import SettingsManager
 from rag_config import is_supported_file, get_file_type_info
 import docx2txt
@@ -73,7 +73,7 @@ class DocumentProcessor:
         try:
             content = []
             with open(file_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
+                pdf_reader = pypdf.PdfReader(file)
 
                 for page_num, page in enumerate(pdf_reader.pages):
                     try:

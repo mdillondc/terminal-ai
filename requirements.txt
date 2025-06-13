@@ -7,7 +7,7 @@ openai
 ollama
 pygame
 tavily-python
-PyPDF2
+pypdf
 pyarrow
 pandas
 numpy

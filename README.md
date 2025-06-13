@@ -40,7 +40,7 @@ As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I 
    ```bash
    git clone https://github.com/mdillondc/terminal-ai
    cd terminal-ai
-   conda create -n terminal-ai python=3.10
+   conda create -n terminal-ai python=3.12
    conda activate terminal-ai
    pip install -r requirements.txt
    ```
