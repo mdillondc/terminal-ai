@@ -2,32 +2,39 @@
 
 ![Terminal AI Assistant Screenshot](screenshot.png)
 
-A terminal AI assistant with advanced features including RAG (Retrieval-Augmented Generation), web search, TTS, and more.
+A terminal AI assistant with advanced features including RAG, web search, command execution, TTS, multiple providers (including Ollama) and more.
 
-As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I found myself preferring terminal-based workflows. I created Terminal AI to bring the powerful features I love from modern AI interfaces directly to the command line.
+As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui) and [open-interpreter](https://github.com/OpenInterpreter/open-interpreter), I found myself wishing that I could bring them both into a single, cohesive terminal application. To achieve this, I created Terminal AI.
+
+I use this program every day on Linux. It should work on macOS as well. If you use Windows, I hope you seek mental health help from a trained professional.
 
 ## Features
 
-- **Multi-Provider AI**: OpenAI models, Google Gemini, and Ollama (local models)
-- **RAG System**: Query your own documents with intelligent retrieval
-- **Web Search**: Real-time information via Tavily API
+- **Multi-Provider AI**: OpenAI, Google Gemini, and Ollama (local models)
+- **RAG System**: Query your own documents with intelligent retrieval and hybrid search (analyzes query for tone: temporal, factual, analytical, etc)
+- **Web Search**: Real-time information via Tavily API (optimized for AI)
+- **Command Execution**: Execute system commands with AI assistance and permission controls (think [open-interpreter](https://github.com/OpenInterpreter/open-interpreter))
 - **YouTube Integration**: Extract and analyze video transcripts
 - **URL Content Extraction**: Extract and analyze content from any website with intelligent paywall bypass
-- **Text-to-Speech**: Convert responses to natural speech
 - **Conversation Management**: Save, resume, and organize conversations
+- **Text-to-Speech**: Convert responses to natural speech
 - **Rich Commands**: Extensible command system with tab completion
 - **Clipboard Integration**: Use clipboard content as input
 
 ## Installation
 
 ### Prerequisites
-- Python 3.8+
-- OpenAI API key (required)
+- Python 3.10+
+- OpenAI API key (required, optional if you want to use Ollama models)
 - Tavily API key (optional, for web search)
 - Google API key (optional, for Gemini models)
 - Ollama (optional, for local models and private RAG)
 
 ### Setup
+
+0. **Install Conda**
+
+Conda let's you create isolated environments for Python projects. Get it [here](https://www.anaconda.com/docs/getting-started/). It's free. Miniconda is recommended.
 
 1. **Set API keys**
    ```bash
@@ -36,11 +43,13 @@ As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I 
    export GOOGLE_API_KEY="your-google-key"
    ```
    
+Typically you would set these in your `~/.bashrc` or `.zshrc`.
+   
 2. **Clone and set up environment**
    ```bash
    git clone https://github.com/mdillondc/terminal-ai
    cd terminal-ai
-   conda create -n terminal-ai python=3.12
+   conda create -n terminal-ai python=3.12 -y
    conda activate terminal-ai
    pip install -r requirements.txt
    ```
@@ -60,16 +69,22 @@ As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I 
 # Enable web search
 > --search
 
-# Apply instruction templates
+# Enable command execution
+> --execute
+
+# Apply instruction (think gpts) templates
 > --instructions summary.md
 
 # Enable text-to-speech
 > --tts
 > --tts-voice nova
-> --tts-save-as-mp3                # Save audio files locally
+> --tts-save-as-mp3 # Save audio files locally
 
 # Analyze YouTube video
 > --youtube https://youtube.com/watch?v=example
+
+# Enable command execution (think open-interpreter)
+> --execute
 
 # Extract content from any website
 > --url https://example.com/article
@@ -109,7 +124,7 @@ cp api-docs/*.md rag/my-docs/api/
 **Ollama** (local, private):
 - Free, runs locally, works offline
 - Install: `curl -fsSL https://ollama.com/install.sh | sh`
-- Setup: `ollama serve && ollama pull nomic-embed-text`
+- Setup: `ollama pull snowflake-arctic-embed2:latest`
 
 Configure in `src/settings_manager.py`:
 ```python
@@ -147,7 +162,7 @@ self.embedding_provider = "ollama"  # or "openai"
 > --url https://youtube.com/watch?v=example
  - YouTube URL detected - redirecting to --youtube command...
 
-# Works with most news sites and blogs
+# Works with most urls
 > --url https://theguardian.com/article
 > --url https://medium.com/@author/story
 ```
@@ -163,20 +178,23 @@ self.embedding_provider = "ollama"  # or "openai"
 ### Getting Help
 
 ```bash
-> --help                   # Show all commands
-> --refresh-models         # Update available models
-> --rag-status             # Show RAG system status
-> --rag-info               # Show embedding model details
+> --help # Show all commands
 ```
+
+That said, typing `--` will show all available commands.
 
 ## Configuration
 
 ### Instruction Templates
-Create custom instruction files in `instructions/`:
+
+Create custom markdown instruction files in `instructions/`:
+
+A good resource for instructions can be found at [fabric/patterns](https://github.com/danielmiessler/fabric/tree/main/patterns).
 
 ### Settings
+
 Key settings in `src/settings_manager.py`:
-- Model selection and API configuration
+- Default model selection and API configuration
 - RAG parameters (chunk size, top-k results, embedding provider)
 - TTS voice and model settings (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`)
 - Cache duration for model listings
@@ -259,9 +277,19 @@ RAG responses include source citations:
 
 ## Exiting
 
-Use `quit`, `exit`, `q`, or `Ctrl+C` to exit the application.
+Use `q`, `quit`, `:q`, `:wq`, or `Ctrl+C` to exit the application.
 
 **Note**: Press `q` + `Enter` during AI responses to interrupt streaming, not to exit.
+
+
+## Todo
+
+Honestly, I just keep adding features whenever I miss something.
+
+Suggestions are welcome, please open an issue on the repository.
+
+* [ ] Maybe create a pip package for easy installation?
+* [ ] Add lots of helpful `instructions/*.md`
 
 ---
 

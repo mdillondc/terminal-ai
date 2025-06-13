@@ -168,6 +168,15 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
+            name="--execute",
+            description="[EXPERIMENTAL/BASIC] Toggles command execution mode on or off. When enabled, allows AI to execute system commands with user permission.",
+            usage="--execute",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
+        self.register_command(CommandInfo(
             name="--clear",
             description="Clears the current conversation history, starting fresh without any previous messages.",
             usage="--clear",

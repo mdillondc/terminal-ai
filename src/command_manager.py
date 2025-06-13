@@ -3,6 +3,8 @@ from typing import Optional, Any
 import yt_dlp
 # Removed youtube_transcript_api - using yt-dlp for more reliable transcript extraction
 import clipboard
+import subprocess
+import shlex
 from settings_manager import SettingsManager
 from openai import OpenAI
 
@@ -37,6 +39,55 @@ class CommandManager:
     def print_command_result(self, message: str) -> None:
         """Helper method to print command results with consistent spacing"""
         print(message)  # The message
+
+    def execute_system_command(self, command: str) -> Optional[str]:
+        """
+        Execute a system command with proper permission handling.
+        Returns the command output or None if execution was denied/failed.
+        """
+        if not self.settings_manager.setting_get("execute_enabled"):
+            self.print_command_result(" - Execute mode is disabled. Use --execute to enable.")
+            return None
+
+        # Check if permission is required
+        if self.settings_manager.setting_get("execute_require_permission"):
+            response = input(" - Allow execution? (Y/n): ").strip().lower()
+            if response not in ['', 'y', 'yes']:
+                self.print_command_result(" - Command execution denied by user")
+                return None
+
+        try:
+            # Execute the command safely
+            self.print_command_result(f" - Running: {command}")
+
+            # Use shell=True for complex commands but be aware of security implications
+            # In a production environment, you might want to restrict this further
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True
+            )
+
+            output = ""
+            if result.stdout:
+                output += f"STDOUT:\n{result.stdout}\n"
+            if result.stderr:
+                output += f"STDERR:\n{result.stderr}\n"
+
+            output += f"Return code: {result.returncode}"
+
+            if result.returncode == 0:
+                self.print_command_result(" - Command ran successfully")
+            else:
+                self.print_command_result(f" - Command finished with exit code: {result.returncode}")
+
+            return output
+
+        except Exception as e:
+            error_msg = f" - Could not run command: {str(e)}"
+            self.print_command_result(error_msg)
+            return error_msg
 
     def parse_commands(self, user_input: str) -> bool:
         command_processed = False
@@ -166,6 +217,18 @@ class CommandManager:
                 else:
                     self.settings_manager.setting_set("incognito", True)
                     self.print_command_result(" - Incognito mode enabled - no data will be saved to logs")
+
+                command_processed = True
+            elif command.startswith("--execute"):
+                execute_enabled = self.settings_manager.setting_get("execute_enabled")
+                if execute_enabled:
+                    self.settings_manager.setting_set("execute_enabled", False)
+                    self.print_command_result(" - Execute mode disabled - AI cannot run system commands")
+                else:
+                    self.settings_manager.setting_set("execute_enabled", True)
+                    require_permission = self.settings_manager.setting_get("execute_require_permission")
+                    permission_text = " (requires permission for each command)" if require_permission else " (automatic execution enabled)"
+                    self.print_command_result(f" - Execute mode enabled - AI can run system commands{permission_text}")
 
                 command_processed = True
             elif command.startswith("--clear"):

@@ -50,7 +50,17 @@ def main() -> None:
     parser.add_argument(
         "--input", type=str, action='append', help="Input string(s) to process sequentially. Can be used multiple times for batch processing."
     )
+    parser.add_argument(
+        "--execute", action='store_true', help="Enable command execution mode. Allows AI to execute system commands with user permission."
+    )
     args = parser.parse_args()
+
+    # Handle --execute argument
+    if args.execute:
+        settings_manager.setting_set("execute_enabled", True)
+        require_permission = settings_manager.setting_get("execute_require_permission")
+        permission_text = " (requires permission for each command)" if require_permission else " (automatic execution enabled)"
+        print(f"Execute mode enabled - AI can run system commands{permission_text}")
 
     # KeyBindings
     kb = KeyBindings()
@@ -121,7 +131,7 @@ def main() -> None:
                     print("- Audio playback stopped\n")
                     continue
 
-                exit_commands = ("q", "quit", "end conversation", "exit", ":q", ":wq")
+                exit_commands = ("q", "quit", ":q", ":wq")
                 if any(command for command in exit_commands if user_input.lower().startswith(command)):
                     if confirm_exit():
                         cleanup_tts()

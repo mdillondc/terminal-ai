@@ -85,6 +85,10 @@ class SettingsManager:
         # Privacy Settings
         self.incognito = False
 
+        # Execution Settings
+        self.execute_enabled = False
+        self.execute_require_permission = True
+
         # General Settings
         self.name_ai = "Samantha"
         self.name_user = "User"
@@ -133,6 +137,8 @@ class SettingsManager:
             enabled_toggles.append("nothink")
         if self.incognito:
             enabled_toggles.append("incognito")
+        if self.execute_enabled:
+            enabled_toggles.append("execute")
         if self.rag_active_collection:
             enabled_toggles.append(f"rag {self.rag_active_collection}")
 
