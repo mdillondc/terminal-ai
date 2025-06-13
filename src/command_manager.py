@@ -9,6 +9,8 @@ from openai import OpenAI
 from command_completer import CommandCompleter
 from tavily_search import create_tavily_search, TavilySearchError
 from web_content_extractor import WebContentExtractor
+from document_processor import DocumentProcessor
+from rag_config import is_supported_file, get_supported_extensions_display
 
 
 class CommandManager:
@@ -129,6 +131,13 @@ class CommandManager:
                     print(" - (!) please specify a URL.")
                 else:
                     self.url(arg)
+
+                command_processed = True
+            elif command.startswith("--file"):
+                if arg is None:
+                    print(" - (!) please specify a file path.")
+                else:
+                    self.file(arg)
 
                 command_processed = True
             elif command == "--search":
@@ -816,6 +825,59 @@ class CommandManager:
 
         print(" - Content added to conversation context.")
         print(" - You can now ask questions about this content.")
+
+    def file(self, file_path: str) -> None:
+        """
+        Load file contents and add to conversation context using RAG document processing logic.
+        """
+        import os
+
+        # Check if file exists
+        if not os.path.exists(file_path):
+            print(f" - Error: File not found: {file_path}")
+            return
+
+        # Check if file type is supported
+        if not is_supported_file(file_path):
+            supported_types = get_supported_extensions_display()
+            print(f" - Error: Unsupported file type. Supported types: {supported_types}")
+            return
+
+        print(f" - Loading file: {os.path.basename(file_path)}")
+
+        # Use DocumentProcessor to load the file content
+        processor = DocumentProcessor()
+        try:
+            content = processor.load_file(file_path)
+
+            if not content or not content.strip():
+                print(" - Error: No content could be extracted from the file.")
+                return
+
+            # Clean the content
+            content = processor.clean_text(content)
+
+            # Get file info for display
+            filename = os.path.basename(file_path)
+            file_ext = os.path.splitext(filename)[1].lower()
+            word_count = len(content.split())
+
+            print(f" - Extracted content from {filename} ({word_count} words)")
+
+            # Format the content for the conversation
+            formatted_content = f"File: {filename}\n\nPath: {file_path}\n\n{content}"
+
+            # Add to conversation history
+            self.conversation_manager.conversation_history.append(
+                {"role": "user", "content": formatted_content}
+            )
+
+            print(" - File content added to conversation context.")
+            print(" - You can now ask questions about this content.")
+
+        except Exception as e:
+            print(f" - Error loading file: {e}")
+
 
 
 

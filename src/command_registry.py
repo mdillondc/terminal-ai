@@ -128,6 +128,15 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
+            name="--file",
+            description="Load and add file contents to conversation context. Supports text, markdown, PDF, Word, Excel, and RTF files.",
+            usage="--file path/to/document.pdf",
+            execution_order=2,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=True
+        ))
+
+        self.register_command(CommandInfo(
             name="--search",
             description="Toggles web search mode on or off. When enabled, user prompts are automatically enhanced with Tavily web search results.",
             usage="--search",

@@ -74,6 +74,9 @@ As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui), I 
 # Extract content from any website
 > --url https://example.com/article
 
+# Load file contents into conversation context
+> --file path/to/document.pdf
+
 # Use clipboard content
 > --cb
 ```
@@ -222,6 +225,9 @@ python src/main.py --input "--model gpt-4.1-mini --instructions summary.md --url
 # First input: configures model, applies instructions, fetches URL content
 # Second input: asks AI to summarize the fetched content
 # Then continues to interactive mode for follow-up questions
+
+# Process local files with batch commands
+python src/main.py --input "--file report.pdf --instructions summary.md" --input "extract key findings"
 
 # Enable features and start chatting
 > --tts --search
