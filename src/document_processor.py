@@ -9,6 +9,10 @@ import docx2txt
 import xlrd
 import openpyxl
 from striprtf.striprtf import rtf_to_text
+from odf.opendocument import load as odf_load
+from odf.text import P
+from odf.table import Table, TableRow, TableCell
+from odf import text, teletype
 
 class DocumentProcessor:
     def __init__(self):
@@ -36,6 +40,12 @@ class DocumentProcessor:
             return self.load_xls_file(file_path)
         elif processor == 'rtf':
             return self.load_rtf_file(file_path)
+        elif processor == 'odt':
+            return self.load_odt_file(file_path)
+        elif processor == 'ods':
+            return self.load_ods_file(file_path)
+        elif processor == 'odp':
+            return self.load_odp_file(file_path)
         else:
             return self.load_text_file(file_path)
 
@@ -172,6 +182,100 @@ class DocumentProcessor:
                 return ""
         except Exception as e:
             print(f"Error loading RTF file {file_path}: {e}")
+            return ""
+
+    def load_odt_file(self, file_path: str) -> str:
+        """Load content from an OpenDocument Text (.odt) file"""
+        try:
+            doc = odf_load(file_path)
+            content = []
+
+            # Extract all paragraphs
+            for paragraph in doc.getElementsByType(P):
+                para_text = teletype.extractText(paragraph)
+                if para_text.strip():
+                    content.append(para_text.strip())
+
+            # Extract table content
+            for table in doc.getElementsByType(Table):
+                content.append("--- Table ---")
+                for row in table.getElementsByType(TableRow):
+                    row_text = []
+                    for cell in row.getElementsByType(TableCell):
+                        cell_text = teletype.extractText(cell)
+                        if cell_text.strip():
+                            row_text.append(cell_text.strip())
+                    if row_text:
+                        content.append(" | ".join(row_text))
+
+            return "\n\n".join(content)
+        except Exception as e:
+            print(f"Error loading ODT file {file_path}: {e}")
+            return ""
+
+    def load_ods_file(self, file_path: str) -> str:
+        """Load content from an OpenDocument Spreadsheet (.ods) file"""
+        try:
+            from odf.table import Table, TableRow, TableCell
+            from odf.text import P
+
+            doc = odf_load(file_path)
+            content = []
+
+            # Extract all sheets (tables in ODS)
+            for table in doc.getElementsByType(Table):
+                table_name = table.getAttribute('name') or 'Sheet'
+                content.append(f"--- Sheet: {table_name} ---")
+
+                sheet_content = []
+                for row in table.getElementsByType(TableRow):
+                    row_text = []
+                    for cell in row.getElementsByType(TableCell):
+                        cell_text = teletype.extractText(cell)
+                        if cell_text.strip():
+                            row_text.append(cell_text.strip())
+                    if row_text:
+                        sheet_content.append(" | ".join(row_text))
+
+                if sheet_content:
+                    content.extend(sheet_content)
+                else:
+                    content.append("(empty sheet)")
+
+            return "\n\n".join(content)
+        except Exception as e:
+            print(f"Error loading ODS file {file_path}: {e}")
+            return ""
+
+    def load_odp_file(self, file_path: str) -> str:
+        """Load content from an OpenDocument Presentation (.odp) file"""
+        try:
+            from odf.draw import Page
+            from odf.text import P
+
+            doc = odf_load(file_path)
+            content = []
+
+            # Extract all slides (pages in ODP)
+            pages = doc.getElementsByType(Page)
+            for i, page in enumerate(pages, 1):
+                content.append(f"--- Slide {i} ---")
+
+                # Extract all text from the slide
+                slide_content = []
+                for paragraph in page.getElementsByType(P):
+                    para_text = teletype.extractText(paragraph)
+                    if para_text.strip():
+                        slide_content.append(para_text.strip())
+
+                if slide_content:
+                    content.extend(slide_content)
+                else:
+                    content.append("(no text content)")
+
+            return "\n\n".join(content)
+        except Exception as e:
+            print(f"Error loading ODP file {file_path}: {e}")
             return ""
 
     def clean_text(self, text: str) -> str:

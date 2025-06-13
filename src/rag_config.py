@@ -20,6 +20,9 @@ BINARY_FILE_EXTENSIONS: Set[str] = {
     '.xlsx',  # Microsoft Excel spreadsheets
     '.xls',   # Legacy Microsoft Excel spreadsheets
     '.rtf',   # Rich Text Format
+    '.odt',   # OpenDocument Text
+    '.ods',   # OpenDocument Spreadsheet
+    '.odp',   # OpenDocument Presentation
 }
 
 # File type metadata for binary files
@@ -53,6 +56,21 @@ BINARY_FILE_TYPE_INFO: Dict[str, Dict[str, Any]] = {
         'name': 'Rich Text Format',
         'description': 'Rich Text Format documents',
         'processor': 'rtf'
+    },
+    '.odt': {
+        'name': 'OpenDocument Text',
+        'description': 'OpenOffice/LibreOffice Writer documents',
+        'processor': 'odt'
+    },
+    '.ods': {
+        'name': 'OpenDocument Spreadsheet',
+        'description': 'OpenOffice/LibreOffice Calc spreadsheets',
+        'processor': 'ods'
+    },
+    '.odp': {
+        'name': 'OpenDocument Presentation',
+        'description': 'OpenOffice/LibreOffice Impress presentations',
+        'processor': 'odp'
     }
 }
 
