@@ -108,7 +108,7 @@ cp api-docs/*.md rag/my-docs/api/
 
 # Build and activate collection
 > --rag-build my-docs
-> --rag my-docs # enables RAG collection
+> --rag my-docs # enables RAG collection (will automatically rebuild collection when changes are detected)
 
 # Query your documents
 > What are the main topics in my documents?

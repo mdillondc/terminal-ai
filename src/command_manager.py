@@ -283,19 +283,12 @@ class CommandManager:
                 else:
                     self.rag_build(arg)
                 command_processed = True
-            elif command.startswith("--rag-refresh"):
-                if arg is None:
-                    print_info("Please specify a collection name to refresh")
-                else:
-                    self.rag_refresh(arg)
-                command_processed = True
             elif command.startswith("--rag-show"):
                 if arg is None:
                     print_info("Please specify a filename to show")
                 else:
                     self.rag_show(arg)
                 command_processed = True
-
             elif command.startswith("--rag-test"):
                 self.rag_test_connection()
                 command_processed = True
@@ -370,14 +363,6 @@ class CommandManager:
             return
 
         self.rag_engine.build_collection(collection_name, force_rebuild=True)
-
-    def rag_refresh(self, collection_name: str) -> None:
-        """Refresh/rebuild a RAG collection"""
-        if not self.rag_engine:
-            print_info("RAG engine not available")
-            return
-
-        self.rag_engine.refresh_collection(collection_name)
 
     def rag_show(self, filename: str) -> None:
         """Show relevant chunks in a file"""
@@ -460,8 +445,6 @@ class CommandManager:
 
         except Exception as e:
             print_info(f"Error during RAG query: {e}")
-
-
 
     def rag_test_connection(self) -> None:
         """Test connection to current embedding provider"""

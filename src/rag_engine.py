@@ -418,10 +418,6 @@ class RAGEngine:
 
         return status
 
-    def refresh_collection(self, collection_name: str) -> bool:
-        """Force refresh/rebuild a collection"""
-        return self.build_collection(collection_name, force_rebuild=True)
-
     def delete_collection_cache(self, collection_name: str) -> bool:
         """Delete cached index for a collection"""
         success = self.vector_store.delete_collection_index(collection_name)

@@ -282,15 +282,6 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
-            name="--rag-refresh",
-            description="Force refresh/rebuild embeddings index for a RAG collection.",
-            usage="--rag-refresh collection_name",
-            execution_order=1,
-            completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
-            requires_argument=True
-        ))
-
-        self.register_command(CommandInfo(
             name="--rag-show",
             description="Show relevant chunks from a file in the active RAG collection.",
             usage="--rag-show filename.txt",
