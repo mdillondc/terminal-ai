@@ -302,6 +302,10 @@ class ConversationManager:
             processed_response = self._process_execution_requests(ai_response) if ai_response else ""
             self._handle_tts_playback(processed_response, interrupted)
 
+        # Ensure proper spacing before next user prompt
+        if ai_response:
+            print()
+
     def _process_execution_requests(self, response: str) -> str:
         """
         Process command execution requests in AI response.
@@ -593,7 +597,7 @@ The system will handle permission prompts - your job is to suggest the right com
             was_interrupted: Whether the AI response was interrupted
         """
         try:
-            
+
 
             if was_interrupted:
                 print("Skipping TTS due to interrupted response")

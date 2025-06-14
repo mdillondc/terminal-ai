@@ -304,6 +304,10 @@ class CommandManager:
                     self.rag_activate(arg)
                 command_processed = True
 
+        # Ensure proper spacing before next user prompt
+        if command_processed:
+            print()
+
         return command_processed
 
     def rag_list(self) -> None:

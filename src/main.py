@@ -40,7 +40,7 @@ def main() -> None:
     # Display startup information
     current_model = settings_manager.setting_get("model")
     print_info(f"Using model: {current_model}")
-    print_info("Start chatting or type '--' to see available commands!")
+    print_info("Start chatting or type '--' to see available commands!\n")
 
     # Parse arguments
     parser = argparse.ArgumentParser(description="I am Samantha.")
@@ -88,7 +88,7 @@ def main() -> None:
                 if args.input:
                     # Process each input sequentially
                     for input_text in args.input:
-                        print(f"\n{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
+                        print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                         print(f"> {input_text}")
                         
                         # Check for commands first
@@ -112,7 +112,7 @@ def main() -> None:
                     # After processing all inputs, continue to interactive mode
                     continue
             else:
-                print(f"\n{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
+                print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                 user_input = prompt(
                     "> ",
                     completer=command_manager.completer,
