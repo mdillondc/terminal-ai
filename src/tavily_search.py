@@ -125,9 +125,9 @@ class TavilySearch:
             formatted_output.append("-" * 40)
         
         # Add search metadata
-        formatted_output.append("Search Metadata:")
-        formatted_output.append(f"Total results: {len(results)}")
-        formatted_output.append(f"Query: {query}")
+        formatted_output.append("- Search Metadata:")
+        formatted_output.append(f"- Total results: {len(results)}")
+        formatted_output.append(f"- Query: {query}")
         
         return "\n".join(formatted_output)
     
@@ -155,7 +155,7 @@ class TavilySearch:
         except TavilySearchError:
             raise
         except Exception as e:
-            raise TavilySearchError(f"Search and format failed: {e}")
+            raise TavilySearchError(f"- Search and format failed: {e}")
 
 
 def create_tavily_search() -> Optional[TavilySearch]:
