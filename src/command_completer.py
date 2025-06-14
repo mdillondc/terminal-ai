@@ -384,12 +384,12 @@ class CommandCompleter(Completer):
 
                 is_match, score = self._fuzzy_match(partial_name, model_name)
                 if is_match:
-                    matches.append((score, model_name, f"{model_source} Model"))
+                    matches.append((model_source, model_name, score, f"{model_source} Model"))
 
-            # Sort by score (higher is better), then alphabetically
-            matches.sort(key=lambda x: (-x[0], x[1]))
+            # Sort by source alphabetically, then by model name alphabetically within each source
+            matches.sort(key=lambda x: (x[0], x[1]))
 
-            for score, model_name, display_meta in matches:
+            for model_source, model_name, score, display_meta in matches:
                 yield Completion(
                     text=model_name,
                     start_position=-len(partial_name),
@@ -662,6 +662,9 @@ class CommandCompleter(Completer):
         for model in ollama_models:
             all_models.append({"name": model, "source": "Ollama"})
 
+        # Sort by source alphabetically, then by model name alphabetically within each source
+        all_models.sort(key=lambda x: (x["source"], x["name"]))
+
         return all_models
 
     def _get_openai_models_cached(self) -> List[str]:
@@ -700,16 +703,9 @@ class CommandCompleter(Completer):
             models_response = self.openai_client.models.list()
 
             # Extract model IDs and filter for relevant ones
-            all_models = [model.id for model in models_response.data]
+            models = [model.id for model in models_response.data]
 
-            # Filter for GPT models
-            filtered_models = []
-
-            for model in all_models:
-                if any(keyword in model.lower() for keyword in ['gpt', 'o1']):
-                    filtered_models.append(model)
-
-            return filtered_models
+            return models
 
         except Exception:
             # If API call fails, return empty list (will fallback to predefined)
@@ -796,7 +792,7 @@ class CommandCompleter(Completer):
                 if response.status == 200:
                     data = json.loads(response.read().decode('utf-8'))
 
-                    models = []
+                    models = data['models']
                     if 'models' in data:
                         for model_info in data['models']:
                             model_name = model_info.get('name', '')
@@ -805,11 +801,7 @@ class CommandCompleter(Completer):
                                 if model_name.startswith('models/'):
                                     model_name = model_name[7:]  # Remove "models/" prefix
 
-                                # Filter for chat-capable models (exclude embeddings, vision-only, etc.)
-                                if any(keyword in model_name.lower() for keyword in ['gemini', 'palm', 'bard']):
-                                    # Skip deprecated or vision-only models
-                                    if not any(skip in model_name.lower() for skip in ['vision', 'embedding', 'deprecated']):
-                                        models.append(model_name)
+                                models.append(model_name)
 
                     return models
 
