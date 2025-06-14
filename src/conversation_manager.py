@@ -349,9 +349,9 @@ class ConversationManager:
 
         # Check if permission is required
         if self.settings_manager.setting_get("execute_require_permission"):
-            response = input(" - Allow execution? (Y/n): ").strip().lower()
+            response = input("- Allow execution? (Y/n): ").strip().lower()
             if response not in ['', 'y', 'yes']:
-                print(" - Command execution denied by user")
+                print("- Command execution denied by user")
                 return None
 
         try:
@@ -381,7 +381,7 @@ class ConversationManager:
                 if result.stdout:
                     print(result.stdout.rstrip())
                 else:
-                    print(" - Command ran successfully (no output produced)")
+                    print("- Command ran successfully (no output produced)")
             else:
                 if result.stderr:
                     print(f"- Command failed: {result.stderr.rstrip()}")
@@ -459,10 +459,10 @@ The system will handle permission prompts - your job is to suggest the right com
                     break
 
             if not last_user_message:
-                print(" - No user message found for search.")
+                print("- No user message found for search.")
                 return
 
-            print(" - Search mode enabled. Generating optimal search query...")
+            print("- Search mode enabled. Generating optimal search query...")
 
             # Get recent conversation context using configurable window size
             context_window = self.settings_manager.search_context_window
@@ -509,7 +509,7 @@ The system will handle permission prompts - your job is to suggest the right com
             # Perform searches
             search_client = create_tavily_search()
             if not search_client:
-                print(" - (!) Failed to initialize Tavily search client. Continuing without search.")
+                print("- (!) Failed to initialize Tavily search client. Continuing without search.")
                 return
 
             all_search_results = []
@@ -536,9 +536,9 @@ The system will handle permission prompts - your job is to suggest the right com
 
                 # Insert search context before the last user message
                 self.conversation_history.insert(-1, search_context)
-                print(" - Search completed. Analyzing results...")
+                print("- Search completed. Analyzing results...")
             else:
-                print(" - No search results found. Continuing without search data.")
+                print("- No search results found. Continuing without search data.")
 
         except Exception as e:
             print(f"- (!) Search workflow error: {e}. Continuing without search.")
@@ -638,7 +638,7 @@ The system will handle permission prompts - your job is to suggest the right com
 
     def apply_instructions(self, file_name: Optional[str], old_file_name: Optional[str] = None) -> None:
         if file_name is None:
-            print(" - Please specify the instructions file to use.")
+            print("- Please specify the instructions file to use.")
             return
 
         new_file_path = self.settings_manager.setting_get("working_dir") + "/instructions/" + file_name
@@ -985,15 +985,15 @@ Generate only the filename focusing on content substance:""".format(context[:100
             # Display the conversation history to the user
             self._display_conversation_history()
 
-            print(" - Conversation history replaced with " + self.settings_manager.setting_get('log_file_name'))
-            print(" - Now logging to " + self.settings_manager.setting_get('log_file_name'))
+            print("- Conversation history replaced with " + self.settings_manager.setting_get('log_file_name'))
+            print("- Now logging to " + self.settings_manager.setting_get('log_file_name'))
         else:
-            print(" - (!) Log file not found.")
+            print("- (!) Log file not found.")
 
     def _display_conversation_history(self) -> None:
         """Display the loaded conversation history to the user in a readable format"""
         if not self.conversation_history:
-            print(" - No conversation history to display.")
+            print("- No conversation history to display.")
             return
 
         # Filter out system messages for display
@@ -1003,7 +1003,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 display_messages.append(msg)
 
         if not display_messages:
-            print(" - No user conversation to display (only system messages found).")
+            print("- No user conversation to display (only system messages found).")
             return
 
         print("\n" + "=" * 70)

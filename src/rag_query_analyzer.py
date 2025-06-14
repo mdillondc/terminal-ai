@@ -119,7 +119,7 @@ Now analyze the given query and respond with ONLY the JSON object:"""
                 return cached_result['analysis']
 
         try:
-            print(" - Analyzing RAG query for intent (temporal, factual, analytical, etc)...")
+            print("- Analyzing RAG query for intent (temporal, factual, analytical, etc)...")
             # Get analysis from LLM
             prompt = self._get_analysis_prompt(query, domain)
 

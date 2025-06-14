@@ -40,31 +40,31 @@ class WebContentExtractor:
                 return result
 
             # Try normal extraction first
-            print(" - Fetching webpage...")
+            print("- Fetching webpage...")
             normal_result = self._basic_extraction(url)
 
             # Check if we got an error that might be bypassed (403, 429, etc.)
             if normal_result['error']:
                 error_msg = normal_result['error'].lower()
                 if any(code in error_msg for code in ['403', '429', 'forbidden', 'blocked', 'bot']):
-                    print(" - Access blocked, trying alternative methods...")
+                    print("- Access blocked, trying alternative methods...")
                     bypass_result = self._try_paywall_bypass(url)
                     if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
                         return bypass_result
                     else:
-                        print(" - ⚠️ All bypass methods failed")
+                        print("- ⚠️ All bypass methods failed")
                         return normal_result
                 else:
                     return normal_result
 
             # Check for paywall
             if self._is_paywall_content(normal_result['content']):
-                print(" - Paywall detected, trying alternative methods...")
+                print("- Paywall detected, trying alternative methods...")
                 bypass_result = self._try_paywall_bypass(url)
                 if bypass_result['content'] and not self._is_paywall_content(bypass_result['content']):
                     return bypass_result
                 else:
-                    print(" - ⚠️ Content incomplete due to paywall - no bypass methods worked")
+                    print("- ⚠️ Content incomplete due to paywall - no bypass methods worked")
                     normal_result['warning'] = "Content may be incomplete due to paywall"
                     return normal_result
 
