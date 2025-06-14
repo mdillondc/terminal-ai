@@ -10,10 +10,6 @@ from typing import Generator, List, Optional, Dict, Any
 import os
 import glob
 import time
-import json
-import urllib.request
-import urllib.error
-from datetime import datetime, timezone
 from functools import lru_cache
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
@@ -22,6 +18,7 @@ from vector_store import VectorStore
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
 from rag_config import get_file_type_info, is_supported_file
+from model_manager import ModelManager
 
 
 class CompletionCache:
@@ -83,6 +80,9 @@ class CommandCompleter(Completer):
             self.openai_client = OpenAI()
         except Exception:
             self.openai_client = None
+
+        # Initialize ModelManager for model fetching and filtering
+        self.model_manager = ModelManager(self.openai_client)
 
     def get_completions(self, document: Document, complete_event: Any) -> Generator[Completion, None, None]:
         """
@@ -373,7 +373,7 @@ class CommandCompleter(Completer):
     def _complete_model_names(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete model names from OpenAI, Google, and Ollama APIs with fuzzy matching"""
         # Try to get dynamic models from all sources
-        models = self._get_available_models()
+        models = self.model_manager.get_available_models()
 
         # If we have models from APIs, use those with fuzzy matching
         if models:
@@ -643,291 +643,19 @@ class CommandCompleter(Completer):
         except ValueError:
             return os.path.basename(file_path)
 
-    def _get_available_models(self) -> List[Dict[str, str]]:
-        """Get available models from OpenAI, Google, and Ollama APIs with persistent caching"""
-        all_models = []
-
-        # Get OpenAI models (with persistent cache)
-        openai_models = self._get_openai_models_cached()
-        for model in openai_models:
-            all_models.append({"name": model, "source": "OpenAI"})
-
-        # Get Google models (with persistent cache)
-        google_models = self._get_google_models_cached()
-        for model in google_models:
-            all_models.append({"name": model, "source": "Google"})
-
-        # Get Ollama models (always live, no cache)
-        ollama_models = self._get_ollama_models()
-        for model in ollama_models:
-            all_models.append({"name": model, "source": "Ollama"})
-
-        # Sort by source alphabetically, then by model name alphabetically within each source
-        all_models.sort(key=lambda x: (x["source"], x["name"]))
-
-        return all_models
-
-    def _get_openai_models_cached(self) -> List[str]:
-        """Get available models from OpenAI API with persistent caching"""
-        # Try to load from cache first
-        cached_models = self._load_models_from_cache("openai")
-        if cached_models is not None:
-            return cached_models
-
-        # Cache miss or expired, try to fetch from API
-        fresh_models = self._get_openai_models()
-        if fresh_models:
-            # Save to cache if API call succeeded
-            self._save_models_to_cache("openai", fresh_models)
-            return fresh_models
-
-        # API call failed, try to use expired cache as fallback
-        cache_path = self._get_cache_file_path("openai")
-        if os.path.exists(cache_path):
-            try:
-                with open(cache_path, 'r') as f:
-                    cache_data = json.load(f)
-                return cache_data.get("models", [])
-            except (json.JSONDecodeError, KeyError, OSError):
-                pass
-
-        return []
-
-    def _get_openai_models(self) -> List[str]:
-        """Get available models from OpenAI API (no caching)"""
-        if not self.openai_client:
-            return []
-
-        try:
-            # Fetch models from OpenAI API
-            models_response = self.openai_client.models.list()
-
-            # Extract model IDs and filter out non-chat models
-            all_models = [model.id for model in models_response.data]
-
-            # Filter out models that are not suitable for chat
-            filtered_models = []
-            for model in all_models:
-                model_lower = model.lower()
-                # Exclude specialized non-chat models and older models
-                if not any(keyword in model_lower for keyword in [
-                    'whisper', 'tts', 'embedding', 'moderation',
-                    'edit', 'search', 'similarity', 'code-search',
-                    'dall-e', 'davinci', 'gpt-3.5', 'transcribe'
-                ]):
-                    filtered_models.append(model)
-
-            return filtered_models
-
-        except Exception:
-            # If API call fails, return empty list (will fallback to predefined)
-            return []
-
-    def _get_ollama_models(self) -> List[str]:
-        """Get available models from Ollama with graceful error handling"""
-        try:
-            # Get Ollama base URL from settings
-            settings = SettingsManager.getInstance()
-            base_url = settings.setting_get("ollama_base_url")
-            url = f"{base_url}/api/tags"
-
-            # Create request with short timeout
-            req = urllib.request.Request(url)
-            req.add_header('Content-Type', 'application/json')
-
-            # Very short timeout - we don't want to block if Ollama isn't available
-            with urllib.request.urlopen(req, timeout=2) as response:
-                if response.status == 200:
-                    data = json.loads(response.read().decode('utf-8'))
-
-                    models = []
-                    if 'models' in data:
-                        for model in data['models']:
-                            model_name = model.get('name', '')
-                            if model_name:
-                                models.append(model_name)
 
 
-                    return models
 
-        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
-            # Ollama not available, connection failed, or invalid response - silently continue
-            pass
-        except Exception:
-            # Any other error - silently continue to not break the application
-            pass
-
-        return []
-
-    def _get_google_models_cached(self) -> List[str]:
-        """Get available models from Google Gemini API with persistent caching"""
-        # Try to load from cache first
-        cached_models = self._load_models_from_cache("google")
-        if cached_models is not None:
-            return cached_models
-
-        # Cache miss or expired, try to fetch from API
-        fresh_models = self._get_google_models()
-        if fresh_models:
-            # Save to cache if API call succeeded
-            self._save_models_to_cache("google", fresh_models)
-            return fresh_models
-
-        # API call failed, try to use expired cache as fallback
-        cache_path = self._get_cache_file_path("google")
-        if os.path.exists(cache_path):
-            try:
-                with open(cache_path, 'r') as f:
-                    cache_data = json.load(f)
-                return cache_data.get("models", [])
-            except (json.JSONDecodeError, KeyError, OSError):
-                pass
-
-        return []
-
-    def _get_google_models(self) -> List[str]:
-        """Get available models from Google Gemini API (no caching)"""
-        try:
-            import os
-
-            # Check if API key is available
-            api_key = os.environ.get("GOOGLE_API_KEY")
-            if not api_key:
-                return []
-
-            # Get Google models from API
-            url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-            req = urllib.request.Request(url)
-            req.add_header('Content-Type', 'application/json')
-
-            with urllib.request.urlopen(req, timeout=3) as response:
-                if response.status == 200:
-                    data = json.loads(response.read().decode('utf-8'))
-
-                    models = []
-                    if 'models' in data:
-                        for model_info in data['models']:
-                            model_name = model_info.get('name', '')
-                            supported_methods = model_info.get('supportedGenerationMethods', [])
-
-                            if model_name and supported_methods:
-                                # Extract model name from "models/gemini-1.5-flash" format
-                                if model_name.startswith('models/'):
-                                    model_name = model_name[7:]  # Remove "models/" prefix
-
-                                # Filter for chat-capable models based on supported generation methods
-                                chat_methods = ['generateContent', 'generateMessage', 'generateText']
-                                if any(method in supported_methods for method in chat_methods):
-                                    # Exclude embedding-only models
-                                    if 'embedText' not in supported_methods or len(supported_methods) > 1:
-                                        # Exclude Gemma models and Gemini models older than version 2.5
-                                        if model_name.startswith('gemma-'):
-                                            # Skip all Gemma models
-                                            pass
-                                        elif model_name.startswith('gemini-'):
-                                            # Extract version number (e.g., "gemini-1.5-pro" -> "1.5")
-                                            try:
-                                                version_part = model_name.split('-')[1]
-                                                version = float(version_part)
-                                                if version >= 2.5:
-                                                    models.append(model_name)
-                                            except (IndexError, ValueError):
-                                                # If version parsing fails, include the model
-                                                models.append(model_name)
-                                        else:
-                                            # Non-Gemini/Gemma models (PaLM, Bard, etc.)
-                                            models.append(model_name)
-
-                    return models
-
-        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
-            # Google API not available, connection failed, or invalid response
-            pass
-        except Exception:
-            # Any other error - silently continue to not break the application
-            pass
-
-        return []
 
     def refresh_cache(self) -> None:
         """Clear completion cache to force refresh"""
         self.cache.clear()
         # Clear the lru_cache as well
         self._get_files_in_directory.cache_clear()
+        # Clear model cache as well
+        self.model_manager.refresh_cache()
 
     def clear_models_cache(self) -> None:
         """Clear persistent model cache files"""
-        cache_dir = os.path.join(os.path.dirname(self.registry.working_dir), "cache", "models")
-        for cache_file in ["openai.json", "google.json"]:
-            cache_path = os.path.join(cache_dir, cache_file)
-            if os.path.exists(cache_path):
-                try:
-                    os.remove(cache_path)
-                except OSError:
-                    pass  # Ignore errors if file can't be removed
+        self.model_manager.clear_models_cache()
 
-    def _get_cache_file_path(self, source: str) -> str:
-        """Get the cache file path for a given model source"""
-        cache_dir = os.path.join(os.path.dirname(self.registry.working_dir), "cache", "models")
-        os.makedirs(cache_dir, exist_ok=True)
-        return os.path.join(cache_dir, f"{source.lower()}.json")
-
-    def _load_models_from_cache(self, source: str) -> Optional[List[str]]:
-        """Load models from cache file if valid"""
-        cache_path = self._get_cache_file_path(source)
-
-        if not os.path.exists(cache_path):
-            return None
-
-        try:
-            with open(cache_path, 'r') as f:
-                cache_data = json.load(f)
-
-            if not self._is_cache_valid(cache_data, source):
-                return None
-
-            return cache_data.get("models", [])
-
-        except (json.JSONDecodeError, KeyError, OSError):
-            return None
-
-    def _save_models_to_cache(self, source: str, models: List[str]) -> None:
-        """Save models to cache file"""
-        cache_path = self._get_cache_file_path(source)
-
-        cache_data = {
-            "last_updated": datetime.now(timezone.utc).isoformat(),
-            "models": models
-        }
-
-        try:
-            with open(cache_path, 'w') as f:
-                json.dump(cache_data, f, indent=2)
-        except OSError:
-            pass  # Ignore cache write errors
-
-    def _is_cache_valid(self, cache_data: Dict[str, Any], source: str) -> bool:
-        """Check if cache data is still valid based on expiration time"""
-        try:
-            last_updated_str = cache_data.get("last_updated")
-            if not last_updated_str:
-                return False
-
-            last_updated = datetime.fromisoformat(last_updated_str.replace('Z', '+00:00'))
-            now = datetime.now(timezone.utc)
-
-            # Get cache expiration hours from settings
-            from settings_manager import SettingsManager
-            settings = SettingsManager.getInstance()
-            if source.lower() == "openai":
-                cache_hours = settings.setting_get("openai_models_cache_hours")
-            elif source.lower() == "google":
-                cache_hours = settings.setting_get("google_models_cache_hours")
-            else:
-                return False
-
-            cache_duration_seconds = cache_hours * 3600
-            return (now - last_updated).total_seconds() < cache_duration_seconds
-
-        except (ValueError, TypeError):
-            return False

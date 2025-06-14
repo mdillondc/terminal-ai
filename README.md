@@ -42,9 +42,7 @@ Conda let's you create isolated environments for Python projects. Get it [here](
    export TAVILY_API_KEY="your-tavily-key"
    export GOOGLE_API_KEY="your-google-key"
    ```
-   
-Typically you would set these in your `~/.bashrc` or `.zshrc`.
-   
+      
 2. **Clone and set up environment**
    ```bash
    git clone https://github.com/mdillondc/terminal-ai
