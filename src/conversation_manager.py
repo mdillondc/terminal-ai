@@ -4,8 +4,6 @@ import os
 import select
 import sys
 import json
-import urllib.request
-import urllib.error
 import subprocess
 import re
 
@@ -13,19 +11,21 @@ from typing import Optional, Any
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, is_tts_available, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
+from llm_client_manager import LLMClientManager
 
 class ConversationManager:
-    def __init__(self, client: Any, api: Optional[str] = None, model: Optional[str] = None) -> None:
+    def __init__(self, client: Any, model: Optional[str] = None) -> None:
         self.client = client
         self._original_openai_client = client  # Store original OpenAI client for switching back
-        self.api = api
         self._model = model
         self.conversation_history = []
         self.settings_manager = SettingsManager.getInstance()
         self.log_renamed = False  # Track if we've already renamed the log with AI-generated title
-        self._ollama_available = None  # Cache Ollama availability check
         self._response_buffer = ""  # Buffer to accumulate response text for thinking coloring
         self._execution_buffer = ""  # Buffer to accumulate potential execution commands
+
+        # Initialize LLM client manager for multi-provider support
+        self.llm_client_manager = LLMClientManager(self._original_openai_client)
 
         # Initialize RAG engine - import here to avoid circular imports
         try:
@@ -169,104 +169,34 @@ class ConversationManager:
             print(output, end="", flush=True)
 
     @property
-    def model(self) -> Optional[str]:
-        """Get current model"""
-        return self._model
+    def model(self) -> str:
+        return self._model or self.settings_manager.setting_get("model")
 
     @model.setter
     def model(self, value: Optional[str]) -> None:
-        """Set model and update client if necessary"""
         self._model = value
         if value:
             self._update_client_for_model(value)
 
     def _is_ollama_available(self) -> bool:
-        """Check if Ollama is available with caching"""
-        if self._ollama_available is not None:
-            return self._ollama_available
-
-        try:
-            base_url = self.settings_manager.setting_get("ollama_base_url")
-            url = f"{base_url}/api/version"
-            req = urllib.request.Request(url)
-            with urllib.request.urlopen(req, timeout=1) as response:
-                self._ollama_available = response.status == 200
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
-            self._ollama_available = False
-        except Exception:
-            self._ollama_available = False
-
-        return self._ollama_available
+        """Check if Ollama is available - delegated to LLMClientManager"""
+        return self.llm_client_manager._is_ollama_available()
 
     def _is_ollama_model(self, model_name: str) -> bool:
-        """Detect if a model is from Ollama based on naming patterns"""
-        if not self._is_ollama_available():
-            return False
-
-        # Common Ollama model patterns
-        ollama_patterns = [
-            ':',  # Most Ollama models have tags like "llama3.2:latest"
-            'llama', 'mistral', 'qwen', 'codellama', 'phi', 'gemma',
-            'tinyllama', 'vicuna', 'orca', 'openchat', 'starling'
-        ]
-
-        model_lower = model_name.lower()
-        return any(pattern in model_lower for pattern in ollama_patterns)
+        """Detect if a model is from Ollama - delegated to LLMClientManager"""
+        return self.llm_client_manager._is_ollama_model(model_name)
 
     def _is_google_model(self, model_name: str) -> bool:
-        """Detect if a model is from Google based on naming patterns"""
-        # Check if GOOGLE_API_KEY is available
-        if not os.environ.get("GOOGLE_API_KEY"):
-            return False
-
-        # Common Google model patterns
-        google_patterns = ['gemini', 'palm', 'bard']
-        model_lower = model_name.lower()
-        return any(pattern in model_lower for pattern in google_patterns)
-
-    def _create_ollama_client(self):
-        """Create OpenAI-compatible client configured for Ollama"""
-        try:
-            from openai import OpenAI
-            base_url = self.settings_manager.setting_get("ollama_base_url")
-            return OpenAI(
-                base_url=f"{base_url}/v1",
-                api_key="ollama"  # Ollama doesn't require a real API key
-            )
-        except Exception:
-            return None
-
-    def _create_google_client(self):
-        """Create OpenAI-compatible client configured for Google Gemini"""
-        try:
-            from openai import OpenAI
-            api_key = os.environ.get("GOOGLE_API_KEY")
-            if not api_key:
-                return None
-            return OpenAI(
-                api_key=api_key,
-                base_url="https://generativelanguage.googleapis.com/v1beta/"
-            )
-        except Exception:
-            return None
+        """Detect if a model is from Google - delegated to LLMClientManager"""
+        return self.llm_client_manager._is_google_model(model_name)
 
     def _update_client_for_model(self, model_name: str) -> None:
-        """Update client based on model source"""
-        if self._is_ollama_model(model_name):
-            ollama_client = self._create_ollama_client()
-            if ollama_client:
-                self.client = ollama_client
-            else:
-                print(f"- Warning: Could not create Ollama client for {model_name}")
-        elif self._is_google_model(model_name):
-            google_client = self._create_google_client()
-            if google_client:
-                self.client = google_client
-            else:
-                print(f"- Warning: Could not create Google client for {model_name}")
-                print(f"- Make sure GOOGLE_API_KEY environment variable is set")
-        else:
-            # Use stored OpenAI client
+        """Update client based on model source - delegated to LLMClientManager"""
+        try:
+            self.client = self.llm_client_manager._get_client_for_model(model_name)
+        except Exception as e:
+            print(f"- Warning: Could not get client for {model_name}: {e}")
+            # Fall back to original OpenAI client
             self.client = self._original_openai_client
 
     def generate_response(self, instructions: Optional[str] = None) -> None:
@@ -304,7 +234,7 @@ class ConversationManager:
         print(f"\n{self.settings_manager.setting_get('name_ai')} (`q` + `Enter` to interrupt):")
 
         # Setup stream to receive response from AI
-        stream = self.client.chat.completions.create(
+        stream = self.llm_client_manager.create_chat_completion(
             model=self.model, messages=self.conversation_history, stream=True
         )
 
@@ -565,7 +495,7 @@ The system will handle permission prompts - your job is to suggest the right com
             ]
 
             # Generate search query using AI
-            query_response = self.client.chat.completions.create(
+            query_response = self.llm_client_manager.create_chat_completion(
                 model=self.model,
                 messages=search_query_conversation,
                 temperature=0.3
@@ -837,7 +767,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             title_prompt = self._create_title_generation_prompt(context)
 
             # Get title from AI
-            response = self.client.chat.completions.create(
+            response = self.llm_client_manager.create_chat_completion(
                 model=self.model,
                 messages=[{"role": "user", "content": title_prompt}],
                 max_tokens=25,

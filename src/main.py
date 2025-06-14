@@ -32,7 +32,6 @@ def main() -> None:
     # Init managers
     conversation_manager = ConversationManager(
         client,
-        api=settings_manager.setting_get("api"),
         model=settings_manager.setting_get("model"),
     )
 

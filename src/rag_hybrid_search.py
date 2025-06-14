@@ -6,6 +6,7 @@ import math
 
 from settings_manager import SettingsManager
 from rag_query_analyzer import RAGQueryAnalyzer
+from llm_client_manager import LLMClientManager
 
 
 class HybridSearchService:
@@ -14,8 +15,8 @@ class HybridSearchService:
     for improved RAG retrieval, especially for temporal queries.
     """
 
-    def __init__(self, openai_client=None):
-        self.openai_client = openai_client
+    def __init__(self, llm_client_manager=None):
+        self.llm_client_manager = llm_client_manager
         self.settings_manager = SettingsManager.getInstance()
         self.date_patterns = [
             r'\b(\d{4})-(\d{2})-(\d{2})\b',  # YYYY-MM-DD
@@ -25,9 +26,9 @@ class HybridSearchService:
         ]
         self._load_settings()
 
-        # Initialize LLM query analyzer if OpenAI client is available
-        if self.openai_client and self.enable_llm_analysis:
-            self.query_analyzer = RAGQueryAnalyzer(self.openai_client)
+        # Initialize LLM query analyzer if LLM client manager is available
+        if self.llm_client_manager and self.enable_llm_analysis:
+            self.query_analyzer = RAGQueryAnalyzer(self.llm_client_manager)
         else:
             self.query_analyzer = None
 

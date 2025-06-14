@@ -26,8 +26,7 @@ class SettingsManager:
         self.working_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
         # API Settings
-        self.api = "openai"
-        self.model = "gpt-4.1-mini"
+        self.model = "gpt-4.1-mini"  # Default model (provider detected automatically)
         self.ollama_base_url = "http://localhost:11434"
 
         # Cache Settings

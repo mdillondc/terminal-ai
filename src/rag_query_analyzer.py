@@ -2,7 +2,6 @@
 RAG Query Analyzer Module
 
 LLM-based intelligent query analysis for RAG systems.
-Replaces hard-coded keyword matching with flexible LLM-based intent detection.
 """
 
 import json
@@ -11,6 +10,7 @@ from typing import Dict, Any, List
 from openai import OpenAI
 
 from settings_manager import SettingsManager
+from llm_client_manager import LLMClientManager
 
 
 class RAGQueryAnalyzer:
@@ -19,8 +19,8 @@ class RAGQueryAnalyzer:
     temporal relevance, and optimal search strategies.
     """
 
-    def __init__(self, openai_client: OpenAI):
-        self.openai_client = openai_client
+    def __init__(self, llm_client_manager: LLMClientManager):
+        self.llm_client_manager = llm_client_manager
         self.settings_manager = SettingsManager.getInstance()
         self._load_settings()
 
@@ -123,7 +123,7 @@ Now analyze the given query and respond with ONLY the JSON object:"""
             # Get analysis from LLM
             prompt = self._get_analysis_prompt(query, domain)
 
-            response = self.openai_client.chat.completions.create(
+            response = self.llm_client_manager.create_chat_completion(
                 model=self.settings_manager.setting_get("model"),
                 messages=[
                     {"role": "system", "content": "You are an expert at analyzing search queries. Respond only with valid JSON."},

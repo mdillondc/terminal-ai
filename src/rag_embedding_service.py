@@ -5,6 +5,7 @@ import ollama
 import tiktoken
 from settings_manager import SettingsManager
 from rag_hybrid_search import HybridSearchService
+from llm_client_manager import LLMClientManager
 
 
 class EmbeddingService:
@@ -14,7 +15,9 @@ class EmbeddingService:
         self.settings_manager = SettingsManager.getInstance()
         self.encoding = tiktoken.get_encoding("cl100k_base")  # Standard encoding for embeddings
 
-        self.hybrid_search = HybridSearchService(self.openai_client)
+        # Create LLM client manager for hybrid search
+        llm_client_manager = LLMClientManager(self.openai_client)
+        self.hybrid_search = HybridSearchService(llm_client_manager)
 
     def count_tokens(self, text: str) -> int:
         """Count tokens in text using tiktoken"""

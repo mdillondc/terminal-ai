@@ -23,18 +23,10 @@ class CommandManager:
         self.available_commands = self.command_registry.get_available_commands()
         self.completer = CommandCompleter(self.command_registry)
         self.working_dir = self.settings_manager.setting_get("working_dir")
-        self.client = OpenAI()
 
-        # Initialize RAG engine
-        try:
-            from rag_engine import RAGEngine
-            self.rag_engine = RAGEngine(self.client)
-            # Share RAG engine with conversation manager
-            self.conversation_manager.rag_engine = self.rag_engine
-        except ImportError as e:
-            print(f"Warning: Could not initialize RAG engine: {e}")
-            self.rag_engine = None
-            self.conversation_manager.rag_engine = None
+        # Use the RAG engine that was already created by conversation_manager
+        # This ensures we don't create a duplicate RAG engine with a hardcoded OpenAI client
+        self.rag_engine = self.conversation_manager.rag_engine
 
     def print_command_result(self, message: str) -> None:
         """Helper method to print command results with consistent spacing"""
