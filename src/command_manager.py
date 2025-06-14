@@ -263,8 +263,14 @@ class CommandManager:
                     self.settings_manager.setting_set("tts", False)
                     self.print_command_result(" - TTS disabled")
                 else:
-                    self.settings_manager.setting_set("tts", True)
-                    self.print_command_result(" - TTS enabled")
+                    # Check for privacy: don't enable TTS when using Ollama models
+                    current_model = self.settings_manager.setting_get("model")
+                    if current_model and self.conversation_manager.llm_client_manager.get_provider_for_model(current_model) == "ollama":
+                        self.print_command_result(" - TTS not available when using Ollama models")
+                        self.print_command_result(" - TTS would send your text to OpenAI, breaking local privacy")
+                    else:
+                        self.settings_manager.setting_set("tts", True)
+                        self.print_command_result(" - TTS enabled")
 
                 command_processed = True
             elif command.startswith("--rag-status"):
@@ -623,6 +629,12 @@ class CommandManager:
         # Set the model (this will trigger client update in conversation manager)
         self.conversation_manager.model = model
         self.settings_manager.setting_set("model", model)
+
+        # Check if TTS needs to be disabled for privacy when switching to Ollama
+        if self.conversation_manager.llm_client_manager.get_provider_for_model(model) == "ollama":
+            if self.settings_manager.setting_get("tts"):
+                self.settings_manager.setting_set("tts", False)
+                print("- TTS automatically disabled for privacy (Ollama models)")
 
         # Determine model source and show appropriate message
         if self.conversation_manager._is_ollama_model(model):
