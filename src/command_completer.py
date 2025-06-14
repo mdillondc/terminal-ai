@@ -19,7 +19,6 @@ from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
 from openai import OpenAI
 from vector_store import VectorStore
-
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
 from rag_config import get_file_type_info, is_supported_file

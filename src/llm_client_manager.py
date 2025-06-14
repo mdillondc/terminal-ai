@@ -9,7 +9,6 @@ import os
 import urllib.request
 from typing import Any, Optional, Dict, List
 from openai import OpenAI
-
 from settings_manager import SettingsManager
 
 

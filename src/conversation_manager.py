@@ -1,17 +1,17 @@
 from datetime import datetime
 import os
-
 import select
 import sys
 import json
 import subprocess
 import re
-
 from typing import Optional, Any
 from settings_manager import SettingsManager
-from tts_service import get_tts_service, is_tts_available, interrupt_tts, is_tts_playing
+from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
 from llm_client_manager import LLMClientManager
+from print_helper import print_info, print_lines
+
 
 class ConversationManager:
     def __init__(self, client: Any, model: Optional[str] = None) -> None:
@@ -32,7 +32,7 @@ class ConversationManager:
             from rag_engine import RAGEngine
             self.rag_engine = RAGEngine(self._original_openai_client)
         except ImportError as e:
-            print(f"Warning: Could not initialize RAG engine: {e}")
+            print_info(f"Warning: Could not initialize RAG engine: {e}")
             self.rag_engine = None
 
     def _process_and_print_chunk(self, chunk: str) -> None:
@@ -195,13 +195,11 @@ class ConversationManager:
         try:
             self.client = self.llm_client_manager._get_client_for_model(model_name)
         except Exception as e:
-            print(f"- Warning: Could not get client for {model_name}: {e}")
+            print_info(f"Warning: Could not get client for {model_name}: {e}")
             # Fall back to original OpenAI client
             self.client = self._original_openai_client
 
     def generate_response(self, instructions: Optional[str] = None) -> None:
-        # print(self.conversation_history)
-
         # Check if search is enabled and handle search workflow
         if self.settings_manager.setting_get("search") and self.conversation_history:
             self._handle_search_workflow()
@@ -247,7 +245,7 @@ class ConversationManager:
             for chunk in stream:
                 # Check for 'q + enter' interrupt before processing each chunk
                 if self._check_for_interrupt():
-                    print("\n - Response interrupted by user.")
+                    print_info("Response interrupted by user")
                     interrupted = True
                     break
 
@@ -260,7 +258,7 @@ class ConversationManager:
                         # Process chunk with thinking text coloring
                         self._process_and_print_chunk(ai_response_chunk)
         except Exception as e:
-            print(f"\n - Error processing response stream: {e}")
+            print_info(f"Error processing response stream: {e}")
 
         # Flush any remaining buffer content and reset state at the end
         if hasattr(self, '_response_buffer') and self._response_buffer:
@@ -291,7 +289,7 @@ class ConversationManager:
 
             # Display RAG sources if any were used
             if rag_sources and self.rag_engine:
-                print(f"\n\n- {self.rag_engine.format_sources(rag_sources)}")
+                print(f"{self.rag_engine.format_sources(rag_sources)}")
 
             self.log_save()
 
@@ -351,12 +349,12 @@ class ConversationManager:
         if self.settings_manager.setting_get("execute_require_permission"):
             response = input("- Allow execution? (Y/n): ").strip().lower()
             if response not in ['', 'y', 'yes']:
-                print("- Command execution denied by user")
+                print_info("Command execution denied by user")
                 return None
 
         try:
             # Execute the command safely
-            print(f"\n - Running: {command}")
+            print_info(f"Running: {command}")
 
             # Use shell=True for complex commands but be aware of security implications
             result = subprocess.run(
@@ -381,18 +379,18 @@ class ConversationManager:
                 if result.stdout:
                     print(result.stdout.rstrip())
                 else:
-                    print("- Command ran successfully (no output produced)")
+                    print_info("Command ran successfully (no output produced)")
             else:
                 if result.stderr:
-                    print(f"- Command failed: {result.stderr.rstrip()}")
+                    print_info(f"Command failed: {result.stderr.rstrip()}")
                 else:
-                    print(f"- Command failed (exit code: {result.returncode})")
+                    print_info(f"Command failed (exit code: {result.returncode})")
 
             return output
 
         except Exception as e:
             error_msg = f"Could not run command: {str(e)}"
-            print(f"- Error: {error_msg}")
+            print_info(f"Error: {error_msg}")
             return error_msg
 
     def _get_execute_mode_prompt(self) -> str:
@@ -459,10 +457,10 @@ The system will handle permission prompts - your job is to suggest the right com
                     break
 
             if not last_user_message:
-                print("- No user message found for search.")
+                print_info("No user message found for search")
                 return
 
-            print("- Search mode enabled. Generating optimal search query...")
+            print_info("Generating optimal search query...")
 
             # Get recent conversation context using configurable window size
             context_window = self.settings_manager.search_context_window
@@ -504,24 +502,24 @@ The system will handle permission prompts - your job is to suggest the right com
             search_queries = query_response.choices[0].message.content.strip().split('\n')
             search_queries = [q.strip() for q in search_queries if q.strip()]
 
-            print(f"- Generated search queries: {', '.join(search_queries)}")
+            print_info(f"Generated search queries: {', '.join(search_queries)}")
 
             # Perform searches
             search_client = create_tavily_search()
             if not search_client:
-                print("- (!) Failed to initialize Tavily search client. Continuing without search.")
+                print_info("Failed to initialize Tavily search client. Continuing without search")
                 return
 
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
             for query in search_queries[:max_queries]:  # Limit queries to avoid overwhelming
-                print(f"- Searching: {query}")
+                print_info(f"Searching: {query}")
                 try:
                     results = search_client.search_and_format(query, max_results=3)
                     if results:
                         all_search_results.append(results)
                 except TavilySearchError as e:
-                    print(f"- Search failed for '{query}': {e}")
+                    print_info(f"Search failed for '{query}': {e}")
                     continue
 
             if all_search_results:
@@ -536,12 +534,12 @@ The system will handle permission prompts - your job is to suggest the right com
 
                 # Insert search context before the last user message
                 self.conversation_history.insert(-1, search_context)
-                print("- Search completed. Analyzing results...")
+                print_info("Search completed. Analyzing results...")
             else:
-                print("- No search results found. Continuing without search data.")
+                print_info("No search results found. Continuing without search data")
 
         except Exception as e:
-            print(f"- (!) Search workflow error: {e}. Continuing without search.")
+            print_info(f"Search workflow error: {e}. Continuing without search")
             return
 
     def _extract_key_topics_from_context(self, context_text: str) -> list:
@@ -595,12 +593,10 @@ The system will handle permission prompts - your job is to suggest the right com
             was_interrupted: Whether the AI response was interrupted
         """
         try:
-            if not is_tts_available():
-                print("- TTS not available - OpenAI or audio system unavailable")
-                return
+            
 
             if was_interrupted:
-                print("- Skipping TTS due to interrupted response")
+                print("Skipping TTS due to interrupted response")
                 return
 
             # Get TTS service and generate speech
@@ -608,7 +604,7 @@ The system will handle permission prompts - your job is to suggest the right com
             tts_service.generate_and_play_speech(text)
 
         except Exception as e:
-            print(f"- TTS error: {e}")
+            print_info(f"TTS error: {e}")
 
     def _check_for_interrupt(self) -> bool:
         """Check for 'q' + Enter. Returns True if 'q' was entered."""
@@ -638,13 +634,13 @@ The system will handle permission prompts - your job is to suggest the right com
 
     def apply_instructions(self, file_name: Optional[str], old_file_name: Optional[str] = None) -> None:
         if file_name is None:
-            print("- Please specify the instructions file to use.")
+            print_info("Please specify the instructions file to use")
             return
 
         new_file_path = self.settings_manager.setting_get("working_dir") + "/instructions/" + file_name
 
         if not os.path.exists(new_file_path):
-            print(f"- (!) {new_file_path} does not exist.")
+            print_info(f"{new_file_path} does not exist")
         else:
             if old_file_name:
                 # Remove old instructions from conversation_history
@@ -664,9 +660,9 @@ The system will handle permission prompts - your job is to suggest the right com
             )
 
             # Inform user
-            notice = f"- Applied instructions {file_name}"
+            notice = f"Applied instructions {file_name}"
             if old_file_name:
-                print(notice)
+                print_info(notice)
 
 
     @staticmethod
@@ -730,7 +726,7 @@ The system will handle permission prompts - your job is to suggest the right com
                     self._rename_log_files_with_title(descriptive_title, interrupted)
                     self.log_renamed = True
             except Exception as e:
-                print(f"- Note: Could not generate descriptive log title: {e}")
+                print_info(f"Could not generate descriptive log title: {e}")
                 # Continue without renaming - not critical functionality
 
     def _create_title_generation_prompt(self, context: str) -> str:
@@ -790,7 +786,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                     return title
 
         except Exception as e:
-            print(f"- Error generating title: {e}")
+            print(f"Error generating title: {e}")
 
         return None
 
@@ -826,7 +822,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 return title
 
         except Exception as e:
-            print(f"- Error generating title: {e}")
+            print_info(f"Error generating title: {e}")
 
         # Fallback to generic name if all else fails
         return "general-conversation"
@@ -871,13 +867,10 @@ Generate only the filename focusing on content substance:""".format(context[:100
             self.settings_manager.setting_set("log_file_name", new_filename)
 
             # Adjust spacing based on whether response was interrupted
-            if interrupted:
-                print(f"\n - Log renamed to: {new_filename}")
-            else:
-                print(f"\n - Log renamed to: {new_filename}")
+            print_info(f"Log renamed to: {new_filename}")
 
         except Exception as e:
-            print(f"- Error renaming log files: {e}")
+            print_info(f"Error renaming log files: {e}")
 
     def generate_ai_suggested_title(self) -> str:
         """Generate AI-suggested title using full conversation context (for --logmv command)"""
@@ -900,7 +893,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return title if title else "general-conversation"
 
         except Exception as e:
-            print(f"- Error generating AI suggested title: {e}")
+            print_info(f"Error generating AI suggested title: {e}")
             return "general-conversation"
 
     def manual_log_rename(self, title: str) -> str:
@@ -959,7 +952,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return new_filename
 
         except Exception as e:
-            print(f"- Error renaming log files: {e}")
+            print_info(f"Error renaming log files: {e}")
             # Fallback to simple filename if rename fails
             fallback_name = f"{title}.md"
             self.settings_manager.setting_set("log_file_name", fallback_name)
@@ -985,15 +978,15 @@ Generate only the filename focusing on content substance:""".format(context[:100
             # Display the conversation history to the user
             self._display_conversation_history()
 
-            print("- Conversation history replaced with " + self.settings_manager.setting_get('log_file_name'))
-            print("- Now logging to " + self.settings_manager.setting_get('log_file_name'))
+            print_info("Conversation history replaced with " + self.settings_manager.setting_get('log_file_name'))
+            print_info("Now logging to " + self.settings_manager.setting_get('log_file_name'))
         else:
-            print("- (!) Log file not found.")
+            print_info("Log file not found")
 
     def _display_conversation_history(self) -> None:
         """Display the loaded conversation history to the user in a readable format"""
         if not self.conversation_history:
-            print("- No conversation history to display.")
+            print_info("No conversation history to display")
             return
 
         # Filter out system messages for display
@@ -1003,12 +996,11 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 display_messages.append(msg)
 
         if not display_messages:
-            print("- No user conversation to display (only system messages found).")
+            print_info("No user conversation to display (only system messages found)")
             return
 
-        print("\n" + "=" * 70)
-        print("RESUMING CONVERSATION HISTORY")
-        print("=" * 70)
+        print_info("Resuming conversation history:")
+        print_lines()
 
         user_name = self.settings_manager.setting_get('name_user') or "User"
         ai_name = self.settings_manager.setting_get('name_ai') or "Assistant"
@@ -1016,9 +1008,9 @@ Generate only the filename focusing on content substance:""".format(context[:100
         # Show summary for long conversations
         total_messages = len(display_messages)
         if total_messages > 10:
-            print("\nConversation Summary: " + str(total_messages) + " messages")
-            print("   Showing last 8 messages (use full log file to see complete history)")
-            print("-" * 70)
+            print_info("Conversation Summary: " + str(total_messages) + " messages")
+            print_info("Showing last 8 messages (use full log file to see complete history)")
+            print_lines()
             display_messages = display_messages[-8:]
 
         for i, entry in enumerate(display_messages, 1):
@@ -1033,6 +1025,4 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 print("\n[" + str(i) + "] " + ai_name + ":")
                 print(content)
 
-        print("\n" + "=" * 70)
-        print("END OF CONVERSATION HISTORY - Resuming from here...")
-        print("=" * 70 + "\n")
+        print_lines()

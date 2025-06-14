@@ -1,15 +1,15 @@
 import argparse
 from openai import OpenAI
-
 from prompt_toolkit import prompt
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.validation import Validator, ValidationError
-
 from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
 from command_manager import CommandManager
 from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
+from print_helper import print_info
+
 
 def confirm_exit() -> bool:
     response = input("Confirm quitting (Y/n)? ").strip().lower()
@@ -39,10 +39,8 @@ def main() -> None:
 
     # Display startup information
     current_model = settings_manager.setting_get("model")
-    # print("Terminal AI Assistant")
-    print(f"Using model: {current_model}")
-    print("Start chatting or type '--' to see available commands!")
-    # print("- Tip: Press 'q' + Enter during AI responses to interrupt streaming and regain control")
+    print_info(f"Using model: {current_model}")
+    print_info("Start chatting or type '--' to see available commands!")
 
     # Parse arguments
     parser = argparse.ArgumentParser(description="I am Samantha.")
@@ -59,7 +57,7 @@ def main() -> None:
         settings_manager.setting_set("execute_enabled", True)
         require_permission = settings_manager.setting_get("execute_require_permission")
         permission_text = " (requires permission for each command)" if require_permission else " (automatic execution enabled)"
-        print(f"Execute mode enabled - AI can run system commands{permission_text}")
+        print_info(f"Execute mode enabled - AI can run system commands{permission_text}")
 
     # KeyBindings
     kb = KeyBindings()
@@ -92,7 +90,7 @@ def main() -> None:
                     for input_text in args.input:
                         print(f"\n{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                         print(f"> {input_text}")
-
+                        
                         # Check for commands first
                         if "--" in input_text:
                             command_processed = command_manager.parse_commands(input_text)
@@ -127,7 +125,7 @@ def main() -> None:
                 # Check if user wants to interrupt TTS playback
                 if user_input.lower().strip() == "q" and is_tts_playing():
                     interrupt_tts()
-                    print("- Audio playback stopped\n")
+                    print_info("Audio playback stopped")
                     continue
 
                 exit_commands = ("q", "quit", ":q", ":wq")

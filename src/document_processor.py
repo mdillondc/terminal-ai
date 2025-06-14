@@ -13,6 +13,8 @@ from odf.opendocument import load as odf_load
 from odf.text import P
 from odf.table import Table, TableRow, TableCell
 from odf import text, teletype
+from print_helper import print_info
+
 
 class DocumentProcessor:
     def __init__(self):
@@ -62,10 +64,10 @@ class DocumentProcessor:
                     content = f.read()
                 return content
             except Exception as e:
-                print(f"Error reading file {file_path}: {e}")
+                print_info(f"Error reading file {file_path}: {e}")
                 return ""
         except Exception as e:
-            print(f"Error loading file {file_path}: {e}")
+            print_info(f"Error loading file {file_path}: {e}")
             return ""
 
     def load_pdf_file(self, file_path: str) -> str:
@@ -81,12 +83,12 @@ class DocumentProcessor:
                         if page_text.strip():
                             content.append(f"--- Page {page_num + 1} ---\n{page_text}")
                     except Exception as e:
-                        print(f"Error extracting text from page {page_num + 1} of {file_path}: {e}")
+                        print_info(f"Error extracting text from page {page_num + 1} of {file_path}: {e}")
                         continue
 
             return "\n\n".join(content)
         except Exception as e:
-            print(f"Error loading PDF file {file_path}: {e}")
+            print_info(f"Error loading PDF file {file_path}: {e}")
             return ""
 
     def load_docx_file(self, file_path: str) -> str:
@@ -96,7 +98,7 @@ class DocumentProcessor:
             content = docx2txt.process(file_path)
             return content if content else ""
         except Exception as e:
-            print(f"Error loading Word file {file_path}: {e}")
+            print_info(f"Error loading Word file {file_path}: {e}")
             return ""
 
     def load_xlsx_file(self, file_path: str) -> str:
@@ -126,7 +128,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print(f"Error loading Excel file {file_path}: {e}")
+            print_info(f"Error loading Excel file {file_path}: {e}")
             return ""
 
     def load_xls_file(self, file_path: str) -> str:
@@ -158,7 +160,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print(f"Error loading legacy Excel file {file_path}: {e}")
+            print_info(f"Error loading legacy Excel file {file_path}: {e}")
             return ""
 
     def load_rtf_file(self, file_path: str) -> str:
@@ -178,10 +180,10 @@ class DocumentProcessor:
                 plain_text = rtf_to_text(rtf_content)
                 return plain_text
             except Exception as e:
-                print(f"Error reading RTF file {file_path}: {e}")
+                print_info(f"Error reading RTF file {file_path}: {e}")
                 return ""
         except Exception as e:
-            print(f"Error loading RTF file {file_path}: {e}")
+            print_info(f"Error loading RTF file {file_path}: {e}")
             return ""
 
     def load_odt_file(self, file_path: str) -> str:
@@ -210,7 +212,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print(f"Error loading ODT file {file_path}: {e}")
+            print_info(f"Error loading ODT file {file_path}: {e}")
             return ""
 
     def load_ods_file(self, file_path: str) -> str:
@@ -244,7 +246,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print(f"Error loading ODS file {file_path}: {e}")
+            print_info(f"Error loading ODS file {file_path}: {e}")
             return ""
 
     def load_odp_file(self, file_path: str) -> str:
@@ -275,7 +277,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print(f"Error loading ODP file {file_path}: {e}")
+            print_info(f"Error loading ODP file {file_path}: {e}")
             return ""
 
     def clean_text(self, text: str) -> str:
@@ -464,16 +466,16 @@ class DocumentProcessor:
 
                 # Get relative path for better display
                 relative_path = os.path.relpath(file_path, collection_path)
-                print(f"Processing {relative_path}...")
+                print_info(f"Processing {relative_path}...")
 
                 try:
                     file_chunks = self.process_file(file_path, collection_name, collection_path)
                     all_chunks.extend(file_chunks)
                 except Exception as e:
-                    print(f"Error processing {relative_path}: {e}")
+                    print_info(f"Error processing {relative_path}: {e}")
                     continue
 
-        print(f"Processed {len(all_chunks)} chunks from {collection_name}")
+        print_info(f"Processed {len(all_chunks)} chunks from {collection_name}")
         return all_chunks
 
     def get_collection_stats(self, collection_path: str) -> Dict[str, Any]:

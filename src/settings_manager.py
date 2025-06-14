@@ -107,7 +107,7 @@ class SettingsManager:
         if hasattr(self, key):
             setattr(self, key, value)
         else:
-            raise KeyError(f"Setting {key} not found in Settings.")
+            raise KeyError(f"Setting {key} not found in Settings")
 
     def setting_get(self, key: str) -> Any:
         if hasattr(self, key):
@@ -120,7 +120,7 @@ class SettingsManager:
             # Backward compatibility: return legacy format from command registry
             return self.command_registry.get_legacy_command_descriptions()
         else:
-            raise KeyError(f"Setting {key} not found in Settings.")
+            raise KeyError(f"Setting {key} not found in Settings")
 
     def get_enabled_toggles(self) -> str:
         """Get a formatted string of enabled toggles for display next to user name"""

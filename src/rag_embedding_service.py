@@ -6,6 +6,7 @@ import tiktoken
 from settings_manager import SettingsManager
 from rag_hybrid_search import HybridSearchService
 from llm_client_manager import LLMClientManager
+from print_helper import print_info
 
 
 class EmbeddingService:
@@ -38,7 +39,7 @@ class EmbeddingService:
             )
             return response.data[0].embedding
         except Exception as e:
-            print(f"Error generating OpenAI embedding: {e}")
+            print_info(f"Error generating OpenAI embedding: {e}")
             raise
 
     def _generate_ollama_embedding(self, text: str) -> List[float]:
@@ -57,7 +58,7 @@ class EmbeddingService:
             )
             return response['embedding']
         except Exception as e:
-            print(f"Error generating Ollama embedding: {e}")
+            print_info(f"Error generating Ollama embedding: {e}")
             raise
 
     def generate_embedding(self, text: str) -> List[float]:
@@ -97,7 +98,7 @@ class EmbeddingService:
                     time.sleep(0.1)
 
             except Exception as e:
-                print(f"Error generating OpenAI batch embeddings (batch {i//max_batch_size + 1}): {e}")
+                print_info(f"Error generating OpenAI batch embeddings (batch {i//max_batch_size + 1}): {e}")
                 raise
 
         return embeddings
@@ -119,7 +120,7 @@ class EmbeddingService:
                 )
                 embeddings.append(response['embedding'])
             except Exception as e:
-                print(f"Error generating Ollama embedding for text: {e}")
+                print_info(f"Error generating Ollama embedding for text: {e}")
                 raise
 
         return embeddings
@@ -320,5 +321,5 @@ class EmbeddingService:
             self.generate_embedding(test_text)
             return True
         except Exception as e:
-            print(f"Connection test failed for {provider}: {e}")
+            print_info(f"Connection test failed for {provider}: {e}")
             return False

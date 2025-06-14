@@ -6,6 +6,7 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 from settings_manager import SettingsManager
 from rag_config import get_supported_extensions, is_supported_file
+from print_helper import print_info
 
 
 class VectorStore:
@@ -27,7 +28,7 @@ class VectorStore:
                     hash_sha256.update(chunk)
             return hash_sha256.hexdigest()
         except Exception as e:
-            print(f"Error calculating hash for {file_path}: {e}")
+            print_info(f"Error calculating hash for {file_path}: {e}")
             return ""
 
     def _get_collection_file_metadata(self, collection_name: str) -> Dict[str, Dict[str, Any]]:
@@ -58,7 +59,7 @@ class VectorStore:
                         "hash": self._get_file_hash(file_path)
                     }
                 except Exception as e:
-                    print(f"Error getting metadata for {relative_path}: {e}")
+                    print_info(f"Error getting metadata for {relative_path}: {e}")
                     continue
 
         return metadata
@@ -137,11 +138,11 @@ class VectorStore:
             combined_meta = pd.concat([collection_meta_df, file_meta_df], ignore_index=True, sort=False)
             combined_meta.to_parquet(meta_file_path, compression='snappy', index=False)
 
-            print(f"- Saved index for collection '{collection_name}' ({len(chunks_with_embeddings)} chunks)")
+            print_info(f"Saved index for collection '{collection_name}' ({len(chunks_with_embeddings)} chunks)")
             return True
 
         except Exception as e:
-            print(f"Error saving collection index for {collection_name}: {e}")
+            print_info(f"Error saving collection index for {collection_name}: {e}")
             return False
 
     def load_collection_index(self, collection_name: str) -> Optional[List[Dict[str, Any]]]:
@@ -171,11 +172,11 @@ class VectorStore:
                 if 'embedding' in chunk and isinstance(chunk['embedding'], np.ndarray):
                     chunk['embedding'] = chunk['embedding'].tolist()
 
-            print(f"- Loaded index for collection '{collection_name}' ({len(chunks)} chunks)")
+            print_info(f"Loaded index for collection '{collection_name}' ({len(chunks)} chunks)")
             return chunks
 
         except Exception as e:
-            print(f"Error loading collection index for {collection_name}: {e}")
+            print_info(f"Error loading collection index for {collection_name}: {e}")
             return None
 
     def is_collection_cache_valid(self, collection_name: str) -> bool:
@@ -264,7 +265,7 @@ class VectorStore:
             return True
 
         except Exception as e:
-            print(f"Error checking cache validity for {collection_name}: {e}")
+            print_info(f"Error checking cache validity for {collection_name}: {e}")
             return False
 
     def get_available_collections(self) -> List[str]:
@@ -284,7 +285,7 @@ class VectorStore:
             return sorted(collections)
 
         except Exception as e:
-            print(f"Error getting available collections: {e}")
+            print_info(f"Error getting available collections: {e}")
             return []
 
     def get_collection_info(self, collection_name: str) -> Dict[str, Any]:
@@ -316,7 +317,7 @@ class VectorStore:
                             "ollama_embedding_model": str(collection_meta.get("ollama_embedding_model", "unknown"))
                         }
                 except Exception as e:
-                    print(f"Error reading index info: {e}")
+                    print_info(f"Error reading index info: {e}")
                     pass
 
             return {
@@ -349,12 +350,12 @@ class VectorStore:
                 deleted_files.append("metadata")
 
             if deleted_files:
-                print(f"- Deleted {', '.join(deleted_files)} for collection '{collection_name}'")
+                print_info(f"Deleted {', '.join(deleted_files)} for collection '{collection_name}'")
 
             return True
 
         except Exception as e:
-            print(f"Error deleting collection index for {collection_name}: {e}")
+            print_info(f"Error deleting collection index for {collection_name}: {e}")
             return False
 
     def get_vectorstore_stats(self) -> Dict[str, Any]:

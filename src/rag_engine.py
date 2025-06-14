@@ -3,12 +3,11 @@ import time
 from typing import List, Dict, Any, Optional, Tuple
 from openai import OpenAI
 import ollama
-
 from document_processor import DocumentProcessor
 from rag_embedding_service import EmbeddingService
 from vector_store import VectorStore
 from settings_manager import SettingsManager
-
+from print_helper import print_info
 
 class RAGEngine:
     def __init__(self, client: OpenAI):
@@ -64,15 +63,15 @@ class RAGEngine:
             True if successful, False otherwise
         """
         if not self.collection_exists(collection_name):
-            print(f"- Collection '{collection_name}' not found")
+            print_info(f"Collection '{collection_name}' not found")
             return False
 
         # Check if rebuild is needed
         if not force_rebuild and self.vector_store.is_collection_cache_valid(collection_name):
-            print(f"- Collection '{collection_name}' index is up to date")
+            print_info(f"Collection '{collection_name}' index is up to date")
             return True
 
-        print(f"- Building embeddings for collection '{collection_name}'...")
+        print_info(f"Building embeddings for collection '{collection_name}'...")
 
         try:
             # Get collection path
@@ -80,21 +79,21 @@ class RAGEngine:
             collection_path = os.path.join(collections_path, collection_name)
 
             # Process documents into chunks
-            print("- Processing documents...")
+            print_info("Processing documents...")
             chunks = self.document_processor.process_collection(collection_path)
 
             if not chunks:
-                print("- No processable documents found in collection")
+                print_info("No processable documents found in collection")
                 return False
 
             # Generate embeddings
-            print(f"- Generating embeddings for {len(chunks)} chunks...")
+            print_info(f"Generating embeddings for {len(chunks)} chunks...")
             chunk_texts = [chunk["content"] for chunk in chunks]
 
             embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
 
             if len(embeddings) != len(chunks):
-                print("- Mismatch between chunks and embeddings")
+                print_info("Mismatch between chunks and embeddings")
                 return False
 
             # Add embeddings to chunks
@@ -103,11 +102,11 @@ class RAGEngine:
                 chunks[i]["created_at"] = time.time()
 
             # Save to vector store
-            print("- Saving index...")
+            print_info("Saving index...")
             success = self.vector_store.save_collection_index(collection_name, chunks)
 
             if success:
-                print(f"- Successfully built collection '{collection_name}'")
+                print_info(f"Successfully built collection '{collection_name}'")
 
                 # If this is the active collection, reload it
                 if self.active_collection == collection_name:
@@ -115,11 +114,11 @@ class RAGEngine:
 
                 return True
             else:
-                print(f"- Failed to save collection '{collection_name}'")
+                print_info(f"Failed to save collection '{collection_name}'")
                 return False
 
         except Exception as e:
-            print(f"- Error building collection '{collection_name}': {e}")
+            print_info(f"Error building collection '{collection_name}': {e}")
             return False
 
     def activate_collection(self, collection_name: str, verbose: bool = True) -> bool:
@@ -135,7 +134,7 @@ class RAGEngine:
         """
         if not self.collection_exists(collection_name):
             if verbose:
-                print(f"- Collection '{collection_name}' not found")
+                print_info(f"Collection '{collection_name}' not found")
             return False
 
         # Check if index exists
@@ -144,27 +143,27 @@ class RAGEngine:
 
         if not index_exists:
             if verbose:
-                print(f"- Collection '{collection_name}' has no index")
-                print(f"- Run: --rag-build {collection_name}")
+                print_info(f"Collection '{collection_name}' has no index")
+                print_info(f"Use --rag-build {collection_name}")
             return False
 
         if not cache_valid:
             if verbose:
-                print(f"- Collection '{collection_name}' files have changed since last build")
-                print(f"- Auto-rebuilding collection...")
+                print_info(f"Collection '{collection_name}' files have changed since last build")
+                print_info(f"Auto-rebuilding collection...")
 
             # Auto-rebuild the collection
             success = self.build_collection(collection_name, force_rebuild=True)
             if not success:
                 if verbose:
-                    print(f"- Failed to rebuild collection '{collection_name}'")
+                    print_info(f"Failed to rebuild collection '{collection_name}'")
                 return False
 
         # Load collection index
         chunks = self.vector_store.load_collection_index(collection_name)
         if chunks is None:
             if verbose:
-                print(f"- Failed to load collection '{collection_name}'")
+                print_info(f"Failed to load collection '{collection_name}'")
             return False
 
         # Activate collection
@@ -175,14 +174,14 @@ class RAGEngine:
         self.settings_manager.setting_set("rag_active_collection", collection_name)
 
         if verbose:
-            print(f"- Activated collection '{collection_name}' ({len(chunks)} chunks)")
+            print_info(f"Activated collection '{collection_name}' ({len(chunks)} chunks)")
 
         return True
 
     def deactivate_collection(self) -> None:
         """Deactivate the current collection"""
         if self.active_collection:
-            print(f"- Deactivated collection '{self.active_collection}'")
+            print_info(f"Deactivated collection '{self.active_collection}'")
 
         self.active_collection = None
         self.active_collection_chunks = None
@@ -220,7 +219,7 @@ class RAGEngine:
             return results
 
         except Exception as e:
-            print(f"- Error querying collection: {e}")
+            print_info(f"Error querying collection: {e}")
             return []
 
     def get_context_for_query(self, query_text: str) -> Tuple[str, List[Dict[str, Any]]]:
@@ -338,7 +337,7 @@ class RAGEngine:
 
                 sources.append(f"• {chunk['filename']}{line_info}, relevance: {score_pct}%")
 
-            sources.append("\n- Use `--rag-show <filename>` to view relevant chunks")
+            sources.append("Use `--rag-show <filename>` to view relevant chunks")
             return "\n".join(sources)
 
     def show_chunk_in_file(self, filename: str) -> str:
@@ -374,8 +373,10 @@ class RAGEngine:
             # For now, just show the file content with chunk boundaries
             # TODO: Implement highlighting based on recent queries
             result = [f"- **{filename}** from collection '{self.active_collection}'"]
+            result.append("\n")
             result.append("=" * 50)
             result.append(full_content)
+            result.append("=" * 50)
 
             return "\n".join(result)
 

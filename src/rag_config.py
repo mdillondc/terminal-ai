@@ -9,8 +9,8 @@ Uses MIME type detection to automatically support text-based files.
 import os
 import mimetypes
 from typing import Set, Dict, Any
-
 import magic
+
 
 # Binary file extensions that require special processing
 BINARY_FILE_EXTENSIONS: Set[str] = {

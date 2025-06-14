@@ -1,18 +1,17 @@
 import requests
 from typing import Optional, Any
 import yt_dlp
-# Removed youtube_transcript_api - using yt-dlp for more reliable transcript extraction
 import clipboard
 import subprocess
 import shlex
 from settings_manager import SettingsManager
 from openai import OpenAI
-
 from command_completer import CommandCompleter
 from tavily_search import create_tavily_search, TavilySearchError
 from web_content_extractor import WebContentExtractor
 from document_processor import DocumentProcessor
 from rag_config import is_supported_file, get_supported_extensions_display
+from print_helper import print_info, print_lines
 
 
 class CommandManager:
@@ -34,19 +33,19 @@ class CommandManager:
         Returns the command output or None if execution was denied/failed.
         """
         if not self.settings_manager.setting_get("execute_enabled"):
-            print("- Execute mode is disabled. Use --execute to enable.")
+            print_info("Execute mode is disabled")
             return None
 
         # Check if permission is required
         if self.settings_manager.setting_get("execute_require_permission"):
             response = input("- Allow execution? (Y/n): ").strip().lower()
             if response not in ['', 'y', 'yes']:
-                print("- Command execution denied by user")
+                print_info("Command execution denied by user")
                 return None
 
         try:
             # Execute the command safely
-            print(f"- Running: {command}")
+            print_info(f"Running: {command}")
 
             # Use shell=True for complex commands but be aware of security implications
             # In a production environment, you might want to restrict this further
@@ -66,15 +65,15 @@ class CommandManager:
             output += f"Return code: {result.returncode}"
 
             if result.returncode == 0:
-                print("- Command ran successfully")
+                print_info("Command ran successfully")
             else:
-                print(f"- Command finished with exit code: {result.returncode}")
+                print_info(f"Command finished with exit code: {result.returncode}")
 
             return output
 
         except Exception as e:
-            error_msg = f"- Could not run command: {str(e)}"
-            print(error_msg)
+            error_msg = f"Could not run command: {str(e)}"
+            print_info(error_msg)
             return error_msg
 
     def parse_commands(self, user_input: str) -> bool:
@@ -93,7 +92,7 @@ class CommandManager:
             # Validate command using registry
             is_valid, error_msg = self.command_registry.validate_command_input(command_name, arg)
             if not is_valid:
-                print(f"- {error_msg}")
+                print(f"{error_msg}")
                 continue
 
             if command.startswith("--model"):
@@ -111,13 +110,13 @@ class CommandManager:
             elif command.startswith("--logmv"):
                 # Check if incognito mode is enabled
                 if self.settings_manager.setting_get("incognito"):
-                    print("- Cannot rename log: incognito mode is enabled (no logging active)")
+                    print_info("Cannot rename log: incognito mode is enabled (no logging active)")
                     command_processed = True
                     continue
 
                 title = None
                 if arg is None:
-                    print("\n - No log file name specified. AI will suggest log filename for you.")
+                    print_info("No log file name specified. AI will suggest log filename for you")
                     title = self.conversation_manager.generate_ai_suggested_title()
                 else:
                     # Title will be sanitized in manual_log_rename method
@@ -126,18 +125,18 @@ class CommandManager:
                 # Use the proper renaming method that preserves date/timestamp
                 actual_filename = self.conversation_manager.manual_log_rename(title)
                 self.conversation_manager.log_save()
-                print(f"\n - Log renamed to: {actual_filename}")
+                print_info(f"Log renamed to: {actual_filename}")
 
                 command_processed = True
             elif command.startswith("--log"):
                 # Check if incognito mode is enabled
                 if self.settings_manager.setting_get("incognito"):
-                    print("- Cannot load log: incognito mode is enabled (no logging active)")
+                    print_info("Cannot load log: incognito mode is enabled (no logging active)")
                     command_processed = True
                     continue
 
                 if arg is None:
-                    print("- (!) Please specify the log you want to use.")
+                    print_info("Please specify the log you want to use")
                 else:
                     self.settings_manager.setting_set("log_file_name", arg)
                     self.conversation_manager.log_resume()
@@ -146,31 +145,31 @@ class CommandManager:
             elif command.startswith("--cb"):
                 clipboard_content = clipboard.paste()
                 if clipboard_content:
-                    print("- Clipboard content added to conversation context.")
+                    print_info("Clipboard content added to conversation context")
                     self.conversation_manager.conversation_history.append(
                         {"role": "user", "content": clipboard_content}
                     )
                 else:
-                    print("- Clipboard is empty. Please type your input.")
+                    print_info("Clipboard is empty. Please type your input")
 
                 command_processed = True
             elif command.startswith("--youtube"):
                 if arg is None:
-                    print("- (!) please specify a youtube url.")
+                    print_info("Please specify a youtube url")
                 else:
                     self.youtube(arg)
 
                 command_processed = True
             elif command.startswith("--url"):
                 if arg is None:
-                    print("- (!) please specify a URL.")
+                    print_info("Please specify a URL")
                 else:
                     self.url(arg)
 
                 command_processed = True
             elif command.startswith("--file"):
                 if arg is None:
-                    print("- (!) please specify a file path.")
+                    print_info("Please specify a file path")
                 else:
                     self.file(arg)
 
@@ -178,95 +177,95 @@ class CommandManager:
             elif command == "--search":
                 if self.settings_manager.setting_get("search"):
                     self.settings_manager.setting_set("search", False)
-                    print("- Web search disabled")
+                    print_info("Web search disabled")
                 else:
                     self.settings_manager.setting_set("search", True)
-                    print("- Web search enabled")
+                    print_info("Web search enabled")
                 command_processed = True
             elif command.startswith("--nothink"):
                 nothink = self.settings_manager.setting_get("nothink")
                 if nothink:
                     self.settings_manager.setting_set("nothink", False)
-                    print("- Nothink mode disabled")
+                    print_info("Nothink mode disabled")
                 else:
                     self.settings_manager.setting_set("nothink", True)
-                    print("- Nothink mode enabled")
+                    print_info("Nothink mode enabled")
 
                 command_processed = True
             elif command.startswith("--incognito"):
                 incognito = self.settings_manager.setting_get("incognito")
                 if incognito:
                     self.settings_manager.setting_set("incognito", False)
-                    print("- Incognito mode disabled - logging resumed")
+                    print_info("Incognito mode disabled - logging resumed")
                 else:
                     self.settings_manager.setting_set("incognito", True)
-                    print("- Incognito mode enabled - no data will be saved to logs")
+                    print_info("Incognito mode enabled - no data will be saved to logs")
 
                 command_processed = True
             elif command.startswith("--execute"):
                 execute_enabled = self.settings_manager.setting_get("execute_enabled")
                 if execute_enabled:
                     self.settings_manager.setting_set("execute_enabled", False)
-                    print("- Execute mode disabled - AI cannot run system commands")
+                    print_info("Execute mode disabled - AI cannot run system commands")
                 else:
                     self.settings_manager.setting_set("execute_enabled", True)
                     require_permission = self.settings_manager.setting_get("execute_require_permission")
                     permission_text = " (requires permission for each command)" if require_permission else " (automatic execution enabled)"
-                    print(f"- Execute mode enabled - AI can run system commands{permission_text}")
+                    print_info(f"Execute mode enabled - AI can run system commands{permission_text}")
 
                 command_processed = True
             elif command.startswith("--clear"):
                 self.conversation_manager.conversation_history.clear()
-                print("- Conversation history cleared")
+                print_info("Conversation history cleared")
                 command_processed = True
             elif command.startswith("--tts-model"):
                 if arg is None:
-                    print("- (!) Please specify a TTS model.\n - Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
+                    print_info("Please specify a TTS model. Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
                 else:
                     valid_models = ["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
                     if arg in valid_models:
                         self.settings_manager.setting_set("tts_model", arg)
-                        print(f"- TTS model set to: {arg}")
+                        print_info(f"TTS model set to: {arg}")
                     else:
-                        print(f"- (!) Invalid TTS model: {arg}\n - Available models: {', '.join(valid_models)}")
+                        print_info(f"Invalid TTS model: {arg}. Available models: {', '.join(valid_models)}")
 
                 command_processed = True
             elif command.startswith("--tts-voice"):
                 if arg is None:
-                    print("- (!) Please specify a TTS voice.\n - Available voices: alloy, echo, fable, onyx, nova, shimmer")
+                    print_info("Please specify a TTS voice. Available voices: alloy, echo, fable, onyx, nova, shimmer")
                 else:
                     valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
                     if arg in valid_voices:
                         self.settings_manager.setting_set("tts_voice", arg)
-                        print(f"- TTS voice set to: {arg}")
+                        print_info(f"TTS voice set to: {arg}")
                     else:
-                        print(f"- (!) Invalid TTS voice: {arg}\n - Available voices: {', '.join(valid_voices)}")
+                        print_info(f"Invalid TTS voice: {arg}. Available voices: {', '.join(valid_voices)}")
 
                 command_processed = True
             elif command.startswith("--tts-save-as-mp3"):
                 tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
                 if tts_save_mp3:
                     self.settings_manager.setting_set("tts_save_mp3", False)
-                    print("- TTS save as MP3 disabled")
+                    print_info("TTS save as MP3 disabled")
                 else:
                     self.settings_manager.setting_set("tts_save_mp3", True)
-                    print("- TTS save as MP3 enabled")
+                    print_info("TTS save as MP3 enabled")
 
                 command_processed = True
             elif command.startswith("--tts"):
                 tts = self.settings_manager.setting_get("tts")
                 if tts:
                     self.settings_manager.setting_set("tts", False)
-                    print("- TTS disabled")
+                    print_info("TTS disabled")
                 else:
                     # Check for privacy: don't enable TTS when using Ollama models
                     current_model = self.settings_manager.setting_get("model")
                     if current_model and self.conversation_manager.llm_client_manager.get_provider_for_model(current_model) == "ollama":
-                        print("- TTS not available when using Ollama models")
-                        print("- TTS would send your text to OpenAI, breaking local privacy")
+                        print_info("TTS not available when using Ollama models")
+                        print_info("TTS would send your text to OpenAI, breaking local privacy")
                     else:
                         self.settings_manager.setting_set("tts", True)
-                        print("- TTS enabled")
+                        print_info("TTS enabled")
 
                 command_processed = True
             elif command.startswith("--rag-status"):
@@ -274,25 +273,25 @@ class CommandManager:
                 command_processed = True
             elif command.startswith("--rag-debug"):
                 if arg is None:
-                    print("- (!) Please specify a query to test.")
+                    print_info("Please specify a query to test")
                 else:
                     self.rag_debug(arg)
                 command_processed = True
             elif command.startswith("--rag-build"):
                 if arg is None:
-                    print("- (!) Please specify a collection name to build.")
+                    print_info("Please specify a collection name to build")
                 else:
                     self.rag_build(arg)
                 command_processed = True
             elif command.startswith("--rag-refresh"):
                 if arg is None:
-                    print("- (!) Please specify a collection name to refresh.")
+                    print_info("Please specify a collection name to refresh")
                 else:
                     self.rag_refresh(arg)
                 command_processed = True
             elif command.startswith("--rag-show"):
                 if arg is None:
-                    print("- (!) Please specify a filename to show.")
+                    print_info("Please specify a filename to show")
                 else:
                     self.rag_show(arg)
                 command_processed = True
@@ -317,16 +316,16 @@ class CommandManager:
     def rag_list(self) -> None:
         """List available RAG collections"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         collections = self.rag_engine.list_collections()
         if not collections:
-            print("- No RAG collections found in rag/ directory")
-            print("- Create collections by making directories in rag/collection_name/")
+            print_info("No RAG collections found in rag/ directory")
+            print_info("Create collections by making directories in rag/collection_name/")
             return
 
-        print("- Available RAG collections:")
+        print_info("Available RAG collections:")
         for i, collection in enumerate(collections, 1):
             status_info = []
             if collection.get("has_index"):
@@ -338,16 +337,15 @@ class CommandManager:
                 status_info.append("- not built")
 
             status = f"({', '.join(status_info)})" if status_info else ""
-            print(f"   {i}. {collection['name']} - {collection['file_count']} files {status}")
+            print_info(f"{i}. {collection['name']} - {collection['file_count']} files {status}")
 
-        print("\n - Usage:")
-        print("   --rag <collection_name>  # Activate collection")
-        print("   --rag-build <name>       # Build/rebuild collection index")
+        print_info("Use --rag <collection_name>  # Activate collection")
+        print_info("Use --rag-build <name>       # Build/rebuild collection index")
 
     def rag_activate(self, collection_name: str) -> None:
         """Activate a RAG collection"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         success = self.rag_engine.activate_collection(collection_name)
@@ -355,12 +353,12 @@ class CommandManager:
             # Error messages are printed by the RAG engine
             available = self.rag_engine.vector_store.get_available_collections()
             if available:
-                print(f"- Available collections: {', '.join(available)}")
+                print_info(f"Available collections: {', '.join(available)}")
 
     def rag_off(self) -> None:
         """Deactivate RAG mode"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         self.rag_engine.deactivate_collection()
@@ -368,7 +366,7 @@ class CommandManager:
     def rag_build(self, collection_name: str) -> None:
         """Build/rebuild a RAG collection"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         self.rag_engine.build_collection(collection_name, force_rebuild=True)
@@ -376,7 +374,7 @@ class CommandManager:
     def rag_refresh(self, collection_name: str) -> None:
         """Refresh/rebuild a RAG collection"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         self.rag_engine.refresh_collection(collection_name)
@@ -384,133 +382,133 @@ class CommandManager:
     def rag_show(self, filename: str) -> None:
         """Show relevant chunks in a file"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         result = self.rag_engine.show_chunk_in_file(filename)
-        print(result)
+        print_info(result)
 
     def rag_status(self) -> None:
         """Show RAG status"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         status = self.rag_engine.get_status()
-        print("- RAG Status:")
-        print(f"   Active: {status['active']}")
+        print_info("RAG Status:")
+        print_info(f"Active: {status['active']}")
         if status['active']:
-            print(f"   Collection: {status['active_collection']}")
-            print(f"   Chunks loaded: {status['chunk_count']}")
+            print_info(f"Collection: {status['active_collection']}")
+            print_info(f"Chunks loaded: {status['chunk_count']}")
 
-        print(f"   Available collections: {status['available_collections']}")
+        print_info(f"Available collections: {status['available_collections']}")
 
         # Show embedding provider information
         try:
             provider = self.settings_manager.setting_get("embedding_provider")
-            print(f"   Embedding provider: {provider}")
+            print_info(f"Embedding provider: {provider}")
 
             if provider == "openai":
                 model = self.settings_manager.setting_get("openai_embedding_model")
-                print(f"   OpenAI model: {model}")
+                print_info(f"OpenAI model: {model}")
             elif provider == "ollama":
                 model = self.settings_manager.setting_get("ollama_embedding_model")
                 ollama_url = self.settings_manager.setting_get("ollama_base_url")
-                print(f"   Ollama model: {model}")
-                print(f"   Ollama URL: {ollama_url}")
+                print_info(f"Ollama model: {model}")
+                print_info(f"Ollama URL: {ollama_url}")
         except Exception as e:
-            print(f"   Provider info: Error getting provider details")
+            print_info(f"Provider info: Error getting provider details")
 
-        print(f"   Settings:")
+        print_info(f"Settings:")
         for key, value in status['settings'].items():
-            print(f"     {key}: {value}")
+            print_info(f"{key}: {value}")
 
     def rag_debug(self, query: str) -> None:
         """Debug RAG querying to see what content would be retrieved"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         if not self.rag_engine.is_active():
-            print("- No RAG collection is active")
-            print("- Use --rag <collection> to activate a collection first")
+            print_info("No RAG collection is active")
+            print_info("Use --rag <collection> to activate a collection first")
             return
 
-        print(f"- Testing RAG query: '{query}'")
-        print("- " + "="*50)
+        print_info(f"Testing RAG query: '{query}'")
+        print_lines()
 
         try:
             # Test the full RAG context generation
             rag_context, rag_sources = self.rag_engine.get_context_for_query(query)
 
             if rag_context:
-                print(f"- Found {len(rag_sources)} relevant chunks")
-                print("- Context that would be sent to AI:")
-                print("- " + "-"*30)
-                print(f"- {rag_context}")
-                print("- " + "-"*30)
+                print_info(f"Found {len(rag_sources)} relevant chunks")
+                print_info("Context that would be sent to AI:")
+                print_info("" + "-"*30)
+                print_info(f"{rag_context}")
+                print_info("" + "-"*30)
 
                 if rag_sources:
-                    print("- Source details:")
+                    print_info("Source details:")
                     for i, source in enumerate(rag_sources, 1):
                         score = source.get('similarity_score', 0)
-                        print(f"- {i}. {source['filename']} (score: {score:.3f})")
-                        print(f"- Content preview: {source['content'][:100]}...")
+                        print_info(f"{i}. {source['filename']} (score: {score:.3f})")
+                        print_info(f"Content preview: {source['content'][:100]}...")
             else:
-                print("- No relevant content found for this query")
-                print("- This means the query didn't match any document content")
+                print_info("No relevant content found for this query")
+                print_info("This means the query didn't match any document content")
 
         except Exception as e:
-            print(f"- Error during RAG query: {e}")
+            print_info(f"Error during RAG query: {e}")
 
 
 
     def rag_test_connection(self) -> None:
         """Test connection to current embedding provider"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         try:
             provider = self.settings_manager.setting_get("embedding_provider")
-            print(f"- Testing connection to {provider} embedding service...")
+            print_info(f"Testing connection to {provider} embedding service...")
 
             # Test using the embedding service
             success = self.rag_engine.embedding_service.test_connection()
 
             if success:
-                print(f"- Connection to {provider} successful!")
+                print_info(f"Connection to {provider} successful!")
 
                 # Show additional info
                 model_info = self.rag_engine.embedding_service.get_embedding_model_info()
                 model = model_info.get("model", "unknown")
                 dimensions = self.rag_engine.embedding_service.get_embedding_dimensions()
-                print(f"- Model: {model}")
-                print(f"- Dimensions: {dimensions}")
+                print_info(f"Model: {model}")
+                print_info(f"Dimensions: {dimensions}")
 
                 if provider == "ollama":
                     info = model_info.get("info", {})
                     if info.get("multilingual"):
-                        print(f"- Languages: {info.get('languages', 'Multiple languages supported')}")
+                        print_info(f"Languages: {info.get('languages', 'Multiple languages supported')}")
 
             else:
-                print(f"- Connection to {provider} failed!")
+                print_info(f"Connection to {provider} failed!")
 
                 if provider == "ollama":
                     ollama_url = self.settings_manager.setting_get("ollama_base_url")
-                    print(f"- Check that Ollama is running at: {ollama_url}")
+                    print_info(f"Check that Ollama is running at: {ollama_url}")
                     model = self.settings_manager.setting_get("ollama_embedding_model")
-                    print(f"- Check that model '{model}' is available in Ollama")
+                    print_info(f"Check that model '{model}' is available in Ollama")
                 elif provider == "openai":
-                    print("- Check your OpenAI API key and internet connection")
+                    print_info("Check your OpenAI API key and internet connection")
 
         except Exception as e:
-            print(f"- Error testing connection: {e}")
+            print_info(f"Error testing connection: {e}")
 
     def rag_model_info(self) -> None:
         """Show detailed information about current embedding model"""
         if not self.rag_engine:
-            print("- RAG engine not available")
+            print_info("RAG engine not available")
             return
 
         try:
@@ -519,31 +517,31 @@ class CommandManager:
             model = model_info.get("model", "unknown")
             info = model_info.get("info", {})
 
-            print("- Embedding Model Information:")
-            print(f"- Provider: {provider}")
-            print(f"- Model: {model}")
-            print(f"- Dimensions: {info.get('dimensions', 'unknown')}")
-            print(f"- Max tokens: {info.get('max_tokens', 'unknown')}")
+            print_info("Embedding Model Information:")
+            print_info(f"Provider: {provider}")
+            print_info(f"Model: {model}")
+            print_info(f"Dimensions: {info.get('dimensions', 'unknown')}")
+            print_info(f"Max tokens: {info.get('max_tokens', 'unknown')}")
 
             if provider == "openai":
                 cost = info.get('cost_per_1k_tokens', 0)
-                print(f"- Cost per 1K tokens: ${cost}")
+                print_info(f"Cost per 1K tokens: ${cost}")
             elif provider == "ollama":
-                print(f"- Cost per 1K tokens: Free (local)")
+                print_info(f"Cost per 1K tokens: Free (local)")
                 if info.get('multilingual'):
-                    print(f"- Multilingual: Yes")
+                    print_info(f"Multilingual: Yes")
                     languages = info.get('languages')
                     if languages:
-                        print(f"- Languages: {languages}")
+                        print_info(f"Languages: {languages}")
 
             # Show current settings
-            print("- Current RAG Settings:")
-            print(f"- Chunk size: {self.settings_manager.setting_get('rag_chunk_size')} tokens")
-            print(f"- Chunk overlap: {self.settings_manager.setting_get('rag_chunk_overlap')} tokens")
-            print(f"- Top K results: {self.settings_manager.setting_get('rag_top_k')}")
+            print_info("Current RAG Settings:")
+            print_info(f"Chunk size: {self.settings_manager.setting_get('rag_chunk_size')} tokens")
+            print_info(f"Chunk overlap: {self.settings_manager.setting_get('rag_chunk_overlap')} tokens")
+            print_info(f"Top K results: {self.settings_manager.setting_get('rag_top_k')}")
 
         except Exception as e:
-            print(f"- Error getting model info: {e}")
+            print_info(f"Error getting model info: {e}")
 
     def _validate_model(self, model_name: str) -> bool:
         """
@@ -572,31 +570,31 @@ class CommandManager:
 
     def models_refresh(self) -> None:
         """Clear model cache and force fresh fetch from APIs"""
-        print("- Refreshing model cache...")
+        print_info("Refreshing model cache...")
         self.completer.clear_models_cache()
-        print("- Model cache cleared. Fresh models will be fetched on next use.")
+        print_info("Model cache cleared. Fresh models will be fetched on next use")
 
     def model(self, arg: Optional[str]) -> None:
         if arg == None:
             ollama_url = self.settings_manager.setting_get("ollama_base_url")
-            print("- Please specify the model to use")
-            print("   Available sources: OpenAI (https://platform.openai.com/docs/models)")
-            print(f"                     Ollama ({ollama_url} if running)")
-            print("                     Google (https://ai.google.dev/gemini-api/docs/models)")
+            print_info("Please specify the model to use")
+            print_info("Available sources: OpenAI (https://platform.openai.com/docs/models)")
+            print_info(f"Ollama ({ollama_url} if running)")
+            print_info("Google (https://ai.google.dev/gemini-api/docs/models)")
             return
 
         model = arg
 
         # Validate the model before setting it
         if not self._validate_model(model):
-            print(f"- (!) Invalid model: {model}")
-            print("- Model not found in OpenAI, Google, or Ollama APIs")
+            print_info(f"Invalid model: {model}")
+            print_info("Model not found in OpenAI, Google, or Ollama APIs")
 
             # Show available models
             try:
                 available_models = self.completer._get_available_models()
                 if available_models:
-                    print("- Available models:")
+                    print_info("Available models:")
 
                     # Group by source
                     openai_models = [m["name"] for m in available_models if m["source"] == "OpenAI"]
@@ -604,21 +602,21 @@ class CommandManager:
                     google_models = [m["name"] for m in available_models if m["source"] == "Google"]
 
                     if openai_models:
-                        print(f"   OpenAI: {', '.join(openai_models[:5])}" +
+                        print_info(f"OpenAI: {', '.join(openai_models[:5])}" +
                               (f" (and {len(openai_models)-5} more)" if len(openai_models) > 5 else ""))
 
                     if google_models:
-                        print(f"   Google: {', '.join(google_models)}")
+                        print_info(f"Google: {', '.join(google_models)}")
 
                     if ollama_models:
-                        print(f"   Ollama: {', '.join(ollama_models)}")
+                        print_info(f"Ollama: {', '.join(ollama_models)}")
 
                     if not openai_models and not ollama_models and not google_models:
-                        print("   (No models available - check API keys and network connection)")
+                        print_info("(No models available - check API keys and network connection)")
                 else:
-                    print("   (Unable to fetch available models)")
+                    print_info("(Unable to fetch available models)")
             except Exception:
-                print("   (Unable to fetch available models)")
+                print_info("(Unable to fetch available models)")
 
             return
 
@@ -630,29 +628,29 @@ class CommandManager:
         if self.conversation_manager.llm_client_manager.get_provider_for_model(model) == "ollama":
             if self.settings_manager.setting_get("tts"):
                 self.settings_manager.setting_set("tts", False)
-                print("- TTS automatically disabled for privacy (Ollama models)")
+                print_info("TTS automatically disabled for privacy (Ollama models)")
 
         # Determine model source and show appropriate message
         if self.conversation_manager._is_ollama_model(model):
             ollama_url = self.settings_manager.setting_get("ollama_base_url")
             if self.conversation_manager._is_ollama_available():
-                print(f"- Switched to Ollama model: {model}")
-                print(f"- Running locally via Ollama at {ollama_url}")
+                print_info(f"Switched to Ollama model: {model}")
+                print_info(f"Running locally via Ollama at {ollama_url}")
             else:
-                print(f"- Warning: Selected Ollama model '{model}' but Ollama not available")
-                print(f"   Make sure Ollama is running at {ollama_url}")
+                print_info(f"Warning: Selected Ollama model '{model}' but Ollama not available")
+                print_info(f"Make sure Ollama is running at {ollama_url}")
         elif self.conversation_manager._is_google_model(model):
-            print(f"- Switched to Google Gemini model: {model}")
-            print(f"- https://ai.google.dev/gemini-api/docs/models")
+            print_info(f"Switched to Google Gemini model: {model}")
+            print_info(f"https://ai.google.dev/gemini-api/docs/models")
         else:
-            print(f"- Switched to OpenAI model: {model}")
-            print(f"- https://platform.openai.com/docs/models")
+            print_info(f"Switched to OpenAI model: {model}")
+            print_info(f"https://platform.openai.com/docs/models")
 
     def youtube(self, arg: str) -> None:
         """
         Extract transcript from YouTube video and send to conversation manager as input.
         """
-        print("- Extracting info from YouTube...")
+        print_info("Extracting info from YouTube...")
 
         video_url = None
 
@@ -660,26 +658,26 @@ class CommandManager:
         if "watch?v=" in arg:
             video_url = arg
         else:
-            print("- Video ID missing from URL.")
+            print_info("Video ID missing from URL")
             try:
-                print("- Attempting to determine ID.")
+                print_info("Attempting to determine ID")
                 response = requests.get(arg)
                 video_url = response.url
             except requests.RequestException as e:
-                print(f"- Error resolving URL: {e}")
+                print_info(f"Error resolving URL: {e}")
                 return
 
         if video_url:
             try:
                 video_id = video_url.split("watch?v=")[1]
-                print(f"- Video ID found: {video_id}.")
+                print_info(f"Video ID found: {video_id}")
             except IndexError:
-                print("- Invalid YouTube URL provided.")
+                print_info("Invalid YouTube URL provided")
                 return
 
             try:
                 # Get video info using yt-dlp
-                print("- Fetching video info...")
+                print_info("Fetching video info...")
                 ydl_opts = {'quiet': True, 'no_warnings': True}
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(video_url, download=False)
@@ -687,11 +685,11 @@ class CommandManager:
                         video_title = "[" + info.get('title', 'Unknown Title') + "](" + video_url + ")"
                         channel_title = "[" + info.get('uploader', 'Unknown Channel') + "](" + info.get('uploader_url', video_url) + ")"
                     else:
-                        print("- Could not extract video information.")
+                        print_info("Could not extract video information")
                         return
 
                 # Extract subtitles using yt-dlp
-                print("- Fetching video transcript using yt-dlp...")
+                print_info("Fetching video transcript using yt-dlp...")
                 try:
                     # Configure yt-dlp to extract subtitles
                     subtitle_opts = {
@@ -721,7 +719,7 @@ class CommandManager:
                             if lang in subtitles and subtitles[lang]:
                                 subtitle_data = subtitles[lang]
                                 subtitle_source = f"manual {lang}"
-                                print(f"- Found manual {lang} subtitles")
+                                print_info(f"Found manual {lang} subtitles")
                                 break
 
                         # If no manual subtitles, try automatic captions
@@ -730,7 +728,7 @@ class CommandManager:
                                 if lang in automatic_captions and automatic_captions[lang]:
                                     subtitle_data = automatic_captions[lang]
                                     subtitle_source = f"auto-generated {lang}"
-                                    print(f"- Found auto-generated {lang} captions")
+                                    print_info(f"Found auto-generated {lang} captions")
                                     break
 
                         if subtitle_data:
@@ -786,8 +784,8 @@ class CommandManager:
                                         transcript_text = ' '.join(text_lines)
 
                                         if transcript_text:
-                                            print(f"- Successfully extracted transcript from {subtitle_source}")
-                                            print(f"- Processing {len(transcript_text)} characters as input...")
+                                            print_info(f"Successfully extracted transcript from {subtitle_source}")
+                                            print_info(f"Processing {len(transcript_text)} characters as input...")
 
                                             user_input = (
                                                 "Channel title: " + channel_title +
@@ -797,14 +795,14 @@ class CommandManager:
                                             self.conversation_manager.conversation_history.append(
                                                 {"role": "user", "content": user_input}
                                             )
-                                            print("- YouTube content added to conversation context.")
+                                            print_info("YouTube content added to conversation context")
                                         else:
                                             raise Exception("Transcript text was empty after parsing")
                                     else:
                                         raise Exception(f"Failed to download subtitles: HTTP {response.status_code}")
 
                                 except Exception as subtitle_error:
-                                    print(f"- Error processing subtitle file: {subtitle_error}")
+                                    print_info(f"Error processing subtitle file: {subtitle_error}")
                                     raise subtitle_error
                             else:
                                 raise Exception("No subtitle URL found")
@@ -812,15 +810,15 @@ class CommandManager:
                             # List available subtitle languages for debugging
                             available_langs = list(subtitles.keys()) + list(automatic_captions.keys())
                             if available_langs:
-                                print(f"- Available subtitle languages: {', '.join(set(available_langs))}")
-                                print("- No English subtitles found")
+                                print_info(f"Available subtitle languages: {', '.join(set(available_langs))}")
+                                print_info("No English subtitles found")
                             else:
-                                print("- No subtitles available for this video")
+                                print_info("No subtitles available for this video")
                             raise Exception("No English subtitles available")
 
                 except Exception as e:
-                    print(f"- Could not extract transcript: {str(e)}")
-                    print("- Continuing with video info only...")
+                    print_info(f"Could not extract transcript: {str(e)}")
+                    print_info("Continuing with video info only...")
                     # Still provide video info even without transcript
                     user_input = (
                         "Channel title: " + channel_title +
@@ -830,13 +828,13 @@ class CommandManager:
                     self.conversation_manager.conversation_history.append(
                         {"role": "user", "content": user_input}
                     )
-                    print("- YouTube content added to conversation context.")
+                    print_info("YouTube content added to conversation context")
 
             except Exception as e:
-                print("- An error occurred:", e)
+                print_info("An error occurred:", e)
                 return
         else:
-            print("- Could not determine the YouTube video URL.")
+            print_info("Could not determine the YouTube video URL")
             return
 
     def url(self, url: str) -> None:
@@ -845,26 +843,26 @@ class CommandManager:
         """
         # Check if this is a YouTube URL and redirect to YouTube command
         if "youtube.com" in url.lower() or "youtu.be" in url.lower():
-            print("- YouTube URL detected - redirecting to --youtube command for better transcript extraction...")
+            print_info("YouTube URL detected - redirecting to --youtube command for better transcript extraction...")
             self.youtube(url)
             return
 
-        print("- Extracting content from URL...")
+        print_info("Extracting content from URL...")
 
         extractor = WebContentExtractor()
         result = extractor.extract_content(url)
 
         if result['error']:
-            print(f"- Error: {result['error']}")
+            print_info(f"Error: {result['error']}")
             return
 
         if not result['content']:
-            print("- No content could be extracted from the URL.")
+            print_info("No content could be extracted from the URL")
             return
 
         # Display warning if paywall was encountered
         if result.get('warning'):
-            print(f"- {result['warning']}")
+            print_info(f"{result['warning']}")
 
         # Format the content for the conversation
         title = result['title'] or "Web Content"
@@ -875,8 +873,8 @@ class CommandManager:
             {"role": "user", "content": formatted_content}
         )
 
-        print("- Content added to conversation context.")
-        print("- You can now ask questions about this content.")
+        print_info("Content added to conversation context")
+        print_info("You can now ask questions about this content")
 
     def file(self, file_path: str) -> None:
         """
@@ -886,16 +884,16 @@ class CommandManager:
 
         # Check if file exists
         if not os.path.exists(file_path):
-            print(f"- Error: File not found: {file_path}")
+            print_info(f"Error: File not found: {file_path}")
             return
 
         # Check if file type is supported
         if not is_supported_file(file_path):
             supported_types = get_supported_extensions_display()
-            print(f"- Error: Unsupported file type. Supported types: {supported_types}")
+            print_info(f"Error: Unsupported file type. Supported types: {supported_types}")
             return
 
-        print(f"- Loading file: {os.path.basename(file_path)}")
+        print_info(f"Loading file: {os.path.basename(file_path)}")
 
         # Use DocumentProcessor to load the file content
         processor = DocumentProcessor()
@@ -903,7 +901,7 @@ class CommandManager:
             content = processor.load_file(file_path)
 
             if not content or not content.strip():
-                print("- Error: No content could be extracted from the file.")
+                print_info("Error: No content could be extracted from the file")
                 return
 
             # Clean the content
@@ -914,7 +912,7 @@ class CommandManager:
             file_ext = os.path.splitext(filename)[1].lower()
             word_count = len(content.split())
 
-            print(f"- Extracted content from {filename} ({word_count} words)")
+            print_info(f"Extracted content from {filename} ({word_count} words)")
 
             # Format the content for the conversation
             formatted_content = f"File: {filename}\n\nPath: {file_path}\n\n{content}"
@@ -924,11 +922,11 @@ class CommandManager:
                 {"role": "user", "content": formatted_content}
             )
 
-            print("- File content added to conversation context.")
-            print("- You can now ask questions about this content.")
+            print_info("File content added to conversation context")
+            print_info("You can now ask questions about this content")
 
         except Exception as e:
-            print(f"- Error loading file: {e}")
+            print_info(f"Error loading file: {e}")
 
 
 

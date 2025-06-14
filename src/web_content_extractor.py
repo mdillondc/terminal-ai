@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from typing import Dict, Optional, List, Tuple
 import re
+from print_helper import print_info
 
 
 class WebContentExtractor:
@@ -40,31 +41,31 @@ class WebContentExtractor:
                 return result
 
             # Try normal extraction first
-            print("- Fetching webpage...")
+            print_info("Fetching webpage...")
             normal_result = self._basic_extraction(url)
 
             # Check if we got an error that might be bypassed (403, 429, etc.)
             if normal_result['error']:
                 error_msg = normal_result['error'].lower()
                 if any(code in error_msg for code in ['403', '429', 'forbidden', 'blocked', 'bot']):
-                    print("- Access blocked, trying alternative methods...")
+                    print_info("Access blocked, trying alternative methods...")
                     bypass_result = self._try_paywall_bypass(url)
                     if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
                         return bypass_result
                     else:
-                        print("- ⚠️ All bypass methods failed")
+                        print_info("All bypass methods failed")
                         return normal_result
                 else:
                     return normal_result
 
             # Check for paywall
             if self._is_paywall_content(normal_result['content']):
-                print("- Paywall detected, trying alternative methods...")
+                print_info("Paywall detected, trying alternative methods...")
                 bypass_result = self._try_paywall_bypass(url)
                 if bypass_result['content'] and not self._is_paywall_content(bypass_result['content']):
                     return bypass_result
                 else:
-                    print("- ⚠️ Content incomplete due to paywall - no bypass methods worked")
+                    print_info("Content incomplete due to paywall - no bypass methods worked")
                     normal_result['warning'] = "Content may be incomplete due to paywall"
                     return normal_result
 
@@ -277,7 +278,7 @@ class WebContentExtractor:
                 result['error'] = "No readable content found on the page"
                 return result
 
-            print(f"- Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
+            print_info(f"Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
 
         except requests.exceptions.Timeout:
             result['error'] = "Request timed out"
@@ -378,7 +379,7 @@ class WebContentExtractor:
                 if (result and result.get('content') and
                     not self._is_paywall_content(result['content']) and
                     len(result['content'].split()) > 100):  # Ensure substantial content
-                    print(f"- Paywall bypassed using {method_name}")
+                    print_info(f"Paywall bypassed using {method_name}")
                     result['warning'] = f"Paywall bypassed using {method_name}"
                     return result
             except Exception as e:

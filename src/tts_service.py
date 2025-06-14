@@ -11,17 +11,11 @@ import tempfile
 import threading
 from typing import Optional, Union, Dict, Any
 from pathlib import Path
-
-try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
-    print("Warning: OpenAI library not available. TTS will be disabled.")
-
+from openai import OpenAI
 from settings_manager import SettingsManager
-from audio_utils import get_audio_player, is_audio_available
+from audio_utils import get_audio_player
 from llm_client_manager import LLMClientManager
+from print_helper import print_info
 
 
 class TTSService:
@@ -40,10 +34,7 @@ class TTSService:
         self.interrupt_requested = False
 
         # Initialize LLM client manager for provider detection
-        if OPENAI_AVAILABLE:
-            self.llm_client_manager = LLMClientManager(self.client)
-        else:
-            self.llm_client_manager = None
+        self.llm_client_manager = LLMClientManager(self.client)
 
         # Create audio output directory if saving is enabled
         self.audio_dir = None
@@ -57,7 +48,7 @@ class TTSService:
             if not os.path.exists(self.audio_dir):
                 os.makedirs(self.audio_dir)
         except Exception as e:
-            print(f"Warning: Could not create audio directory: {e}")
+            print_info(f"Warning: Could not create audio directory: {e}")
             self.audio_dir = None
 
     def _is_ollama_provider(self, model_name: str) -> bool:
@@ -81,16 +72,8 @@ class TTSService:
         # Check for privacy: disable TTS when using Ollama (local) models
         current_model = self.settings_manager.setting_get("model")
         if current_model and self._is_ollama_provider(current_model):
-            print("🔒 TTS disabled for privacy when using Ollama models")
-            print("   (Text-to-speech would send your text to OpenAI, breaking local privacy)")
-            return False
-
-        if not OPENAI_AVAILABLE:
-            print("- OpenAI library not available")
-            return False
-
-        if not is_audio_available():
-            print("- Audio system not available")
+            print_info("TTS disabled for privacy when using Ollama models")
+            print_info("Text-to-speech would send your text to OpenAI, breaking local privacy")
             return False
 
         try:
@@ -99,7 +82,7 @@ class TTSService:
             voice = self.settings_manager.setting_get("tts_voice")
             save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
 
-            print(f"🔊 Generating speech with {model} voice '{voice}'...")
+            print_info(f"Generating speech with {model} voice '{voice}'...")
 
             # Generate speech using OpenAI TTS API
             audio_data = self._generate_speech_data(text, model, voice)
@@ -118,7 +101,7 @@ class TTSService:
             return success
 
         except Exception as e:
-            print(f"- Error in TTS generation: {e}")
+            print_info(f"Error in TTS generation: {e}")
             return False
 
     def _generate_speech_data(self, text: str, model: str, voice: str) -> Optional[bytes]:
@@ -136,16 +119,16 @@ class TTSService:
         try:
             # Validate inputs
             if not self._validate_model(model):
-                print(f"- Invalid TTS model: {model}")
+                print_info(f"Invalid TTS model: {model}")
                 return None
 
             if not self._validate_voice(voice):
-                print(f"- Invalid TTS voice: {voice}")
+                print_info(f"Invalid TTS voice: {voice}")
                 return None
 
             # Check text length (OpenAI limit is 4096 characters)
             if len(text) > 4096:
-                print(f"- Text too long ({len(text)} chars). OpenAI TTS limit is 4096 characters.")
+                print_info(f"Text too long ({len(text)} chars). OpenAI TTS limit is 4096 characters")
                 return None
 
             # Call OpenAI TTS API
@@ -159,7 +142,7 @@ class TTSService:
             return response.content
 
         except Exception as e:
-            print(f"- OpenAI TTS API error: {e}")
+            print_info(f"OpenAI TTS API error: {e}")
             return None
 
     def _validate_model(self, model: str) -> bool:
@@ -199,11 +182,11 @@ class TTSService:
             with open(file_path, "wb") as f:
                 f.write(audio_data)
 
-            print(f"💾 Audio saved to: {filename}")
+            print_info(f"Audio saved to: {filename}")
             return file_path
 
         except Exception as e:
-            print(f"- Error saving audio file: {e}")
+            print_info(f"Error saving audio file: {e}")
             return None
 
     def _play_audio_data(self, audio_data: bytes, file_path: Optional[str] = None) -> bool:
@@ -228,7 +211,7 @@ class TTSService:
                 success = self.audio_player.play_audio_bytes(audio_data, "mp3")
 
             if success:
-                print("🔊 Playing audio... (Type 'q' + Enter at the next prompt to stop audio)")
+                print_info("Playing audio... (Type 'q' + Enter at the next prompt to stop audio)")
 
                 # Start monitoring thread for interruption
                 self.current_audio_thread = threading.Thread(
@@ -239,11 +222,11 @@ class TTSService:
 
                 return True
             else:
-                print("- Failed to start audio playback")
+                print_info("Failed to start audio playback")
                 return False
 
         except Exception as e:
-            print(f"- Error playing audio: {e}")
+            print_info(f"Error playing audio: {e}")
             return False
 
     def _monitor_audio_playback(self):
@@ -252,7 +235,7 @@ class TTSService:
             while self.audio_player.is_playing():
                 if self.interrupt_requested:
                     self.audio_player.stop()
-                    print("\n- Audio playback interrupted")
+                    print_info("Audio playback interrupted")
                     break
                 time.sleep(0.1)
         except:
@@ -307,27 +290,27 @@ class TTSService:
         # Check for privacy: disable TTS when using Ollama (local) models
         current_model = self.settings_manager.setting_get("model")
         if current_model and self._is_ollama_provider(current_model):
-            print("🔒 TTS test disabled for privacy when using Ollama models")
-            print("   (Text-to-speech would send your text to OpenAI, breaking local privacy)")
+            print_info("TTS test disabled for privacy when using Ollama models")
+            print_info("Text-to-speech would send your text to OpenAI, breaking local privacy")
             return False
 
         test_text = "Hello, this is a test of the text-to-speech system."
-        print("🧪 Testing TTS configuration...")
+        print_info("Testing TTS configuration...")
 
         try:
             model = self.settings_manager.setting_get("tts_model")
             voice = self.settings_manager.setting_get("tts_voice")
 
-            print(f"Model: {model}, Voice: {voice}")
+            print_info(f"Model: {model}, Voice: {voice}")
 
             # Generate a short test
             audio_data = self._generate_speech_data(test_text, model, voice)
 
             if audio_data is None:
-                print("- TTS test failed - could not generate audio")
+                print_info("TTS test failed - could not generate audio")
                 return False
 
-            print("- TTS test successful - audio generated")
+            print_info("TTS test successful - audio generated")
 
             # Optionally play the test (uncomment if desired)
             # self._play_audio_data(audio_data)
@@ -335,7 +318,7 @@ class TTSService:
             return True
 
         except Exception as e:
-            print(f"- TTS test failed: {e}")
+            print_info(f"TTS test failed: {e}")
             return False
 
     def cleanup(self):
@@ -396,15 +379,6 @@ def cleanup_tts():
     if _tts_service:
         _tts_service.cleanup()
         _tts_service = None
-
-
-def is_tts_available() -> bool:
-    """Check if TTS functionality is available"""
-    return OPENAI_AVAILABLE and is_audio_available()
-
-
-# Test function
-
 
 
 if __name__ == "__main__":

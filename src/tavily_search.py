@@ -8,6 +8,7 @@ allowing the AI to access current information from the internet.
 import os
 from typing import List, Dict, Optional, Any
 from tavily import TavilyClient
+from print_helper import print_info
 
 
 class TavilySearchError(Exception):
@@ -95,7 +96,7 @@ class TavilySearch:
         
         formatted_output = []
         formatted_output.append(f"- **Web Search Results for:** '{query}'")
-        formatted_output.append("=" * 60)
+        formatted_output.append("=" * 50)
         
         # Include AI-generated answer if available
         if 'answer' in search_results and search_results['answer']:
@@ -124,9 +125,9 @@ class TavilySearch:
             formatted_output.append("-" * 40)
         
         # Add search metadata
-        formatted_output.append("\n- **Search Metadata:**")
-        formatted_output.append(f"- Total results: {len(results)}")
-        formatted_output.append(f"- Query: {query}")
+        formatted_output.append("Search Metadata:")
+        formatted_output.append(f"Total results: {len(results)}")
+        formatted_output.append(f"Query: {query}")
         
         return "\n".join(formatted_output)
     
@@ -167,10 +168,10 @@ def create_tavily_search() -> Optional[TavilySearch]:
     try:
         return TavilySearch()
     except TavilySearchError as e:
-        print(f"- (!) Tavily search error: {e}")
+        print_info(f"Tavily search error: {e}")
         return None
     except Exception as e:
-        print(f"- (!) Unexpected error initializing Tavily search: {e}")
+        print_info(f"Unexpected error initializing Tavily search: {e}")
         return None
 
 
@@ -193,5 +194,5 @@ def quick_search(query: str, max_results: int = 5) -> Optional[str]:
     try:
         return search_client.search_and_format(query, max_results)
     except TavilySearchError as e:
-        print(f"- (!) Search failed: {e}")
+        print_info(f"Search failed: {e}")
         return None
