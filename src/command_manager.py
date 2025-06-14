@@ -93,6 +93,7 @@ class CommandManager:
             is_valid, error_msg = self.command_registry.validate_command_input(command_name, arg)
             if not is_valid:
                 print(f"{error_msg}")
+                command_processed = True
                 continue
 
             if command.startswith("--model"):
@@ -133,7 +134,6 @@ class CommandManager:
                 if self.settings_manager.setting_get("incognito"):
                     print_info("Cannot load log: incognito mode is enabled (no logging active)")
                     command_processed = True
-                    continue
 
                 if arg is None:
                     print_info("Please specify the log you want to use")
@@ -156,24 +156,24 @@ class CommandManager:
             elif command.startswith("--youtube"):
                 if arg is None:
                     print_info("Please specify a youtube url")
+                    command_processed = True
                 else:
                     self.youtube(arg)
-
-                command_processed = True
+                    command_processed = True
             elif command.startswith("--url"):
                 if arg is None:
                     print_info("Please specify a URL")
+                    command_processed = True
                 else:
                     self.url(arg)
-
-                command_processed = True
+                    command_processed = True
             elif command.startswith("--file"):
                 if arg is None:
                     print_info("Please specify a file path")
+                    command_processed = True
                 else:
                     self.file(arg)
-
-                command_processed = True
+                    command_processed = True
             elif command == "--search":
                 if self.settings_manager.setting_get("search"):
                     self.settings_manager.setting_set("search", False)
@@ -221,6 +221,7 @@ class CommandManager:
             elif command.startswith("--tts-model"):
                 if arg is None:
                     print_info("Please specify a TTS model. Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
+                    command_processed = True
                 else:
                     valid_models = ["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
                     if arg in valid_models:
@@ -228,11 +229,11 @@ class CommandManager:
                         print_info(f"TTS model set to: {arg}")
                     else:
                         print_info(f"Invalid TTS model: {arg}. Available models: {', '.join(valid_models)}")
-
-                command_processed = True
+                    command_processed = True
             elif command.startswith("--tts-voice"):
                 if arg is None:
                     print_info("Please specify a TTS voice. Available voices: alloy, echo, fable, onyx, nova, shimmer")
+                    command_processed = True
                 else:
                     valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
                     if arg in valid_voices:
@@ -240,8 +241,7 @@ class CommandManager:
                         print_info(f"TTS voice set to: {arg}")
                     else:
                         print_info(f"Invalid TTS voice: {arg}. Available voices: {', '.join(valid_voices)}")
-
-                command_processed = True
+                    command_processed = True
             elif command.startswith("--tts-save-as-mp3"):
                 tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
                 if tts_save_mp3:
