@@ -95,6 +95,45 @@ Conda let's you create isolated environments for Python projects. Get it [here](
 > --cb
 ```
 
+### Web Search
+
+Terminal AI includes intelligent web search with dynamic intent analysis - no hardcoded patterns, fully adaptive to any topic.
+
+```bash
+# Enable web search
+> --search
+
+# Search automatically analyzes your query for:
+# - Intent type (factual, controversial, recent events, etc.)
+# - Search depth (basic vs advanced)
+# - Freshness requirements
+# - Verification needs
+
+# Example searches:
+> How many people were affected by the earthquake in Turkey?
+# - Analyzes as: numerical query requiring verification
+# - Uses: advanced search depth
+# - Adds: verification searches for accurate casualty figures
+# - Results: Multiple sources as numbers get updated over time
+
+> What's the capital of France?
+# - Analyzes as: simple factual query  
+# - Uses: basic search depth
+# - Results: Quick, authoritative answer
+
+> Latest AI breakthrough this week?
+# - Analyzes as: recent events query
+# - Uses: advanced search with freshness filtering (7 days)
+# - Results: Most current information
+```
+
+**Smart Features:**
+- **Dynamic Intent Detection**: LLM analyzes each query contextually (no hardcoded patterns)
+- **Verification Searches**: Automatically fact-checks controversial topics
+- **Conversation Context**: Understands references like "his parade" from previous discussion
+- **Current Date Awareness**: Always uses correct year/date in search queries
+- **Multi-Query Strategy**: Generates 1-3 optimized search queries per request
+
 ### RAG (Document Analysis)
 
 ```bash

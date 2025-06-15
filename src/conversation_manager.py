@@ -9,6 +9,7 @@ from typing import Optional, Any
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
+from search_intent_analyzer import SearchIntentAnalyzer
 from llm_client_manager import LLMClientManager
 from print_helper import print_info, print_lines
 
@@ -26,6 +27,9 @@ class ConversationManager:
 
         # Initialize LLM client manager for multi-provider support
         self.llm_client_manager = LLMClientManager(self._original_openai_client)
+
+        # Initialize search intent analyzer
+        self.search_intent_analyzer = SearchIntentAnalyzer(self.llm_client_manager, self.model)
 
         # Initialize RAG engine - import here to avoid circular imports
         try:
@@ -287,6 +291,9 @@ class ConversationManager:
             # Append processed_response to the conversation_history array
             self.conversation_history.append({"role": "assistant", "content": processed_response})
 
+            # Add newline after AI response for proper spacing
+            print()
+
             # Display RAG sources if any were used
             if rag_sources and self.rag_engine:
                 print(f"{self.rag_engine.format_sources(rag_sources)}")
@@ -464,31 +471,63 @@ The system will handle permission prompts - your job is to suggest the right com
                 print_info("No user message found for search")
                 return
 
-            print_info("Generating optimal search query...")
+            print_info("Analyzing search intent...")
 
-            # Get recent conversation context using configurable window size
-            context_window = self.settings_manager.search_context_window
+            # Build full conversation context with recent messages first
             char_limit = self.settings_manager.search_context_char_limit
-            context_messages = []
-            for message in self.conversation_history[-context_window:]:
+            recent_messages = []
+            earlier_messages = []
+
+            # Get recent messages (last 10) for immediate context
+            recent_window = min(10, len(self.conversation_history))
+            for message in self.conversation_history[-recent_window:]:
                 if message["role"] in ["user", "assistant"]:
-                    # Truncate long messages to keep context manageable
                     content = message["content"]
                     if len(content) > char_limit:
                         content = content[:char_limit] + "..."
-                    context_messages.append(f"{message['role']}: {content}")
+                    recent_messages.append(f"{message['role']}: {content}")
 
-            context_text = "\n".join(context_messages) if context_messages else "No prior context."
+            # Get earlier messages for reference resolution
+            if len(self.conversation_history) > recent_window:
+                for message in self.conversation_history[:-recent_window]:
+                    if message["role"] in ["user", "assistant"]:
+                        content = message["content"]
+                        if len(content) > char_limit:
+                            content = content[:char_limit] + "..."
+                        earlier_messages.append(f"{message['role']}: {content}")
+
+            # Structure context with recent first, then earlier
+            context_parts = []
+            if recent_messages:
+                context_parts.append("RECENT CONVERSATION:")
+                context_parts.extend(recent_messages)
+
+            if earlier_messages:
+                context_parts.append("\nEARLIER CONVERSATION (for reference resolution):")
+                context_parts.extend(earlier_messages)
+
+            context_text = "\n".join(context_parts) if context_parts else "No prior context."
+
+            # Analyze search intent
+            intent_analysis = self.search_intent_analyzer.analyze_query(last_user_message, context_text)
+            print_info(f"Intent analysis: {intent_analysis.get('intent_type', 'general')} query "
+                      f"(confidence: {intent_analysis.get('confidence', 0.5):.2f})")
 
             # Extract key topics/entities from conversation context for better search queries
             key_topics = self._extract_key_topics_from_context(context_text)
             topics_text = f"Key topics from conversation: {', '.join(key_topics)}" if key_topics else ""
 
+            print_info("Generating optimal search query...")
+
+            # Get current date for search context
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            current_year = datetime.now().year
+
             # Create a temporary conversation to generate search query
             search_query_conversation = [
                 {
                     "role": "system",
-                    "content": "You are a search query optimizer. Given a user's question or statement and the conversation context, rewrite it as 1-3 optimal search queries that would find the most relevant and current information to answer their question. Consider the conversation context to understand what the user is really asking about. Respond with only the search queries, one per line, no explanations."
+                    "content": f"You are a search query optimizer. Today's date is {current_date} (year {current_year}). Given a user's question or statement and the conversation context, rewrite it as 1-3 optimal search queries that would find the most relevant and current information to answer their question. Consider the conversation context to understand what the user is really asking about. When generating queries about recent events, use the correct current year ({current_year}). Respond with only the search queries, one per line, no explanations."
                 },
                 {
                     "role": "user",
@@ -516,15 +555,46 @@ The system will handle permission prompts - your job is to suggest the right com
 
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
+
+            # Get search parameters from intent analysis
+            search_params = {
+                'max_results': intent_analysis.get('max_results', 3),
+                'search_depth': intent_analysis.get('search_depth', 'basic'),
+                'days': intent_analysis.get('freshness_days'),
+                'topic': intent_analysis.get('topic_category')
+            }
+
             for query in search_queries[:max_queries]:  # Limit queries to avoid overwhelming
-                print_info(f"Searching: {query}")
+                print_info(f"Searching: {query} (depth: {search_params['search_depth']})")
                 try:
-                    results = search_client.search_and_format(query, max_results=3)
+                    results = search_client.search_and_format(query, **search_params)
                     if results:
                         all_search_results.append(results)
                 except TavilySearchError as e:
                     print_info(f"Search failed for '{query}': {e}")
                     continue
+
+            # Perform verification searches if needed
+            if self.search_intent_analyzer.should_use_verification_search(intent_analysis):
+                print_info("Performing verification searches...")
+                verification_queries = self.search_intent_analyzer.get_verification_queries(
+                    last_user_message, intent_analysis
+                )
+
+                # Use higher result count and advanced search for verification
+                verification_params = search_params.copy()
+                verification_params['max_results'] = min(verification_params['max_results'] + 2, 8)
+                verification_params['search_depth'] = 'advanced'
+
+                for v_query in verification_queries[:2]:  # Limit verification queries
+                    print_info(f"Verification search: {v_query}")
+                    try:
+                        v_results = search_client.search_and_format(v_query, **verification_params)
+                        if v_results:
+                            all_search_results.append(v_results)
+                    except TavilySearchError as e:
+                        print_info(f"Verification search failed for '{v_query}': {e}")
+                        continue
 
             if all_search_results:
                 # Combine all search results
@@ -548,10 +618,10 @@ The system will handle permission prompts - your job is to suggest the right com
 
     def _extract_key_topics_from_context(self, context_text: str) -> list:
         """
-        Extract key topics and entities from conversation context to improve search queries.
+        Extract key topics/entities from conversation context using LLM analysis.
 
         Args:
-            context_text: The conversation context string
+            context_text: The conversation context text
 
         Returns:
             List of key topics/entities found in the context
@@ -559,33 +629,44 @@ The system will handle permission prompts - your job is to suggest the right com
         if not context_text or context_text == "No prior context.":
             return []
 
-        # Simple keyword extraction - look for important terms
-        # This could be enhanced with more sophisticated NLP techniques
-        important_keywords = []
+        try:
+            # Use LLM to dynamically extract key topics
+            extraction_prompt = f"""Analyze this conversation context and extract the 3-5 most important topics, entities, people, places, or concepts that would be relevant for search queries.
 
-        # Look for proper nouns and important terms (simple heuristic approach)
-        words = context_text.split()
-        for i, word in enumerate(words):
-            # Capitalized words that might be names, places, organizations
-            if word[0].isupper() and len(word) > 2 and word not in ['The', 'This', 'That', 'When', 'Where', 'What', 'How', 'Why']:
-                # Avoid adding common sentence starters
-                if i == 0 or words[i-1].endswith('.') or words[i-1].endswith(':'):
-                    continue
-                important_keywords.append(word.strip('.,!?:;'))
+CONVERSATION CONTEXT:
+{context_text}
 
-        # Look for specific patterns that indicate important topics
-        topic_patterns = [
-            'Trump', 'Marines', 'mobilization', 'deployment', 'firearms', 'military',
-            'President', 'LA', 'California', 'video', 'YouTube', 'allegations',
-            'political', 'claims', 'Marines', 'weapons', 'policy'
-        ]
+Extract key topics that would help understand what the conversation is about. Focus on:
+- People's names
+- Organizations, companies, locations
+- Important concepts or subjects being discussed
+- Events or situations mentioned
 
-        for pattern in topic_patterns:
-            if pattern.lower() in context_text.lower():
-                important_keywords.append(pattern)
+Respond with just the key topics, one per line, no explanations. Maximum 5 topics."""
 
-        # Remove duplicates and return unique topics
-        return list(set(important_keywords))[:5]  # Limit to top 5 topics
+            response = self.llm_client_manager.create_chat_completion(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Extract key topics from conversation context to help with search queries."
+                    },
+                    {
+                        "role": "user",
+                        "content": extraction_prompt
+                    }
+                ],
+                temperature=0.1
+            )
+
+            topics_text = response.choices[0].message.content.strip()
+            topics = [topic.strip() for topic in topics_text.split('\n') if topic.strip()]
+
+            return topics[:5]  # Limit to top 5 topics
+
+        except Exception as e:
+            print_info(f"Topic extraction failed: {e}")
+            return []
 
 
     def _handle_tts_playback(self, text: str, was_interrupted: bool = False):
