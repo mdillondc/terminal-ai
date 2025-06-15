@@ -273,9 +273,9 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
-            name="--rag-build",
-            description="Build/rebuild embeddings index for a RAG collection.",
-            usage="--rag-build collection_name",
+            name="--rag-rebuild",
+            description="Force rebuild embeddings index for a RAG collection. Note: --rag automatically builds collections when needed.",
+            usage="--rag-rebuild collection_name",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
             requires_argument=True

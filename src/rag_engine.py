@@ -144,8 +144,14 @@ class RAGEngine:
         if not index_exists:
             if verbose:
                 print_info(f"Collection '{collection_name}' has no index")
-                print_info(f"Use --rag-build {collection_name}")
-            return False
+                print_info(f"Auto-building collection...")
+
+            # Auto-build the collection
+            success = self.build_collection(collection_name, force_rebuild=True)
+            if not success:
+                if verbose:
+                    print_info(f"Failed to build collection '{collection_name}'")
+                return False
 
         if not cache_valid:
             if verbose:

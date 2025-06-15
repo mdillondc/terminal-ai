@@ -277,11 +277,11 @@ class CommandManager:
                 else:
                     self.rag_debug(arg)
                 command_processed = True
-            elif command.startswith("--rag-build"):
+            elif command.startswith("--rag-rebuild"):
                 if arg is None:
-                    print_info("Please specify a collection name to build")
+                    print_info("Please specify a collection name to rebuild")
                 else:
-                    self.rag_build(arg)
+                    self.rag_rebuild(arg)
                 command_processed = True
             elif command.startswith("--rag-show"):
                 if arg is None:
@@ -342,8 +342,7 @@ class CommandManager:
             status = f"({', '.join(status_info)})" if status_info else ""
             print_info(f"{i}. {collection['name']} - {collection['file_count']} files {status}")
 
-        print_info("Use --rag <collection_name>  # Activate collection")
-        print_info("Use --rag-build <name>       # Build/rebuild collection index")
+        print_info("Use --rag <collection_name>  # Activate collection (builds automatically if needed)")
 
     def rag_activate(self, collection_name: str) -> None:
         """Activate a RAG collection"""
@@ -366,8 +365,8 @@ class CommandManager:
 
         self.rag_engine.deactivate_collection()
 
-    def rag_build(self, collection_name: str) -> None:
-        """Build/rebuild a RAG collection"""
+    def rag_rebuild(self, collection_name: str) -> None:
+        """Force rebuild a RAG collection"""
         if not self.rag_engine:
             print_info("RAG engine not available")
             return

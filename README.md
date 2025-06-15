@@ -140,18 +140,16 @@ Terminal AI includes intelligent web search with dynamic intent analysis - no ha
 # Create document collection (supports various formats, see `rag_config.py`)
 mkdir -p rag/my-docs
 mkdir -p rag/my-docs/api # Subdirectories supported
-cp hello-world.md rag/my-docs/
-cp api-docs/*.md rag/my-docs/api/
 
-# Build and activate collection
-> --rag-build my-docs
-> --rag my-docs # enables RAG collection (will automatically rebuild collection when changes are detected)
+# Activate collection (builds automatically if needed)
+> --rag my-docs # enables RAG collection and builds/rebuilds automatically as needed
 
 # Query your documents
 > What are the main topics in my documents?
 > --rag-show filename.txt # View specific file chunks
 > --rag-status            # Check RAG configuration
 > --rag-test              # Test RAG connection
+> --rag-rebuild my-docs   # Force rebuild collection (required if switching embedding model)
 ```
 
 ### Embedding Providers
@@ -298,7 +296,6 @@ python src/main.py --input "--file report.pdf --instructions summary.md" --input
 > What's the latest news about AI?
 
 # Work with documents (private with Ollama)
-> --rag-build my-docs
 > --rag my-docs
 > Summarize the key findings from my research papers
 
