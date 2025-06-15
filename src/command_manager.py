@@ -297,10 +297,13 @@ class CommandManager:
                 command_processed = True
             elif command.startswith("--rag"):
                 if arg is None:
-                    self.rag_list()
-                elif arg.lower() == "off":
-                    self.rag_off()
+                    # Toggle RAG on/off
+                    if self.rag_engine and self.rag_engine.is_active():
+                        self.rag_off()
+                    else:
+                        self.rag_list(from_toggle=True)
                 else:
+                    # Activate specific collection
                     self.rag_activate(arg)
                 command_processed = True
 
@@ -310,19 +313,22 @@ class CommandManager:
 
         return command_processed
 
-    def rag_list(self) -> None:
+    def rag_list(self, from_toggle: bool = False) -> None:
         """List available RAG collections"""
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
+
+        if from_toggle:
+            print_info("RAG is not active. Available collections:")
+        else:
+            print_info("Available RAG collections:")
 
         collections = self.rag_engine.list_collections()
         if not collections:
             print_info("No RAG collections found in rag/ directory")
             print_info("Create collections by making directories in rag/collection_name/")
             return
-
-        print_info("Available RAG collections:")
         for i, collection in enumerate(collections, 1):
             status_info = []
             if collection.get("has_index"):

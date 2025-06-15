@@ -463,11 +463,6 @@ class CommandCompleter(Completer):
         try:
             matches = []
 
-            # Special completion for 'off' option with fuzzy matching
-            is_match, score = self._fuzzy_match(partial_name, "off")
-            if is_match:
-                matches.append((score, "off", "Deactivate RAG mode"))
-
             # Use VectorStore for collection discovery (DRY principle)
             vector_store = VectorStore()
             collections = vector_store.get_available_collections()
