@@ -227,6 +227,8 @@ TODAY'S DATE: {current_date} (Current year: {current_year})
 
 This query appears to need fact-checking or verification. Generate 2-3 additional search queries that would help verify the accuracy of any claims or get more objective information about this topic.
 
+IMPORTANT: Use the EXACT names, places, and specific details from the original query. Do NOT replace them with generic placeholders like "[Name of person]" or "[Location]". Use the actual names and terms mentioned.
+
 Focus on:
 - Finding authoritative sources
 - Getting multiple perspectives

@@ -2,7 +2,7 @@
 
 ![Terminal AI Assistant Screenshot](screenshot.png)
 
-A terminal AI assistant with advanced features including RAG, web search, command execution, TTS, multiple providers (including Ollama) and more.
+A terminal AI assistant with advanced features including RAG, intelligent web search, command execution, TTS, multiple providers (including Ollama) and more.
 
 As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui) and [open-interpreter](https://github.com/OpenInterpreter/open-interpreter), I found myself wishing that I could bring them both into a single, cohesive terminal application. To achieve this, I created Terminal AI.
 
@@ -233,7 +233,6 @@ Key settings in `src/settings_manager.py`:
 - Default model selection and API configuration
 - RAG parameters (chunk size, top-k results, embedding provider)
    - Adjust based on your embedding model's capabilities
-- Logging parameters (log directory, log level)
 - TTS voice and model settings
 - Much more. See `src/settings_manager.py` for details
 
