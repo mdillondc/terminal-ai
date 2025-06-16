@@ -517,6 +517,14 @@ class WebContentExtractor:
     def _try_bot_user_agent(self, url: str) -> Dict[str, Optional[str]]:
         """Try with various user agents including search engine bots and realistic browsers."""
         user_agent_configs = [
+            # Social media crawlers (try first - high success rate)
+            ("Facebook crawler", {
+                'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive'
+            }),
             # Search engine bots
             ("Googlebot", {
                 'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)',
@@ -559,14 +567,6 @@ class WebContentExtractor:
                 'Sec-Fetch-Mode': 'navigate',
                 'Sec-Fetch-Site': 'none',
                 'Sec-Fetch-User': '?1'
-            }),
-            # Social media crawlers
-            ("Facebook crawler", {
-                'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive'
             })
         ]
 
