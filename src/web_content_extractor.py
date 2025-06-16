@@ -3,25 +3,28 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from typing import Dict, Optional, List, Tuple
 import re
+import time
+from datetime import datetime, timedelta
 from print_helper import print_info
 
 
 class WebContentExtractor:
     """
     Extracts main content from web pages for AI analysis.
-    Simple implementation that fetches and parses HTML content.
+    Attempts various bypass methods when access is blocked.
     """
 
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
         })
         self.timeout = 30
 
     def extract_content(self, url: str) -> Dict[str, Optional[str]]:
         """
-        Extract main content from a web page with paywall bypass capabilities.
+        Extract main content from a web page with access restriction bypass capabilities.
+        Handles paywalls, bot detection, login walls, rate limiting, and other blocking methods.
 
         Returns:
             Dict with keys: 'title', 'content', 'url', 'error', 'warning'
@@ -48,25 +51,34 @@ class WebContentExtractor:
             if normal_result['error']:
                 error_msg = normal_result['error'].lower()
                 if any(code in error_msg for code in ['403', '429', 'forbidden', 'blocked', 'bot']):
-                    print_info("Access blocked, trying alternative methods...")
-                    bypass_result = self._try_paywall_bypass(url)
+                    if '403' in error_msg:
+                        print_info("Access denied (HTTP 403) - attempting bypass methods...")
+                    elif '429' in error_msg:
+                        print_info("Rate limited (HTTP 429) - attempting bypass methods...")
+                    elif 'bot' in error_msg:
+                        print_info("Bot detection triggered - attempting bypass methods...")
+                    else:
+                        print_info("Access blocked - attempting bypass methods...")
+
+                    bypass_result = self._try_access_bypass(url)
                     if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
                         return bypass_result
                     else:
-                        print_info("All bypass methods failed")
+                        print_info("All bypass methods failed - returning original error")
                         return normal_result
                 else:
                     return normal_result
 
-            # Check for paywall
-            if self._is_paywall_content(normal_result['content']):
-                print_info("Paywall detected, trying alternative methods...")
-                bypass_result = self._try_paywall_bypass(url)
-                if bypass_result['content'] and not self._is_paywall_content(bypass_result['content']):
+            # Check for access restrictions in content
+            block_type = self._is_access_blocked(normal_result['content'])
+            if block_type:
+                print_info(f"Access restriction detected ({block_type}) - attempting bypass methods...")
+                bypass_result = self._try_access_bypass(url)
+                if bypass_result['content'] and not self._is_access_blocked(bypass_result['content']):
                     return bypass_result
                 else:
-                    print_info("Content incomplete due to paywall - no bypass methods worked")
-                    normal_result['warning'] = "Content may be incomplete due to paywall"
+                    print_info("Content appears incomplete due to access restrictions - no bypass methods worked")
+                    normal_result['warning'] = f"Content may be incomplete due to access restrictions ({block_type})"
                     return normal_result
 
             return normal_result
@@ -257,7 +269,7 @@ class WebContentExtractor:
         return '\n'.join(cleaned_lines).strip()
 
     def _basic_extraction(self, url: str) -> Dict[str, Optional[str]]:
-        """Basic content extraction without paywall handling."""
+        """Basic content extraction without access restriction handling."""
         result = {
             'title': None,
             'content': None,
@@ -291,40 +303,71 @@ class WebContentExtractor:
 
         return result
 
-    def _is_paywall_content(self, content: str) -> bool:
-        """Detect common paywall indicators."""
+    def _is_access_blocked(self, content: str) -> Optional[str]:
+        """Detect common access blocking indicators. Returns block type or None."""
         if not content:
-            return False
+            return None
 
         content_lower = content.lower()
         total_words = len(content.split())
 
-        # Strong paywall indicators
-        strong_indicators = [
+        # Paywall indicators
+        paywall_indicators = [
             "subscribe to continue", "subscription required", "paywall",
             "premium content", "members only", "subscriber exclusive",
-            "login to continue", "sign in to read more",
-            "create account to continue", "free trial", "unlock this article",
-            "please log in to continue", "create account to unlock",
-            "start your free trial", "never miss a story", "get started",
-            "already have an account", "start your subscription",
+            "unlock this article", "start your subscription",
             "support ensures", "independent journalism", "uncompromising quality",
             "enduring impact", "bright future for independent journalism"
         ]
 
-        # Weaker indicators (need multiple) - removed overly broad terms
-        weak_indicators = [
-            "subscribe", "subscription", "premium", "member",
-            "sign in", "log in", "create account", "register",
-            "free trial", "start trial"
+        # Login/registration wall indicators
+        login_indicators = [
+            "login to continue", "sign in to read more",
+            "create account to continue", "please log in to continue",
+            "create account to unlock", "register to continue"
         ]
 
-        # Check for strong indicators
-        for indicator in strong_indicators:
-            if indicator in content_lower:
-                return True
+        # Bot detection indicators
+        bot_indicators = [
+            "access denied", "blocked", "security check", "captcha",
+            "unusual traffic", "automated requests", "bot detected",
+            "verify you are human", "please verify", "security verification"
+        ]
 
-        # Pattern-based detection for complex paywall messages
+        # Geographic restriction indicators
+        geo_indicators = [
+            "not available in your region", "geographic restriction",
+            "content not available", "region blocked", "location restricted"
+        ]
+
+        # Rate limiting indicators
+        rate_indicators = [
+            "too many requests", "rate limit", "slow down", "try again later",
+            "exceeded limit"
+        ]
+
+        # Check for specific block types
+        for indicator in paywall_indicators:
+            if indicator in content_lower:
+                return "paywall"
+
+        for indicator in login_indicators:
+            if indicator in content_lower:
+                return "login required"
+
+        for indicator in bot_indicators:
+            if indicator in content_lower:
+                return "bot detection"
+
+        for indicator in geo_indicators:
+            if indicator in content_lower:
+                return "geographic restriction"
+
+        for indicator in rate_indicators:
+            if indicator in content_lower:
+                return "rate limiting"
+
+        # Pattern-based detection for complex blocking messages
         paywall_patterns = [
             # The Atlantic style - more specific patterns
             ("never miss a story", "free trial"),
@@ -344,68 +387,93 @@ class WebContentExtractor:
         # Check for pattern combinations - require both patterns to be present
         for pattern1, pattern2 in paywall_patterns:
             if pattern1 in content_lower and pattern2 in content_lower:
-                return True
+                return "paywall"
+
+        # Weaker indicators (need multiple) - removed overly broad terms
+        weak_indicators = [
+            "subscribe", "subscription", "premium", "member",
+            "sign in", "log in", "create account", "register",
+            "free trial", "start trial"
+        ]
 
         # For very short content, be more aggressive with detection
         if total_words < 50:
             weak_count = sum(1 for indicator in weak_indicators if indicator in content_lower)
             if weak_count >= 3:  # Require more evidence even for short content
-                return True
+                return "access restriction"
         else:
             # For longer content, need much more evidence
             weak_count = sum(1 for indicator in weak_indicators if indicator in content_lower)
             if weak_count >= 4:  # Raised threshold
-                return True
+                return "access restriction"
 
-            # Check content length vs paywall text ratio - be more conservative
-            paywall_words = sum(content_lower.count(indicator) for indicator in weak_indicators)
-            if total_words < 150 and paywall_words > 8:  # More restrictive
-                return True
+            # Check content length vs blocking text ratio - be more conservative
+            blocking_words = sum(content_lower.count(indicator) for indicator in weak_indicators)
+            if total_words < 150 and blocking_words > 8:  # More restrictive
+                return "access restriction"
 
-        return False
+        return None
 
-    def _try_paywall_bypass(self, url: str) -> Dict[str, Optional[str]]:
-        """Try multiple methods to bypass paywalls."""
+    def _try_access_bypass(self, url: str) -> Dict[str, Optional[str]]:
+        """Try multiple methods to bypass access restrictions."""
         bypass_methods = [
-            ("Archive.org", self._try_archive_org),
-            ("Search Engine Bot", self._try_bot_user_agent),
-            ("Print Version", self._try_print_version),
-            ("AMP Version", self._try_amp_version)
+            ("search engine bot user agent", self._try_bot_user_agent),
+            ("print version URL", self._try_print_version),
+            ("AMP version URL", self._try_amp_version),
+            ("Archive.org (Wayback Machine)", self._try_archive_org)
         ]
 
         for method_name, method_func in bypass_methods:
             try:
+                print_info(f"Attempting bypass using {method_name}...")
                 result = method_func(url)
                 if (result and result.get('content') and
-                    not self._is_paywall_content(result['content']) and
+                    not self._is_access_blocked(result['content']) and
                     len(result['content'].split()) > 100):  # Ensure substantial content
-                    print_info(f"Paywall bypassed using {method_name}")
-                    result['warning'] = f"Paywall bypassed using {method_name}"
+                    print_info(f"Access restriction bypassed using {method_name}")
+                    result['warning'] = f"Access restriction bypassed using {method_name}"
                     return result
+                else:
+                    if result and result.get('content'):
+                        content_length = len(result['content'].split())
+                        block_type = self._is_access_blocked(result['content'])
+                        if block_type:
+                            print_info(f"{method_name} failed - still blocked ({block_type})")
+                        elif content_length <= 100:
+                            print_info(f"{method_name} failed - insufficient content ({content_length} words)")
+                        else:
+                            print_info(f"{method_name} failed - unknown issue")
+                    else:
+                        print_info(f"{method_name} failed - no content retrieved")
             except Exception as e:
-                # Silently continue to next method
+                print_info(f"{method_name} failed - {str(e)}")
                 continue
 
         # All methods failed
+        print_info("All bypass methods exhausted")
         return {'content': None, 'error': 'All bypass methods failed'}
 
 
 
     def _try_archive_org(self, url: str) -> Dict[str, Optional[str]]:
         """Try to fetch content from Archive.org (Wayback Machine)."""
-        # Try recent snapshots first, then go back in time
-        timestamps = [
-            "20241201000000",  # Recent
-            "20241101000000",
-            "20241001000000",
-            "20240601000000",  # 6 months ago
-            "20240101000000",  # 1 year ago
-            "20230601000000"   # Older fallback
-        ]
+        # Generate timestamps dynamically based on current date
+        now = datetime.now()
+        timestamps = []
 
-        for timestamp in timestamps:
+        # Add timestamps going back in time: current month, 1 month ago, 2 months ago, 6 months ago, 1 year ago, 2 years ago
+        time_deltas = [0, 1, 2, 6, 12, 24]  # months back
+
+        for months_back in time_deltas:
+            target_date = now - timedelta(days=months_back * 30)  # Approximate months
+            timestamp = target_date.strftime("%Y%m01000000")  # First of the month
+            readable_date = target_date.strftime("%b %Y")
+            timestamps.append((readable_date, timestamp))
+
+        for time_desc, timestamp in timestamps:
             try:
                 archive_url = f"https://web.archive.org/web/{timestamp}/{url}"
+                print_info(f"Checking Archive.org snapshot from {time_desc}...")
 
                 # Use different session to avoid rate limiting conflicts
                 archive_session = requests.Session()
@@ -426,6 +494,7 @@ class WebContentExtractor:
                     content = self._extract_main_content(soup)
 
                     if content and len(content.split()) > 100:
+                        print_info(f"Found archived content from {time_desc} ({len(content.split())} words)")
                         return {
                             'title': title,
                             'content': content,
@@ -433,35 +502,40 @@ class WebContentExtractor:
                             'error': None,
                             'warning': None
                         }
+                    else:
+                        print_info(f"{time_desc} snapshot has insufficient content")
+                else:
+                    print_info(f"No {time_desc} snapshot available (HTTP {response.status_code})")
 
                 time.sleep(0.5)  # Be respectful to archive.org
 
-            except Exception:
+            except Exception as e:
+                print_info(f"{time_desc} snapshot failed: {str(e)}")
                 continue
 
-        return {'content': None, 'error': 'Archive.org lookup failed'}
+        return {'content': None, 'error': 'No usable Archive.org snapshots found'}
 
     def _try_bot_user_agent(self, url: str) -> Dict[str, Optional[str]]:
         """Try with various user agents including search engine bots and realistic browsers."""
         user_agent_configs = [
             # Search engine bots
-            {
+            ("Googlebot", {
                 'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Accept-Encoding': 'gzip, deflate',
                 'Connection': 'keep-alive'
-            },
-            {
+            }),
+            ("Bingbot", {
                 'User-Agent': 'Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Accept-Encoding': 'gzip, deflate',
                 'Connection': 'keep-alive'
-            },
+            }),
             # Realistic browser user agents
-            {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            ("Chrome Windows", {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Accept-Encoding': 'gzip, deflate, br',
@@ -473,9 +547,9 @@ class WebContentExtractor:
                 'Sec-Fetch-Site': 'none',
                 'Sec-Fetch-User': '?1',
                 'Cache-Control': 'max-age=0'
-            },
-            {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }),
+            ("Chrome macOS", {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Accept-Encoding': 'gzip, deflate, br',
@@ -486,23 +560,23 @@ class WebContentExtractor:
                 'Sec-Fetch-Mode': 'navigate',
                 'Sec-Fetch-Site': 'none',
                 'Sec-Fetch-User': '?1'
-            },
+            }),
             # Social media crawlers
-            {
+            ("Facebook crawler", {
                 'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Accept-Encoding': 'gzip, deflate',
                 'Connection': 'keep-alive'
-            }
+            })
         ]
 
-        for headers in user_agent_configs:
+        for agent_name, headers in user_agent_configs:
             try:
+                print_info(f"Trying {agent_name} user agent...")
                 bot_session = requests.Session()
                 bot_session.headers.update(headers)
 
-                # No delay needed here - only between bypass method attempts
                 response = bot_session.get(url, timeout=self.timeout)
                 response.raise_for_status()
 
@@ -511,6 +585,7 @@ class WebContentExtractor:
                 content = self._extract_main_content(soup)
 
                 if content and len(content.split()) > 100:
+                    print_info(f"{agent_name} succeeded ({len(content.split())} words)")
                     return {
                         'title': title,
                         'content': content,
@@ -518,81 +593,96 @@ class WebContentExtractor:
                         'error': None,
                         'warning': None
                     }
+                else:
+                    print_info(f"{agent_name} returned insufficient content")
 
-            except Exception:
+            except Exception as e:
+                print_info(f"{agent_name} failed: {str(e)}")
                 continue
 
-        return {'content': None, 'error': 'Bot user agent failed'}
+        return {'content': None, 'error': 'All user agents failed'}
 
     def _try_print_version(self, url: str) -> Dict[str, Optional[str]]:
-        """Try print version URLs which often bypass paywalls."""
+        """Try to access a print version of the page."""
         print_variations = [
-            f"{url}?print=1",
-            f"{url}?print=true",
-            f"{url}&print=1",
-            f"{url}/print",
-            f"{url}?view=print",
-            f"{url}?format=print"
+            ("?print=1", f"{url}?print=1"),
+            ("?print=true", f"{url}?print=true"),
+            ("/print", f"{url}/print"),
+            ("/print/", f"{url.rstrip('/')}/print/"),
+            ("?view=print", f"{url}?view=print"),
+            ("?format=print", f"{url}?format=print")
         ]
 
-        for print_url in print_variations:
+        for variation_desc, print_url in print_variations:
             try:
+                print_info(f"Trying print URL with {variation_desc}...")
                 response = self.session.get(print_url, timeout=self.timeout)
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    title = self._extract_title(soup)
-                    content = self._extract_main_content(soup)
+                response.raise_for_status()
 
-                    if content and len(content.split()) > 100:
-                        return {
-                            'title': title,
-                            'content': content,
-                            'url': url,
-                            'error': None,
-                            'warning': None
-                        }
+                soup = BeautifulSoup(response.text, 'html.parser')
+                title = self._extract_title(soup)
+                content = self._extract_main_content(soup)
 
-            except Exception:
+                if content and len(content.split()) > 100:
+                    print_info(f"Print version {variation_desc} succeeded ({len(content.split())} words)")
+                    return {
+                        'title': title,
+                        'content': content,
+                        'url': url,
+                        'error': None,
+                        'warning': None
+                    }
+                else:
+                    print_info(f"Print version {variation_desc} returned insufficient content")
+
+            except Exception as e:
+                print_info(f"Print version {variation_desc} failed: {str(e)}")
                 continue
 
-        return {'content': None, 'error': 'Print version failed'}
+        return {'content': None, 'error': 'No working print version found'}
 
     def _try_amp_version(self, url: str) -> Dict[str, Optional[str]]:
         """Try AMP (Accelerated Mobile Pages) version."""
         parsed = urlparse(url)
 
         amp_variations = [
-            url.replace('www.', 'amp.'),
-            url.replace('https://', 'https://amp.'),
-            f"{parsed.scheme}://{parsed.netloc}/amp{parsed.path}",
-            f"{url}/amp",
-            f"{url}?amp=1"
+            ("amp subdomain", url.replace('www.', 'amp.')),
+            ("amp prefix", url.replace('https://', 'https://amp.')),
+            ("/amp path", f"{parsed.scheme}://{parsed.netloc}/amp{parsed.path}"),
+            ("/amp suffix", f"{url.rstrip('/')}/amp"),
+            ("?amp=1 parameter", f"{url}?amp=1")
         ]
 
-        for amp_url in amp_variations:
+        for variation_desc, amp_url in amp_variations:
             try:
+                print_info(f"Trying AMP URL with {variation_desc}...")
                 response = self.session.get(amp_url, timeout=self.timeout)
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
+                response.raise_for_status()
 
-                    # Remove AMP-specific elements
-                    for element in soup(['amp-ad', 'amp-analytics', 'amp-sidebar']):
-                        if element:
-                            element.decompose()
+                soup = BeautifulSoup(response.text, 'html.parser')
 
-                    title = self._extract_title(soup)
-                    content = self._extract_main_content(soup)
+                # Remove AMP-specific elements
+                for element in soup(['amp-ad', 'amp-analytics', 'amp-sidebar']):
+                    if element:
+                        element.decompose()
 
-                    if content and len(content.split()) > 100:
-                        return {
-                            'title': title,
-                            'content': content,
-                            'url': url,
-                            'error': None,
-                            'warning': None
-                        }
+                title = self._extract_title(soup)
+                content = self._extract_main_content(soup)
 
-            except Exception:
+                if content and len(content.split()) > 100:
+                    print_info(f"AMP version {variation_desc} succeeded ({len(content.split())} words)")
+                    return {
+                        'title': title,
+                        'content': content,
+                        'url': url,
+                        'error': None,
+                        'warning': None
+                    }
+                else:
+                    print_info(f"AMP version {variation_desc} returned insufficient content")
+
+            except Exception as e:
+                print_info(f"AMP version {variation_desc} failed: {str(e)}")
                 continue
 
-        return {'content': None, 'error': 'AMP version failed'}
+        return {'content': None, 'error': 'No working AMP version found'}
