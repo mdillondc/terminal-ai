@@ -233,7 +233,7 @@ class ConversationManager:
             })
 
         # Display AI name to user
-        print(f"\n{self.settings_manager.setting_get('name_ai')} (`q` + `Enter` to interrupt):")
+        print(f"\n{self.settings_manager.get_ai_name_with_instructions()} (`q` + `Enter` to interrupt):")
 
         # Setup stream to receive response from AI
         stream = self.llm_client_manager.create_chat_completion(
@@ -1088,7 +1088,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
         print_lines()
 
         user_name = self.settings_manager.setting_get('name_user') or "User"
-        ai_name = self.settings_manager.setting_get('name_ai') or "Assistant"
+        ai_name = self.settings_manager.get_ai_name_with_instructions() or "Assistant"
 
         # Show summary for long conversations
         total_messages = len(display_messages)

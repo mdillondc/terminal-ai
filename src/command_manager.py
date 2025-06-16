@@ -106,6 +106,7 @@ class CommandManager:
                 self.conversation_manager.apply_instructions(
                     arg, self.settings_manager.setting_get("instructions")
                 )
+                
                 self.conversation_manager.log_save()
                 command_processed = True
             elif command.startswith("--logmv"):

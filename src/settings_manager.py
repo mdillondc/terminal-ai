@@ -36,7 +36,7 @@ class SettingsManager:
         # Voice Settings
         self.tts = False
         self.tts_model = "gpt-4o-mini-tts"
-        self.tts_voice = "shimmer"
+        self.tts_voice = "echo"
         self.tts_save_mp3 = False  # Experimental
         self.stt = False
         self.stt_waiting_msg = True  # Do not change
@@ -89,7 +89,7 @@ class SettingsManager:
         self.execute_require_permission = True
 
         # General Settings
-        self.name_ai = "Samantha"
+        self.name_ai = "AI"
         self.name_user = "User"
         # self.default_input = "Hi"
         self.instructions = "samantha.md"
@@ -144,6 +144,17 @@ class SettingsManager:
         if enabled_toggles:
             return f" ({', '.join(enabled_toggles)})"
         return ""
+
+    def get_ai_name_with_instructions(self) -> str:
+        """Get AI name with active instructions suffix"""
+        base_name = self.name_ai
+
+        if self.instructions:
+            # Extract instruction name without .md extension
+            instruction_name = self.instructions.rsplit('.', 1)[0]
+            return f"{base_name} ({instruction_name})"
+
+        return base_name
 
     @staticmethod
     def read_file(filename: str) -> str:
