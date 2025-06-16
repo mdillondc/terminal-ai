@@ -4,6 +4,7 @@ import yt_dlp
 import clipboard
 import subprocess
 import shlex
+import tiktoken
 from settings_manager import SettingsManager
 from openai import OpenAI
 from command_completer import CommandCompleter
@@ -219,6 +220,9 @@ class CommandManager:
                 self.conversation_manager.start_new_conversation_log()
                 print_info("Conversation history cleared - will create new log file after first AI response")
                 print_info("AI instructions preserved")
+                command_processed = True
+            elif command.startswith("--usage"):
+                self.display_token_usage()
                 command_processed = True
             elif command.startswith("--tts-model"):
                 if arg is None:
@@ -922,9 +926,200 @@ class CommandManager:
         except Exception as e:
             print_info(f"Error loading file: {e}")
 
+    def estimate_tokens_for_text(self, text: str, model: str) -> int:
+        """
+        Estimate token count for text using tiktoken.
+        Works best for OpenAI models, provides approximation for others.
+        """
+        try:
+            # Try to get encoding for the specific model
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            # Fallback to a common encoding if model not recognized
+            encoding = tiktoken.get_encoding("cl100k_base")
 
+        return len(encoding.encode(text))
 
+    def get_openai_pricing(self, model: str) -> dict:
+        """
+        Get OpenAI pricing data for a model.
+        Returns costs per 1M tokens for input and output.
+        """
+        # OpenAI pricing (per 1M tokens) as of January 2025
+        pricing_data = {
+            # GPT-4o models
+            'gpt-4o': {'input': 5.00, 'output': 15.00},
+            'gpt-4o-2024-11-20': {'input': 2.50, 'output': 10.00},
+            'gpt-4o-2024-08-06': {'input': 2.50, 'output': 10.00},
+            'gpt-4o-2024-05-13': {'input': 5.00, 'output': 15.00},
 
+            # GPT-4o-mini models
+            'gpt-4o-mini': {'input': 0.15, 'output': 0.60},
+            'gpt-4o-mini-2024-07-18': {'input': 0.15, 'output': 0.60},
 
+            # GPT-4 models
+            'gpt-4': {'input': 30.00, 'output': 60.00},
+            'gpt-4-turbo': {'input': 10.00, 'output': 30.00},
+            'gpt-4-turbo-2024-04-09': {'input': 10.00, 'output': 30.00},
+            'gpt-4-0125-preview': {'input': 10.00, 'output': 30.00},
+            'gpt-4-1106-preview': {'input': 10.00, 'output': 30.00},
+
+            # GPT-3.5 models
+            'gpt-3.5-turbo': {'input': 3.00, 'output': 6.00},
+            'gpt-3.5-turbo-0125': {'input': 0.50, 'output': 1.50},
+
+            # New GPT-4.1 models
+            'gpt-4.1': {'input': 2.00, 'output': 8.00},
+            'gpt-4.1-mini': {'input': 0.40, 'output': 1.60},
+            'gpt-4.1-nano': {'input': 0.10, 'output': 0.40},
+
+            # GPT-4.1 model variations
+            'gpt-4.1-2024-12-05': {'input': 2.00, 'output': 8.00},
+            'gpt-4.1-preview': {'input': 2.00, 'output': 8.00},
+            'gpt-4.1-mini-2024-12-05': {'input': 0.40, 'output': 1.60},
+            'gpt-4.1-nano-2024-12-05': {'input': 0.10, 'output': 0.40},
+
+            # Reasoning models
+            'o3': {'input': 2.00, 'output': 8.00},
+            'o3-mini': {'input': 1.10, 'output': 4.40},
+            'o1': {'input': 15.00, 'output': 60.00},
+            'o1-mini': {'input': 3.00, 'output': 12.00},
+            'o1-preview': {'input': 15.00, 'output': 60.00},
+        }
+
+        # Try exact match first
+        if model in pricing_data:
+            return pricing_data[model]
+
+        # Try partial matching for model families
+        for known_model, prices in pricing_data.items():
+            if model.startswith(known_model):
+                return prices
+
+        # Return None if no pricing found
+        return None
+
+    def calculate_cost(self, input_tokens: int, output_tokens: int, model: str) -> dict:
+        """
+        Calculate estimated cost for token usage with an OpenAI model.
+        Returns cost breakdown and total.
+        """
+        pricing = self.get_openai_pricing(model)
+
+        if not pricing:
+            return None
+
+        # Convert to cost (pricing is per 1M tokens)
+        input_cost = (input_tokens / 1_000_000) * pricing['input']
+        output_cost = (output_tokens / 1_000_000) * pricing['output']
+        total_cost = input_cost + output_cost
+
+        return {
+            'input_cost': input_cost,
+            'output_cost': output_cost,
+            'total_cost': total_cost,
+            'input_rate': pricing['input'],
+            'output_rate': pricing['output']
+        }
+
+    def estimate_conversation_tokens(self) -> dict:
+        """
+        Estimate total tokens for current conversation history.
+        Returns breakdown of tokens by message type.
+        """
+        model = self.conversation_manager.model
+        conversation_history = self.conversation_manager.conversation_history
+
+        token_breakdown = {
+            'system': 0,
+            'user': 0,
+            'assistant': 0,
+            'total': 0
+        }
+
+        for message in conversation_history:
+            role = message.get('role', 'unknown')
+            content = message.get('content', '')
+
+            tokens = self.estimate_tokens_for_text(content, model)
+
+            if role in token_breakdown:
+                token_breakdown[role] += tokens
+
+            token_breakdown['total'] += tokens
+
+        return token_breakdown
+
+    def display_token_usage(self) -> None:
+        """Display comprehensive token usage information"""
+        model = self.conversation_manager.model
+
+        # Check if this is an OpenAI model for accuracy warning
+        is_openai_model = model.startswith(('gpt-', 'o1', 'o3', 'text-embedding-', 'tts-', 'whisper-', 'dall-e'))
+
+        if not is_openai_model:
+            print_info("Note: Token counts are rough estimates for non-OpenAI models")
+            print("")
+
+        # Get token breakdown
+        breakdown = self.estimate_conversation_tokens()
+
+        print_info("Token Usage Summary:")
+        print_info("─────────────────────")
+        print_info(f"Current model: {model}")
+        print_info(f"System messages (instructions): {breakdown['system']:,} tokens")
+        print_info(f"User messages: {breakdown['user']:,} tokens")
+        print_info(f"Assistant responses: {breakdown['assistant']:,} tokens")
+        print_info(f"Total conversation: {breakdown['total']:,} tokens")
+
+        # Calculate and display costs for OpenAI models
+        if is_openai_model:
+            input_tokens = breakdown['system'] + breakdown['user']
+            output_tokens = breakdown['assistant']
+
+            cost_info = self.calculate_cost(input_tokens, output_tokens, model)
+
+            if cost_info:
+                print_info("")
+                print_info("Estimated Cost (OpenAI):")
+                print_info("─────────────────────")
+                print_info(f"Input tokens ({input_tokens:,}): ${cost_info['input_cost']:.4f}")
+                print_info(f"Output tokens ({output_tokens:,}): ${cost_info['output_cost']:.4f}")
+                print_info(f"Total conversation cost: ${cost_info['total_cost']:.4f}")
+                print_info(f"Rate: ${cost_info['input_rate']:.2f}/${cost_info['output_rate']:.2f} per 1M tokens (input/output)")
+
+        # Show last exchange if available
+        conversation_history = self.conversation_manager.conversation_history
+        if len(conversation_history) >= 2:
+            print_info("")
+            print_info("Last Exchange:")
+            print_info("─────────────")
+
+            # Find last user and assistant messages
+            last_user = None
+            last_assistant = None
+
+            for message in reversed(conversation_history):
+                if message.get('role') == 'user' and last_user is None:
+                    last_user = message.get('content', '')
+                elif message.get('role') == 'assistant' and last_assistant is None:
+                    last_assistant = message.get('content', '')
+
+                if last_user and last_assistant:
+                    break
+
+            if last_user:
+                user_tokens = self.estimate_tokens_for_text(last_user, model)
+                print_info(f"Last user message: {user_tokens:,} tokens")
+
+            if last_assistant:
+                assistant_tokens = self.estimate_tokens_for_text(last_assistant, model)
+                print_info(f"Last AI response: {assistant_tokens:,} tokens")
+
+                # Show cost for last exchange if OpenAI model
+                if is_openai_model:
+                    exchange_cost = self.calculate_cost(user_tokens, assistant_tokens, model)
+                    if exchange_cost:
+                        print_info(f"Last exchange cost: ${exchange_cost['total_cost']:.4f}")
 
 

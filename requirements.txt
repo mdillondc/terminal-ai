@@ -4,6 +4,7 @@ prompt_toolkit
 yt-dlp
 clipboard
 openai
+tiktoken
 ollama
 pygame
 tavily-python

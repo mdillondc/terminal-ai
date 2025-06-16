@@ -176,6 +176,14 @@ class CommandRegistry:
             requires_argument=False
         ))
 
+        self.register_command(CommandInfo(
+            name="--usage",
+            description="Display comprehensive usage statistics including token counts, costs (for OpenAI models), and conversation metrics.",
+            usage="--usage",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
 
         self.register_command(CommandInfo(
             name="--cb",
