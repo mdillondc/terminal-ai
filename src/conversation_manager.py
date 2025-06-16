@@ -1070,16 +1070,16 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
     def start_new_conversation_log(self) -> None:
         """
-        Start a new conversation log while preserving AI instructions.
-        Filters out user/assistant messages but keeps system messages (instructions).
-        Resets logging state and generates new log file name.
+        Start a new conversation log with a completely fresh start.
+        Clears everything including search results and injected context,
+        then re-injects fresh instructions from settings.
         """
-        # Preserve only system messages (instructions)
-        system_messages = [
-            msg for msg in self.conversation_history
-            if msg['role'] == 'system'
-        ]
-        self.conversation_history = system_messages
+        # Clear EVERYTHING for a truly fresh start
+        self.conversation_history = []
+
+        # Re-inject current instructions from settings
+        current_instructions = self.settings_manager.setting_get("instructions")
+        self.apply_instructions(current_instructions)
 
         # Reset logging state for new conversation
         self.log_renamed = False

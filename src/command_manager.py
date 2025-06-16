@@ -1090,36 +1090,36 @@ class CommandManager:
 
         # Show last exchange if available
         conversation_history = self.conversation_manager.conversation_history
-        if len(conversation_history) >= 2:
+
+        # Find last user and assistant messages
+        last_user = None
+        last_assistant = None
+
+        for message in reversed(conversation_history):
+            if message.get('role') == 'user' and last_user is None:
+                last_user = message.get('content', '')
+            elif message.get('role') == 'assistant' and last_assistant is None:
+                last_assistant = message.get('content', '')
+
+            if last_user and last_assistant:
+                break
+
+        # Only show Last Exchange section if we have both user and assistant messages
+        if last_user and last_assistant:
             print_info("")
             print_info("Last Exchange:")
             print_info("─────────────")
 
-            # Find last user and assistant messages
-            last_user = None
-            last_assistant = None
+            user_tokens = self.estimate_tokens_for_text(last_user, model)
+            print_info(f"Last user message: {user_tokens:,} tokens")
 
-            for message in reversed(conversation_history):
-                if message.get('role') == 'user' and last_user is None:
-                    last_user = message.get('content', '')
-                elif message.get('role') == 'assistant' and last_assistant is None:
-                    last_assistant = message.get('content', '')
+            assistant_tokens = self.estimate_tokens_for_text(last_assistant, model)
+            print_info(f"Last AI response: {assistant_tokens:,} tokens")
 
-                if last_user and last_assistant:
-                    break
-
-            if last_user:
-                user_tokens = self.estimate_tokens_for_text(last_user, model)
-                print_info(f"Last user message: {user_tokens:,} tokens")
-
-            if last_assistant:
-                assistant_tokens = self.estimate_tokens_for_text(last_assistant, model)
-                print_info(f"Last AI response: {assistant_tokens:,} tokens")
-
-                # Show cost for last exchange if OpenAI model
-                if is_openai_model:
-                    exchange_cost = self.calculate_cost(user_tokens, assistant_tokens, model)
-                    if exchange_cost:
-                        print_info(f"Last exchange cost: ${exchange_cost['total_cost']:.4f}")
+            # Show cost for last exchange if OpenAI model
+            if is_openai_model:
+                exchange_cost = self.calculate_cost(user_tokens, assistant_tokens, model)
+                if exchange_cost:
+                    print_info(f"Last exchange cost: ${exchange_cost['total_cost']:.4f}")
 
 
