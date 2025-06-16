@@ -430,7 +430,6 @@ class WebContentExtractor:
                 if (result and result.get('content') and
                     not self._is_access_blocked(result['content']) and
                     len(result['content'].split()) > 100):  # Ensure substantial content
-                    print_info(f"Access restriction bypassed using {method_name}")
                     result['warning'] = f"Access restriction bypassed using {method_name}"
                     return result
                 else:
