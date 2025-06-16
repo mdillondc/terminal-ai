@@ -217,6 +217,15 @@ class CommandRegistry:
             requires_argument=False
         ))
 
+        self.register_command(CommandInfo(
+            name="--logrm",
+            description="Deletes the current conversation's log file and clears the conversation history.",
+            usage="--logrm",
+            execution_order=2,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
         # TTS commands
         self.register_command(CommandInfo(
             name="--tts",

@@ -1043,6 +1043,41 @@ Generate only the filename focusing on content substance:""".format(context[:100
             self.settings_manager.setting_set("log_file_name", fallback_name)
             return fallback_name
 
+    def log_delete(self) -> bool:
+        """Delete the current conversation's log files (.md and .json)"""
+        try:
+            current_log_location = self.settings_manager.setting_get("log_file_location")
+            if not current_log_location:
+                return False
+
+            # Delete .md file
+            if os.path.exists(current_log_location):
+                os.remove(current_log_location)
+
+            # Delete .json file
+            json_log_location = current_log_location + ".json"
+            if os.path.exists(json_log_location):
+                os.remove(json_log_location)
+
+            # Generate new log file name for next conversation (like start_new_conversation_log)
+            new_log_name = self.settings_manager.generate_new_log_filename()
+            self.settings_manager.setting_set("log_file_name", new_log_name)
+
+            # Clear current log location to force new file creation
+            self.settings_manager.setting_set("log_file_location", None)
+
+            # Clear conversation history since log is deleted
+            self.conversation_history = []
+
+            # Reset logging state for new conversation (like start_new_conversation_log)
+            self.log_renamed = False
+
+            return True
+
+        except Exception as e:
+            print_info(f"Error deleting log: {e}")
+            return False
+
     def log_resume(self) -> None:
         path = self.settings_manager.setting_get("working_dir") + "/logs"
         file = self.settings_manager.setting_get("log_file_name") + ".json"

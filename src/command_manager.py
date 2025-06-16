@@ -131,6 +131,14 @@ class CommandManager:
                 print_info(f"Log renamed to: {actual_filename}")
 
                 command_processed = True
+            elif command.startswith("--logrm"):
+                # Delete the current log files
+                if self.conversation_manager.log_delete():
+                    print_info("Log deleted")
+                else:
+                    print_info("No log file to delete or deletion failed")
+
+                command_processed = True
             elif command.startswith("--log"):
                 # Check if incognito mode is enabled
                 if self.settings_manager.setting_get("incognito"):
