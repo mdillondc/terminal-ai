@@ -106,7 +106,7 @@ class CommandManager:
                 self.conversation_manager.apply_instructions(
                     arg, self.settings_manager.setting_get("instructions")
                 )
-                
+
                 self.conversation_manager.log_save()
                 command_processed = True
             elif command.startswith("--logmv"):
@@ -216,8 +216,9 @@ class CommandManager:
 
                 command_processed = True
             elif command.startswith("--clear"):
-                self.conversation_manager.conversation_history.clear()
-                print_info("Conversation history cleared")
+                self.conversation_manager.start_new_conversation_log()
+                print_info("Conversation history cleared - will create new log file after first AI response")
+                print_info("AI instructions preserved")
                 command_processed = True
             elif command.startswith("--tts-model"):
                 if arg is None:

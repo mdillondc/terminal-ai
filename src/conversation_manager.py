@@ -1068,6 +1068,29 @@ Generate only the filename focusing on content substance:""".format(context[:100
         else:
             print_info("Log file not found")
 
+    def start_new_conversation_log(self) -> None:
+        """
+        Start a new conversation log while preserving AI instructions.
+        Filters out user/assistant messages but keeps system messages (instructions).
+        Resets logging state and generates new log file name.
+        """
+        # Preserve only system messages (instructions)
+        system_messages = [
+            msg for msg in self.conversation_history
+            if msg['role'] == 'system'
+        ]
+        self.conversation_history = system_messages
+
+        # Reset logging state for new conversation
+        self.log_renamed = False
+
+        # Generate new log file name using existing logic
+        new_log_name = self.settings_manager.generate_new_log_filename()
+        self.settings_manager.setting_set("log_file_name", new_log_name)
+
+        # Clear current log location to force new file creation
+        self.settings_manager.setting_set("log_file_location", None)
+
     def _display_conversation_history(self) -> None:
         """Display the loaded conversation history to the user in a readable format"""
         if not self.conversation_history:

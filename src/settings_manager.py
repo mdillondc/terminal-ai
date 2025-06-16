@@ -95,13 +95,15 @@ class SettingsManager:
         self.instructions = "samantha.md"
         # self.log_file_name = f"{int(time.time())}.md"
         # self.log_file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.md")
-        self.log_file_name = (
-            f"{datetime.datetime.now().strftime('%Y-%m-%d')}_{int(time.time())}.md"
-        )
+        self.log_file_name = self.generate_new_log_filename()
         self.log_file_location = None  # Do not change
 
         # Command Registry - centralized command management
         self.command_registry = CommandRegistry(self.working_dir)
+
+    def generate_new_log_filename(self) -> str:
+        """Generate a new log filename using date + timestamp format"""
+        return f"{datetime.datetime.now().strftime('%Y-%m-%d')}_{int(time.time())}.md"
 
     def setting_set(self, key: str, value: Any) -> None:
         if hasattr(self, key):
