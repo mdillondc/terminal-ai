@@ -658,7 +658,7 @@ class CommandManager:
             print_info(f"Switched to Google Gemini model: {model}")
             print_info(f"https://ai.google.dev/gemini-api/docs/models")
         elif provider == "anthropic":
-            print_info(f"Switched to Anthropic Claude model: {model}")
+            print_info(f"Switched to Anthropic model: {model}")
             print_info(f"https://docs.anthropic.com/en/docs/about-claude/models")
         else:
             print_info(f"Switched to OpenAI model: {model}")

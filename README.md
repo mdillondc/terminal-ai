@@ -65,6 +65,8 @@ Conda let's you create isolated environments for Python projects. Get it [here](
 ```bash
 # Switch AI models
 > --model gpt-4.1
+# The --model command will cache the model list after first use for quicker access
+# Control caching in settings_manager.py
 
 # Enable web search
 > --search
