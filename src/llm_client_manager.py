@@ -27,10 +27,12 @@ class LLMClientManager:
         # Cache for provider availability checks
         self._ollama_available = None
         self._google_available = None
+        self._anthropic_available = None
 
         # Cache for created clients
         self._ollama_client = None
         self._google_client = None
+        self._anthropic_client = None
 
     def create_chat_completion(
         self,
@@ -59,6 +61,10 @@ class LLMClientManager:
         # Check if this is an o3 model that requires Responses API
         if self._is_o3_model(model):
             return self._create_response_completion(model, messages, max_tokens, **kwargs)
+
+        # Handle Anthropic models differently
+        if self._is_anthropic_model(model):
+            return self._create_anthropic_completion(model, messages, temperature, max_tokens, **kwargs)
 
         client = self._get_client_for_model(model)
 
@@ -102,6 +108,11 @@ class LLMClientManager:
             if not client:
                 raise Exception(f"Google client not available for model: {model_name}")
             return client
+        elif self._is_anthropic_model(model_name):
+            client = self._get_anthropic_client()
+            if not client:
+                raise Exception(f"Anthropic client not available for model: {model_name}")
+            return client
         else:
             # Default to OpenAI
             return self.original_openai_client
@@ -130,6 +141,26 @@ class LLMClientManager:
         google_patterns = ['gemini', 'palm', 'bard']
         model_lower = model_name.lower()
         return any(pattern in model_lower for pattern in google_patterns)
+
+    def _is_anthropic_model(self, model_name: str) -> bool:
+        """Detect if a model is from Anthropic based on naming patterns"""
+        if not self._is_anthropic_available():
+            return False
+
+        # Common Anthropic model patterns
+        anthropic_patterns = ['claude']
+        model_lower = model_name.lower()
+        return any(pattern in model_lower for pattern in anthropic_patterns)
+
+    def _is_claude_extended_thinking_model(self, model_name: str) -> bool:
+        """Detect if a Claude model supports extended thinking"""
+        model_lower = model_name.lower()
+        # Extended thinking is supported in Claude 4, Claude 3.7
+        extended_thinking_patterns = [
+            'claude-opus-4', 'claude-sonnet-4', 'claude-4',
+            'claude-3-7-sonnet'
+        ]
+        return any(pattern in model_lower for pattern in extended_thinking_patterns)
 
     def _is_o1_model(self, model_name: str) -> bool:
         """Detect if a model is from OpenAI's o1 series (doesn't support temperature)"""
@@ -276,6 +307,142 @@ class LLMClientManager:
 
         return ChatCompletionWrapper(response_stream)
 
+    def _create_anthropic_completion(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        **kwargs
+    ) -> Any:
+        """
+        Create a completion using Anthropic's API with proper message format conversion.
+        """
+        client = self._get_anthropic_client()
+        if not client:
+            raise Exception(f"Anthropic client not available for model: {model}")
+
+        # Convert OpenAI format messages to Anthropic format
+        system_message = None
+        anthropic_messages = []
+
+        for msg in messages:
+            if msg['role'] == 'system':
+                system_message = msg['content']
+            else:
+                anthropic_messages.append({
+                    "role": msg['role'],
+                    "content": msg['content']
+                })
+
+        # Build parameters for Anthropic API
+        params = {
+            "model": model,
+            "messages": anthropic_messages,
+            "temperature": temperature,
+            **kwargs
+        }
+
+        if system_message:
+            params["system"] = system_message
+
+        if max_tokens is not None:
+            params["max_tokens"] = max_tokens
+        else:
+            # Anthropic requires max_tokens to be set
+            params["max_tokens"] = 4096
+
+        # Enable extended thinking for supported models
+        if self._is_claude_extended_thinking_model(model):
+            params["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": 12000  # Allow up to 12k tokens for thinking
+            }
+
+        # Check if streaming is requested
+        is_stream = kwargs.get('stream', False)
+
+        if is_stream:
+            response = client.messages.create(**params)
+            return self._wrap_anthropic_stream(response)
+        else:
+            response = client.messages.create(**params)
+            return self._wrap_anthropic_response(response)
+
+    def _wrap_anthropic_stream(self, response_stream):
+        """
+        Wrap Anthropic streaming response to be compatible with OpenAI format.
+        """
+        class MockDelta:
+            def __init__(self):
+                self.content = None
+
+        class MockChoice:
+            def __init__(self):
+                self.delta = MockDelta()
+
+        class MockChunk:
+            def __init__(self):
+                self.choices = [MockChoice()]
+
+        class AnthropicStreamWrapper:
+            def __init__(self, response_stream):
+                self.response_stream = response_stream
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                try:
+                    event = next(self.response_stream)
+                    chunk = MockChunk()
+
+                    # Handle different Anthropic streaming event types
+                    if hasattr(event, 'type'):
+                        if event.type == 'content_block_delta':
+                            if hasattr(event, 'delta') and hasattr(event.delta, 'text'):
+                                chunk.choices[0].delta.content = event.delta.text
+                        elif event.type == 'message_delta':
+                            # Handle other delta types if needed
+                            pass
+
+                    return chunk
+
+                except StopIteration:
+                    raise StopIteration
+                except Exception:
+                    # Return empty chunk on error
+                    return MockChunk()
+
+        return AnthropicStreamWrapper(response_stream)
+
+    def _wrap_anthropic_response(self, response):
+        """
+        Wrap Anthropic non-streaming response to be compatible with OpenAI format.
+        """
+        # Extract text content from Anthropic response
+        text_content = ""
+        if hasattr(response, 'content') and response.content:
+            for content_block in response.content:
+                if hasattr(content_block, 'text'):
+                    text_content += content_block.text
+
+        # Create a mock response that matches OpenAI's response format
+        class MockMessage:
+            def __init__(self, content):
+                self.content = content
+
+        class MockChoice:
+            def __init__(self, content):
+                self.message = MockMessage(content)
+
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [MockChoice(content)]
+                self.content = content  # Keep for backward compatibility
+
+        return MockResponse(text_content)
+
     def _wrap_responses_response(self, response):
         """
         Wrap Responses API non-streaming response to extract text content.
@@ -289,10 +456,19 @@ class LLMClientManager:
                         if hasattr(content_item, 'text'):
                             text_content += content_item.text
 
-        # Create a mock response that matches what the conversation manager expects
-        class MockResponse:
+        # Create a mock response that matches OpenAI's response format
+        class MockMessage:
             def __init__(self, content):
                 self.content = content
+
+        class MockChoice:
+            def __init__(self, content):
+                self.message = MockMessage(content)
+
+        class MockResponse:
+            def __init__(self, content):
+                self.choices = [MockChoice(content)]
+                self.content = content  # Keep for backward compatibility
 
         return MockResponse(text_content)
 
@@ -319,6 +495,14 @@ class LLMClientManager:
 
         self._google_available = bool(os.environ.get("GOOGLE_API_KEY"))
         return self._google_available
+
+    def _is_anthropic_available(self) -> bool:
+        """Check if Anthropic API is available with caching"""
+        if self._anthropic_available is not None:
+            return self._anthropic_available
+
+        self._anthropic_available = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        return self._anthropic_available
 
     def _get_ollama_client(self) -> Optional[OpenAI]:
         """Get or create Ollama client with caching"""
@@ -355,6 +539,23 @@ class LLMClientManager:
 
         return self._google_client
 
+    def _get_anthropic_client(self) -> Optional[Any]:
+        """Get or create Anthropic client with caching"""
+        if self._anthropic_client is not None:
+            return self._anthropic_client
+
+        try:
+            import anthropic
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                return None
+
+            self._anthropic_client = anthropic.Anthropic(api_key=api_key)
+        except Exception:
+            self._anthropic_client = None
+
+        return self._anthropic_client
+
     def get_provider_for_model(self, model_name: str) -> str:
         """
         Get the provider name for a given model.
@@ -369,6 +570,8 @@ class LLMClientManager:
             return "ollama"
         elif self._is_google_model(model_name):
             return "google"
+        elif self._is_anthropic_model(model_name):
+            return "anthropic"
         else:
             return "openai"
 
@@ -388,6 +591,8 @@ class LLMClientManager:
             return self._is_ollama_available()
         elif provider == "google":
             return self._is_google_available()
+        elif provider == "anthropic":
+            return self._is_anthropic_available()
         else:
             return True  # Assume OpenAI is always available if we have a client
 
@@ -395,8 +600,10 @@ class LLMClientManager:
         """Clear all cached availability checks and clients"""
         self._ollama_available = None
         self._google_available = None
+        self._anthropic_available = None
         self._ollama_client = None
         self._google_client = None
+        self._anthropic_client = None
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -417,6 +624,10 @@ class LLMClientManager:
             "google": {
                 "available": self._is_google_available(),
                 "api_key_set": bool(os.environ.get("GOOGLE_API_KEY"))
+            },
+            "anthropic": {
+                "available": self._is_anthropic_available(),
+                "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY"))
             }
         }
 

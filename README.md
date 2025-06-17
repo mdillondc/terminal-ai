@@ -10,7 +10,7 @@ I use this program every day on Linux. It should work on macOS as well. If you u
 
 ## Features
 
-- **Multi-Provider AI**: OpenAI, Google Gemini, and Ollama (local models)
+- **Multi-Provider AI**: OpenAI, Google Gemini, Anthropic, and Ollama (local models)
 - **RAG System**: Query your own documents with intelligent retrieval and hybrid search (analyzes query for tone: temporal, factual, analytical, etc)
 - **Web Search**: Real-time information via Tavily API (optimized for AI)
 - **Command Execution**: Execute system commands with AI assistance and permission controls (think [open-interpreter](https://github.com/OpenInterpreter/open-interpreter))
@@ -25,9 +25,10 @@ I use this program every day on Linux. It should work on macOS as well. If you u
 
 ### Prerequisites
 - Python 3.10+
-- OpenAI API key (required, optional if you want to use Ollama models)
+- OpenAI API key (optional)
+- Google API key (optional)
+- Anthropic API key (optional)
 - Tavily API key (optional, for web search)
-- Google API key (optional, for Gemini models)
 - Ollama (optional, for local models and private RAG)
 
 ### Setup
@@ -39,8 +40,9 @@ Conda let's you create isolated environments for Python projects. Get it [here](
 1. **Set API keys**
    ```bash
    export OPENAI_API_KEY="your-openai-key"
-   export TAVILY_API_KEY="your-tavily-key"
    export GOOGLE_API_KEY="your-google-key"
+   export ANTHROPIC_API_KEY="your-anthropic-key"
+   export TAVILY_API_KEY="your-tavily-key"
    ```
       
 2. **Clone and set up environment**

@@ -1,5 +1,7 @@
 import os
 import urllib.request
+
+from pydantic import annotated_handlers
 from settings_manager import SettingsManager
 from print_helper import print_info, print_lines
 
@@ -18,6 +20,7 @@ def _check_ollama():
 def check():
     openai_key = os.getenv('OPENAI_API_KEY')
     google_key = os.getenv('GOOGLE_API_KEY')
+    anthropic_key = os.getenv('ANTHROPIC_API_KEY')
     tavily_key = os.getenv('TAVILY_API_KEY')
     ollama_available = _check_ollama()
 
@@ -28,6 +31,8 @@ def check():
         print_info("OPENAI_API_KEY not set.")
     if not google_key:
         print_info("GOOGLE_API_KEY not set.")
+    if not anthropic_key:
+        print_info("ANTHROPIC_API_KEY not set.")
     if not tavily_key:
         print_info("TAVILY_API_KEY not set. Web search unavailable (--search)")
     if not ollama_available:

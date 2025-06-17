@@ -587,6 +587,7 @@ class CommandManager:
             print_info("Available sources: OpenAI (https://platform.openai.com/docs/models)")
             print_info(f"Ollama ({ollama_url} if running)")
             print_info("Google (https://ai.google.dev/gemini-api/docs/models)")
+            print_info("Anthropic (https://docs.anthropic.com/en/docs/about-claude/models)")
             return
 
         model = arg
@@ -606,6 +607,7 @@ class CommandManager:
                     openai_models = [m["name"] for m in available_models if m["source"] == "OpenAI"]
                     ollama_models = [m["name"] for m in available_models if m["source"] == "Ollama"]
                     google_models = [m["name"] for m in available_models if m["source"] == "Google"]
+                    anthropic_models = [m["name"] for m in available_models if m["source"] == "Anthropic"]
 
                     if openai_models:
                         print_info(f"OpenAI: {', '.join(openai_models[:5])}" +
@@ -614,10 +616,13 @@ class CommandManager:
                     if google_models:
                         print_info(f"Google: {', '.join(google_models)}")
 
+                    if anthropic_models:
+                        print_info(f"Anthropic: {', '.join(anthropic_models)}")
+
                     if ollama_models:
                         print_info(f"Ollama: {', '.join(ollama_models)}")
 
-                    if not openai_models and not ollama_models and not google_models:
+                    if not openai_models and not ollama_models and not google_models and not anthropic_models:
                         print_info("(No models available - check API keys and network connection)")
                 else:
                     print_info("(Unable to fetch available models)")
@@ -630,24 +635,31 @@ class CommandManager:
         self.conversation_manager.model = model
         self.settings_manager.setting_set("model", model)
 
+        # Determine model source
+        provider = self.conversation_manager.llm_client_manager.get_provider_for_model(model)
+
         # Check if TTS needs to be disabled for privacy when switching to Ollama
-        if self.conversation_manager.llm_client_manager.get_provider_for_model(model) == "ollama":
+        if provider == "ollama":
             if self.settings_manager.setting_get("tts"):
                 self.settings_manager.setting_set("tts", False)
                 print_info("TTS automatically disabled for privacy (Ollama models)")
 
-        # Determine model source and show appropriate message
-        if self.conversation_manager._is_ollama_model(model):
+        # Show appropriate message based on provider
+
+        if provider == "ollama":
             ollama_url = self.settings_manager.setting_get("ollama_base_url")
-            if self.conversation_manager._is_ollama_available():
+            if self.conversation_manager.llm_client_manager._is_ollama_available():
                 print_info(f"Switched to Ollama model: {model}")
                 print_info(f"Running locally via Ollama at {ollama_url}")
             else:
                 print_info(f"Warning: Selected Ollama model '{model}' but Ollama not available")
                 print_info(f"Make sure Ollama is running at {ollama_url}")
-        elif self.conversation_manager._is_google_model(model):
+        elif provider == "google":
             print_info(f"Switched to Google Gemini model: {model}")
             print_info(f"https://ai.google.dev/gemini-api/docs/models")
+        elif provider == "anthropic":
+            print_info(f"Switched to Anthropic Claude model: {model}")
+            print_info(f"https://docs.anthropic.com/en/docs/about-claude/models")
         else:
             print_info(f"Switched to OpenAI model: {model}")
             print_info(f"https://platform.openai.com/docs/models")
