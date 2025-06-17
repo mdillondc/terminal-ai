@@ -2,50 +2,69 @@
 
 ![Terminal AI Assistant Screenshot](screenshot.png)
 
-A terminal AI assistant with advanced features including RAG, intelligent web search, command execution, TTS, multiple providers (including Ollama) and more.
+A powerful terminal-based AI assistant that combines the best of conversational AI with advanced features like RAG (Retrieval-Augmented Generation), web search, command execution, and multi-provider support.
 
-As a long-time user of [OpenWebUI](https://github.com/open-webui/open-webui) and [open-interpreter](https://github.com/OpenInterpreter/open-interpreter), I found myself wishing that I could bring them both into a single, cohesive terminal application. To achieve this, I created Terminal AI.
+Born from the desire to merge [OpenWebUI](https://github.com/open-webui/open-webui) and [open-interpreter](https://github.com/OpenInterpreter/open-interpreter) into a single, cohesive terminal application.
 
-I use this program every day on Linux. It should work on macOS as well. If you use Windows, I hope you seek mental health help from a trained professional.
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+  - [Core Commands](#core-commands)
+  - [Content Processing](#content-processing)
+  - [RAG (Document Analysis)](#rag-document-analysis)
+  - [Web Search](#web-search)
+  - [Conversation Management](#conversation-management)
+  - [Text-to-Speech](#text-to-speech)
+- [Advanced Features](#advanced-features)
+- [Configuration](#configuration)
+- [Shell Integration](#shell-integration)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
+### Core Capabilities
 - **Multi-Provider AI**: OpenAI, Google Gemini, Anthropic, and Ollama (local models)
-- **RAG System**: Query your own documents with intelligent retrieval and hybrid search (analyzes query for tone: temporal, factual, analytical, etc)
-- **Web Search**: Real-time information via Tavily API (optimized for AI)
-- **Command Execution**: Execute system commands with AI assistance and permission controls (think [open-interpreter](https://github.com/OpenInterpreter/open-interpreter))
-- **YouTube Integration**: Extract and analyze video transcripts
-- **URL Content Extraction**: Extract and analyze content from any website with intelligent paywall bypass
+- **Intelligent Web Search**: Real-time information via Tavily API with dynamic intent analysis
+- **RAG System**: Query your documents with hybrid search and intelligent retrieval
+- **Command Execution**: Execute system commands with AI assistance (like open-interpreter)
+- **Content Extraction**: YouTube transcripts, website content with paywall bypass
+
+### Advanced Features  
 - **Conversation Management**: Save, resume, and organize conversations
-- **Text-to-Speech**: Convert responses to natural speech
-- **Rich Commands**: Extensible command system with tab completion
+- **Text-to-Speech**: Natural speech synthesis with multiple voices
+- **Instruction Templates**: Custom AI behaviors and skills
 - **Clipboard Integration**: Use clipboard content as input
+- **Privacy-First**: Local processing with Ollama for sensitive documents
+- **Rich Commands**: Extensible system with tab completion
 
 ## Installation
 
 ### Prerequisites
 - Python 3.10+
-- OpenAI API key (optional)
-- Google API key (optional)
-- Anthropic API key (optional)
-- Tavily API key (optional, for web search)
-- Ollama (optional, for local models and private RAG)
+- [Conda](https://www.anaconda.com/docs/getting-started/) (Miniconda recommended)
+- API keys (optional):
+  - OpenAI API key
+  - Google API key  
+  - Anthropic API key
+  - Tavily API key (for web search)
+- [Ollama](https://ollama.com/) (for local models)
 
 ### Setup
 
-0. **Install Conda**
-
-Conda let's you create isolated environments for Python projects. Get it [here](https://www.anaconda.com/docs/getting-started/). It's free. Miniconda is recommended.
-
-1. **Set API keys**
+1. **Set up API keys** (add to your shell profile):
    ```bash
    export OPENAI_API_KEY="your-openai-key"
    export GOOGLE_API_KEY="your-google-key"
    export ANTHROPIC_API_KEY="your-anthropic-key"
    export TAVILY_API_KEY="your-tavily-key"
    ```
-      
-2. **Clone and set up environment**
+
+2. **Install Terminal AI**:
    ```bash
    git clone https://github.com/mdillondc/terminal-ai
    cd terminal-ai
@@ -53,313 +72,247 @@ Conda let's you create isolated environments for Python projects. Get it [here](
    conda activate terminal-ai
    pip install -r requirements.txt
    ```
-3. **Run**
+
+3. **Run the application**:
    ```bash
    python src/main.py
    ```
 
-## Usage
-
-### Overview
-
-### Basic Commands
+## Quick Start
 
 ```bash
-# Switch AI models
+# Start the application
+python src/main.py
+
+# Basic usage
 > --model gpt-4.1
-# The --model command will cache the model list after first use for quicker access
-# Control caching in settings_manager.py
+> Hello! How can you help me today?
 
 # Enable web search
 > --search
+> What's the latest news about AI?
 
-# Enable command execution (think open-interpreter)
-> --execute
+# Analyze a YouTube video
+> --youtube https://youtube.com/watch?v=example
+> Summarize the key points
 
-# Apply instruction (think gpts) templates
-> --instructions summary.md
+# Work with documents
+> --file document.pdf
+> What are the main conclusions?
 
 # Enable text-to-speech
 > --tts
-> --tts-voice nova
-> --tts-save-as-mp3 # Save audio files locally
+> Tell me a joke
 
-# Analyze YouTube video
-> --youtube https://youtube.com/watch?v=example
-> Summarize video
-
-# Enable command execution (think open-interpreter)
-> --execute
-
-# Extract content from any website
-> --url https://example.com/article
-
-# Load file contents into conversation context
-> --file path/to/document.pdf
-
-# Use clipboard content
-> --cb
+# Exit the application
+> quit
 ```
+
+## Usage
+
+### Core Commands
+
+| Command | Description |
+|---------|-------------|
+| `--` | Show all available commands |
+| `--model <name>` | Switch AI model (dynamically fetched from providers) |
+| `--clear-model-cache` | Force refresh of available models |
+| `--clear` | Clear conversation history |
+| `--usage` | Show token usage and costs |
+
+### Content Processing
+
+| Command | Description |
+|---------|-------------|
+| `--file <path>` | Load file contents (text, PDF, images, etc.) |
+| `--url <url>` | Extract website content with paywall bypass |
+| `--youtube <url>` | Extract video transcript |
+| `--cb` | Use clipboard contents |
+| `--instructions <file>` | Apply instruction template |
+
+### RAG (Document Analysis)
+
+RAG allows you to query your own documents with intelligent retrieval.
+
+**Setup:**
+```bash
+# Create document collection
+mkdir -p rag/my-docs
+# Add your documents to the directory
+
+# Activate collection (builds automatically)
+> --rag my-docs
+> What are the main topics in my documents?
+```
+
+**Commands:**
+| Command | Description |
+|---------|-------------|
+| `--rag [collection]` | Toggle RAG or activate specific collection |
+| `--rag-rebuild <collection>` | Force rebuild embeddings index |
+| `--rag-show <filename>` | View relevant chunks from file |
+| `--rag-status` | Show RAG configuration |
+| `--rag-test` | Test embedding provider connection |
+
+**Embedding Providers:**
+- **OpenAI**: High quality, cloud-based (requires API key)
+- **Ollama**: Local, private, free (install: `ollama pull snowflake-arctic-embed2:latest`)
 
 ### Web Search
 
-Terminal AI includes intelligent web search with dynamic intent analysis - no hardcoded patterns, fully adaptive to any topic.
+Intelligent web search with dynamic intent analysis (temporal, factual, controversial, etc).
 
 ```bash
 # Enable web search
 > --search
 
-# Search automatically analyzes your query for:
-# - Intent type (factual, controversial, recent events, etc.)
-# - Search depth (basic vs advanced)
-# - Freshness requirements
-# - Verification needs
+# Examples of intelligent query analysis:
+> How many people were affected by the Turkey earthquake?
+# → Advanced search with verification for numerical accuracy
 
-# Example searches:
-> How many people were affected by the earthquake in Turkey?
-# - Analyzes as: numerical query requiring verification
-# - Uses: advanced search depth
-# - Adds: verification searches for accurate casualty figures
-# - Results: Multiple sources as numbers get updated over time
-
-> What's the capital of France?
-# - Analyzes as: simple factual query  
-# - Uses: basic search depth
-# - Results: Quick, authoritative answer
+> What's the capital of France?  
+# → Basic search for simple factual query
 
 > Latest AI breakthrough this week?
-# - Analyzes as: recent events query
-# - Uses: advanced search with freshness filtering (7 days)
-# - Results: Most current information
+# → Advanced search with freshness filtering
 ```
 
 **Smart Features:**
-- **Dynamic Intent Detection**: LLM analyzes each query contextually (no hardcoded patterns)
-- **Verification Searches**: Automatically fact-checks controversial topics
-- **Conversation Context**: Understands references like "his parade" from previous discussion
-- **Current Date Awareness**: Always uses correct year/date in search queries
-- **Multi-Query Strategy**: Generates 1-3 optimized search queries per request
-
-### RAG (Document Analysis)
-
-```bash
-# Create document collection (supports various formats, see `rag_config.py`)
-mkdir -p rag/my-docs
-mkdir -p rag/my-docs/api # Subdirectories supported
-
-# Activate collection (builds automatically if needed)
-> --rag my-docs # enables RAG collection and builds/rebuilds automatically as needed
-
-# Query your documents
-> What are the main topics in my documents?
-> --rag-show filename.txt # View specific file chunks
-> --rag-status            # Check RAG configuration
-> --rag-test              # Test RAG connection
-> --rag-rebuild my-docs   # Force rebuild collection (required if switching embedding model)
-```
-
-### Embedding Providers
-
-**OpenAI** (cloud-based):
-- High quality, requires API key
-- No privacy
-
-**Ollama** (local, private):
-- Free, runs locally, works offline
-- Install: `curl -fsSL https://ollama.com/install.sh | sh`
-- Setup (example embedding model): `ollama pull snowflake-arctic-embed2:latest`
-
-Configure models/providers in `src/settings_manager.py`:
-```python
-self.embedding_provider = "ollama"  # or "openai"
-```
+- Dynamic intent detection via LLM analysis
+- Automatic fact-checking for controversial topics
+- Conversation context awareness
+- Current date awareness in queries
+- Multi-query strategy (1-3 optimized searches per request)
 
 ### Conversation Management
 
+| Command | Description |
+|---------|-------------|
+| `--log <filename>` | Resume previous conversation |
+| `--logmv [title]` | Rename current conversation |
+| `--logrm` | Delete current conversation |
+| `--incognito` | Toggle private mode (no logging) |
+
+### Text-to-Speech
+
+| Command | Description |
+|---------|-------------|
+| `--tts` | Toggle text-to-speech |
+| `--tts-model <model>` | Change TTS model |
+| `--tts-voice <voice>` | Select voice |
+| `--tts-save-as-mp3` | Save responses as MP3 files |
+
+## Advanced Features
+
+### Command Execution
 ```bash
-# Resume previous conversation
-# AI will suggest log names automatically, so you really don't have to about this
-> --log name-of-conversation.md
-
-# Rename current conversation with AI suggested title (if you're unhappy about the first suggestion)
-> --logmv
-
-# Rename current conversation with your own title
-> --logmv project-planning-discussion
-> --logmv "Title with spaces"
-
-# Private mode (no logs)
-> --incognito
+# Enable command execution (experimental)
+> --execute
+> Create a Python script that prints "Hello, World!"
 ```
 
-### URL Content Extraction & Paywall Handling
+### URL Content Extraction
+Automatic paywall/access block bypass using multiple methods:
+- Search engine bot headers
+- Print versions
+- AMP versions
+- Archive.org (Wayback Machine)
 
+### Instruction Templates
+Create custom AI behaviors/prompts in `instructions/`:
 ```bash
-# Extract content from any website
-> --url https://nytimes.com/some-article
- - Extracting content from URL...
- - Paywall detected, trying alternative methods...
- - Paywall bypassed using Archive.org
- - Content added to conversation context.
-
-# YouTube URLs automatically redirect to --youtube command
-> --url https://youtube.com/watch?v=example
- - YouTube URL detected - redirecting to --youtube command...
-
-# Works with most urls
-> --url https://theguardian.com/article
-> --url https://medium.com/@author/story
+> --instructions summary.md
+> --youtube https://youtube.com/watch?v=example
+> Summarize this video
 ```
 
-**Paywall Bypass Methods** (attempted automatically):
-- **Archive.org (Wayback Machine)** - Often most effective for older articles
-- **Search Engine Bot Headers** - Many sites show full content to search engines
-- **Print Versions** - URLs like `?print=1` often bypass paywalls
-- **AMP Versions** - Google AMP pages sometimes bypass restrictions
+Find instruction inspiration at [fabric/patterns](https://github.com/danielmiessler/fabric/tree/main/patterns).
 
-**Note**: Paywall bypass success varies by site and article age. The feature will transparently inform you whether bypass attempts succeeded or failed.
-
-### Getting Help
-
-```bash
-> -- # Show all available commands
-```
+### Mode Toggles
+| Command | Description |
+|---------|-------------|
+| `--search` | Toggle web search mode |
+| `--nothink` | Disable thinking on Ollama models |
+| `--incognito` | Toggle private mode (no logs) |
+| `--execute` | Toggle command execution |
 
 ## Configuration
 
-### Instruction Templates
-
-Create custom markdown instruction files in `instructions/`:
-
-A good resource for instructions can be found at [fabric/patterns](https://github.com/danielmiessler/fabric/tree/main/patterns).
-
-### Settings
-
 Key settings in `src/settings_manager.py`:
-- Default model selection and API configuration
-- RAG parameters (chunk size, top-k results, embedding provider)
-   - Adjust based on your embedding model's capabilities
-- TTS voice and model settings
-- Much more. See `src/settings_manager.py` for details
 
-### Audio Files
+```python
+# Default model and provider settings
+self.default_model = "gpt-4.1"
+self.embedding_provider = "ollama"  # or "openai"
+self.openai_embedding_model = "snowflake-arctic-embed2:latest"
 
-When `--tts-save-as-mp3` is enabled, audio files are saved as:
+# RAG configuration
+self.chunk_size = 1000
+self.chunk_overlap = 200
+self.top_k_results = 5
 
-```
-tts_{timestamp}_{text_preview}.mp3
-```
-
-## File Structure
-
-```
-terminal-ai/
-├── src/              # Application source code
-├── instructions/     # Instruction templates
-├── rag/              # Document collections
-├── logs/             # Conversation logs
-├── cache/            # Model and completion cache
-└── requirements.txt  # Python dependencies
+# TTS settings
+self.tts_voice = "nova"
+self.tts_model = "tts-1"
 ```
 
-## Dependencies
+## Shell Integration
 
-See requirements.txt
-
-## API Costs & Privacy
-
-- **OpenAI**: Pay per token
-- **Tavily**: Free tier available, paid plans for higher usage (generous free-tier)
-- **Google**: Free tier available
-- **Ollama**: Free (runs locally, fully private)
-
-**Privacy Note**: Use Ollama for sensitive documents/RAG - data never leaves your machine.
-
-## Quick Start Example
-
-All command examples with --input can of course be used within the actual app.
-
-```bash
-python src/main.py --input "Hello Samantha!"
-
-# You can add any available commands to the --input command, e.g.:
-python src/main.py --input "--model qwen3:14b-q8_0 --instructions summary.md --youtube https://youtube.com/some-url" --input "summarize the video"
-
-# Batch processing with multiple --input arguments (command-chaining)
-python src/main.py --input "--model gpt-4.1-mini --instructions summary.md --youtube https://youtube.com/watch?v=example" --input "summarize the key points from this video"
-# First input: configures model, applies instructions, extracts YouTube transcript
-# Second input: asks AI to summarize the video content
-# Then continues to interactive mode for follow-up questions
-
-# Process local files with batch commands
-python src/main.py --input "--file report.pdf --instructions summary.md" --input "extract key findings"
-
-# Enable features and start chatting
-> --tts --search
-# App will tell you which features you've enabled
-# User (tts, search):
-> What's the latest news about AI?
-
-# Work with documents (private with Ollama)
-> --rag my-docs
-> Summarize the key findings from my research papers
-
-# If you add a new document or change the content of an existing document
-# in a collection, the RAG collection will automatically rebuild the next
-# time you enable the RAG collection in question
-
-# Configure for privacy in src/settings_manager.py:
-# self.embedding_provider = "ollama"
-# self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
-```
-
-## Shell Aliases & Command Chaining
-
-Create powerful AI aliases/workflows in your `~/.bashrc` or `~/.zshrc`:
+Create powerful AI workflows with shell aliases:
 
 ```bash
 # Basic alias
-alias ai='python ~/terminal-ai/src/main.py --input "--model gpt-4.1"'
+alias ai='python ~/terminal-ai/src/main.py'
 
 # Article summarizer
 summarize() {
-    if [ -z "$1" ]; then
-        echo "Usage: youtube <url>"
-        return 1
-    fi
-
-    conda activate terminal-ai && python ~/path/to/terminal-ai/src/main.py --input "--model gpt-4.1-mini --instructions summary.md --url $*" --input "summarize"
+    python ~/terminal-ai/src/main.py \
+        --input "--model gpt-4.1 --instructions summary.md --url $1" \
+        --input "summarize this article"
 }
-# First the app will set desired model, apply instructions, extract content from url, then summarize content from url
-# Usage: analyze "https://example.com/article"
 
+# YouTube analyzer  
 youtube() {
-    if [ -z "$1" ]; then
-        echo "Usage: youtube <youtube_url>"
-        return 1
-    fi
-
-    conda activate terminal-ai && python ~/Sync/scripts/terminal-ai/src/main.py --input "--model gpt-4.1-mini --instructions summary.md --youtube $*" --input "Summarize video"
+    python ~/terminal-ai/src/main.py \
+        --input "--model gpt-4.1 --instructions summary.md --youtube $1" \
+        --input "summarize this video"
 }
-# First the app will set desired model, apply instructions, extract the youtube transcript, then summarize content from url
-# Usage: youtube "https://www.youtube.com/watch?v=9cgbsavrFpA"
+
+# Usage examples:
+# summarize "https://example.com/article"
+# youtube "https://youtube.com/watch?v=example"
 ```
 
-## Exiting
+## Troubleshooting
 
-Use `quit`, `q`, `:q`, `:wq`, or `Ctrl+C` to exit the application.
+### Common Issues
 
-**Note**: Press `q` + `Enter` during AI responses to interrupt streaming, not to exit.
+**Model not found:**
+```bash
+> --clear-model-cache
+> --model gpt-4.1
+```
 
-## Todo
+**RAG not working:**
+```bash
+> --rag-test
+> --rag-rebuild collection-name
+```
 
-Honestly, I just keep adding features whenever I miss something.
+**Ollama connection:**
+```bash
+# Check if Ollama is running
+ollama list
+# Start Ollama service if needed
+ollama serve
+```
 
-Suggestions are welcome, please open an [issue](https://github.com/mdillondc/terminal-ai/issues).
-
-* [ ] Maybe create a pip package for easy installation?
-* [ ] Add lots of helpful `instructions/*.md`
+### Exit Methods
+- `quit`, `q`, `:q`, `:wq`, or `Ctrl+C`
+- Press `q` + `Enter` during AI responses to interrupt (not exit)
 
 ---
 
-For issues or questions, please open an issue on the repository.
+**Note**: This project is actively maintained and new features are added regularly based on user feedback and personal workflow needs.
+
+For support or questions, please open an issue on the repository.
