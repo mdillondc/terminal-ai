@@ -106,7 +106,7 @@ def main() -> None:
 
                         # Check for commands first
                         if "--" in input_text:
-                            command_processed = command_manager.parse_commands(input_text)
+                            command_processed = command_manager.process_commands(input_text)
                             if command_processed:
                                 continue
 
@@ -150,7 +150,7 @@ def main() -> None:
                         continue
 
                 if "--" in user_input:
-                    command_processed = command_manager.parse_commands(user_input)
+                    command_processed = command_manager.process_commands(user_input)
                     if command_processed:
                         continue
 

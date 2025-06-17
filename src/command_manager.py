@@ -17,6 +17,16 @@ from print_helper import print_info, print_lines
 
 class CommandManager:
     def __init__(self, conversation_manager: Any) -> None:
+        """
+        Initialize the CommandManager with dependencies and configuration.
+
+        Sets up the command manager with access to settings, conversation management,
+        command registry, RAG engine, and so on.
+
+        Args:
+            conversation_manager: The conversation manager instance that handles
+                                 AI interactions and conversation history
+        """
         self.settings_manager = SettingsManager.getInstance()
         self.conversation_manager = conversation_manager
         self.command_registry = self.settings_manager.command_registry
@@ -77,7 +87,20 @@ class CommandManager:
             print_info(error_msg)
             return error_msg
 
-    def parse_commands(self, user_input: str) -> bool:
+    def process_commands(self, user_input: str) -> bool:
+        """
+        Process and execute commands from user input.
+
+        Parses the user input for commands starting with '--' and executes them.
+        Handles various command types including model switching, file operations,
+        RAG operations, settings toggles, and content extraction commands.
+
+        Args:
+            user_input: Raw user input string that may contain commands
+
+        Returns:
+            bool: True if any commands were processed, False otherwise
+        """
         command_processed = False
         commands = [
             "--" + command.strip()
@@ -98,10 +121,10 @@ class CommandManager:
                 continue
 
             if command.startswith("--model"):
-                self.model(arg)
+                self.set_model(arg)
                 command_processed = True
-            elif command.startswith("--refresh-models"):
-                self.models_refresh()
+            elif command.startswith("--clear-model-cache"):
+                self.clear_model_cache()
                 command_processed = True
             elif command.startswith("--instructions"):
                 self.conversation_manager.apply_instructions(
@@ -168,21 +191,21 @@ class CommandManager:
                     print_info("Please specify a youtube url")
                     command_processed = True
                 else:
-                    self.youtube(arg)
+                    self.extract_youtube_content(arg)
                     command_processed = True
             elif command.startswith("--url"):
                 if arg is None:
                     print_info("Please specify a URL")
                     command_processed = True
                 else:
-                    self.url(arg)
+                    self.extract_url_content(arg)
                     command_processed = True
             elif command.startswith("--file"):
                 if arg is None:
                     print_info("Please specify a file path")
                     command_processed = True
                 else:
-                    self.file(arg)
+                    self.extract_file_content(arg)
                     command_processed = True
             elif command == "--search":
                 if self.settings_manager.setting_get("search"):
@@ -285,12 +308,6 @@ class CommandManager:
             elif command.startswith("--rag-status"):
                 self.rag_status()
                 command_processed = True
-            elif command.startswith("--rag-debug"):
-                if arg is None:
-                    print_info("Please specify a query to test")
-                else:
-                    self.rag_debug(arg)
-                command_processed = True
             elif command.startswith("--rag-rebuild"):
                 if arg is None:
                     print_info("Please specify a collection name to rebuild")
@@ -328,7 +345,11 @@ class CommandManager:
         return command_processed
 
     def rag_list(self, from_toggle: bool = False) -> None:
-        """List available RAG collections"""
+        """
+        List all available RAG collections.
+
+        Displays collections found in the rag/ directory.
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -359,7 +380,18 @@ class CommandManager:
         print_info("Use --rag <collection_name>  # Activate collection (builds automatically if needed)")
 
     def rag_activate(self, collection_name: str) -> None:
-        """Activate a RAG collection"""
+        """
+        Activate a specific RAG collection for use in conversations.
+
+        Loads the specified collection and makes it available for context
+        retrieval during AI conversations. If the collection hasn't been
+        built yet, it will be built automatically. If files on disk have 
+        changed since last build, it will be rebuilt. Only one collection
+        can be active at a time.
+
+        Args:
+            collection_name: Name of the collection to activate (directory name in rag/)
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -372,7 +404,13 @@ class CommandManager:
                 print_info(f"Available collections: {', '.join(available)}")
 
     def rag_off(self) -> None:
-        """Deactivate RAG mode"""
+        """
+        Deactivate the currently active RAG collection.
+
+        Turns off RAG mode, which means no document context will be
+        retrieved and added to AI conversations. The conversation
+        will proceed with only the standard context.
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -380,7 +418,18 @@ class CommandManager:
         self.rag_engine.deactivate_collection()
 
     def rag_rebuild(self, collection_name: str) -> None:
-        """Force rebuild a RAG collection"""
+        """
+        Force a complete rebuild of a RAG collection's vector index.
+
+        Deletes the existing index and recreates it from scratch by
+        re-processing all documents in the collection. Should not be
+        necessary since RAG collections are automatically rebuilt when
+        new documents are added or existing ones are updated. Kept for
+        posterity.
+
+        Args:
+            collection_name: Name of the collection to rebuild
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -388,7 +437,16 @@ class CommandManager:
         self.rag_engine.build_collection(collection_name, force_rebuild=True)
 
     def rag_show(self, filename: str) -> None:
-        """Show relevant chunks in a file"""
+        """
+        Display the document chunks for a specific file in the active collection.
+
+        Shows how a file has been split into chunks for vector storage,
+        which is useful for debugging and understanding how documents
+        are processed for RAG retrieval.
+
+        Args:
+            filename: Name of the file to display chunks for
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -397,7 +455,13 @@ class CommandManager:
         print_info(result)
 
     def rag_status(self) -> None:
-        """Show RAG status"""
+        """
+        Display comprehensive RAG system status and configuration.
+
+        Shows current RAG state including active collection, chunk counts,
+        available collections, embedding provider configuration, and
+        relevant settings. Useful for troubleshooting and system monitoring.
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -431,46 +495,14 @@ class CommandManager:
         for key, value in status['settings'].items():
             print_info(f"{key}: {value}")
 
-    def rag_debug(self, query: str) -> None:
-        """Debug RAG querying to see what content would be retrieved"""
-        if not self.rag_engine:
-            print_info("RAG engine not available")
-            return
-
-        if not self.rag_engine.is_active():
-            print_info("No RAG collection is active")
-            print_info("Use --rag <collection> to activate a collection first")
-            return
-
-        print_info(f"Testing RAG query: '{query}'")
-        print_lines()
-
-        try:
-            # Test the full RAG context generation
-            rag_context, rag_sources = self.rag_engine.get_context_for_query(query)
-
-            if rag_context:
-                print_info(f"Found {len(rag_sources)} relevant chunks")
-                print_info("Context that would be sent to AI:")
-                print_info("" + "-"*30)
-                print_info(f"{rag_context}")
-                print_info("" + "-"*30)
-
-                if rag_sources:
-                    print_info("Source details:")
-                    for i, source in enumerate(rag_sources, 1):
-                        score = source.get('similarity_score', 0)
-                        print_info(f"{i}. {source['filename']} (score: {score:.3f})")
-                        print_info(f"Content preview: {source['content'][:100]}...")
-            else:
-                print_info("No relevant content found for this query")
-                print_info("This means the query didn't match any document content")
-
-        except Exception as e:
-            print_info(f"Error during RAG query: {e}")
-
     def rag_test_connection(self) -> None:
-        """Test connection to current embedding provider"""
+        """
+        Test connectivity and authentication with the current embedding provider.
+
+        Verifies that the embedding service (OpenAI or Ollama) is accessible
+        and properly configured. Shows model information, dimensions, and
+        any provider-specific details. Useful for troubleshooting.
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -512,7 +544,13 @@ class CommandManager:
             print_info(f"Error testing connection: {e}")
 
     def rag_model_info(self) -> None:
-        """Show detailed information about current embedding model"""
+        """
+        Display detailed information about the current embedding model and RAG configuration.
+
+        Shows embedding model specifications including provider, model name,
+        dimensions, token limits, and costs. Also displays current RAG
+        settings like chunk size, overlap, and retrieval parameters.
+        """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
@@ -574,13 +612,28 @@ class CommandManager:
             # If we can't fetch models, allow the model (fallback behavior)
             return True
 
-    def models_refresh(self) -> None:
-        """Clear model cache and force fresh fetch from APIs"""
-        print_info("Refreshing model cache...")
+    def clear_model_cache(self) -> None:
+        """
+        Clear the cached model list.
+
+        This is useful when new models have been added to OpenAI, Google, Anthropic,
+        or Ollama.
+        """
+        print_info("Clearing model cache...")
         self.completer.clear_models_cache()
         print_info("Model cache cleared. Fresh models will be fetched on next use")
 
-    def model(self, arg: Optional[str]) -> None:
+    def set_model(self, arg: Optional[str]) -> None:
+        """
+        Set the active AI model for conversations.
+
+        Validates the model name against available models from OpenAI, Google,
+        Anthropic, and Ollama APIs.
+
+        Args:
+            arg: Model name to set (e.g., 'gpt-4.1').
+                 If None, displays available models and usage information.
+        """
         if arg == None:
             ollama_url = self.settings_manager.setting_get("ollama_base_url")
             print_info("Please specify the model to use")
@@ -664,9 +717,21 @@ class CommandManager:
             print_info(f"Switched to OpenAI model: {model}")
             print_info(f"https://platform.openai.com/docs/models")
 
-    def youtube(self, arg: str) -> None:
+    def extract_youtube_content(self, arg: str) -> None:
         """
-        Extract transcript from YouTube video and send to conversation manager as input.
+        Extract transcript and metadata from a YouTube video for AI analysis.
+
+        Attempts to extract video transcripts using multiple strategies:
+        1. Manual English subtitles (highest quality)
+        2. Auto-generated captions in English
+        3. Fallback to video metadata only if no transcript available
+
+        Supports various YouTube URL formats and automatically extracts video ID.
+        The extracted content (title, channel, transcript) is added to the
+        conversation context for AI analysis.
+
+        Args:
+            arg: YouTube URL (supports youtube.com/watch?v=, youtu.be/, and other formats)
         """
         print_info("Extracting info from YouTube...")
 
@@ -855,14 +920,25 @@ class CommandManager:
             print_info("Could not determine the YouTube video URL")
             return
 
-    def url(self, url: str) -> None:
+    def extract_url_content(self, url: str) -> None:
         """
-        Extract content from a website URL and send to conversation manager as input.
+        Extract and process content from any web URL for AI analysis.
+
+        Uses advanced web scraping techniques to extract readable content from
+        web pages, handling various content types, paywalls, and other content.
+        Automatically detects YouTube URLs and redirects them to the specialized
+        YouTube transcript extraction for better results.
+
+        The extracted content (title, URL, main text) is cleaned and added to
+        the conversation context for AI analysis.
+
+        Args:
+            url: Web URL to extract content from (any valid HTTP/HTTPS URL)
         """
         # Check if this is a YouTube URL and redirect to YouTube command
         if "youtube.com" in url.lower() or "youtu.be" in url.lower():
             print_info("YouTube URL detected - redirecting to --youtube command for better transcript extraction...")
-            self.youtube(url)
+            self.extract_youtube_content(url)
             return
 
         print_info("Extracting content from URL...")
@@ -894,9 +970,21 @@ class CommandManager:
         print_info("Content added to conversation context")
         print_info("You can now ask questions about this content")
 
-    def file(self, file_path: str) -> None:
+    def extract_file_content(self, file_path: str) -> None:
         """
-        Load file contents and add to conversation context using RAG document processing logic.
+        Load and process file contents for AI analysis.
+
+        Supports multiple file formats including PDF, DOCX, TXT, Markdown, and more.
+        Uses the same document processing pipeline as the RAG system to ensure
+        consistent text extraction and cleaning. The processed content is added
+        to the conversation context with metadata (filename, path, word count).
+
+        Args:
+            file_path: Path to the file to process (relative or absolute path)
+
+        Note:
+            File must exist and be of a supported type. See get_supported_extensions_display()
+            or rag_config.py for a list of supported file formats.
         """
         import os
 
@@ -1044,8 +1132,15 @@ class CommandManager:
 
     def estimate_conversation_tokens(self) -> dict:
         """
-        Estimate total tokens for current conversation history.
-        Returns breakdown of tokens by message type.
+        Calculate token usage breakdown for the entire conversation history.
+
+        Analyzes all messages in the current conversation and estimates
+        token counts by role (system, user, assistant). Uses tiktoken
+        for accurate OpenAI model estimates, with approximations for
+        other providers.
+
+        Returns:
+            dict: Token breakdown with keys 'system', 'user', 'assistant', 'total'
         """
         model = self.conversation_manager.model
         conversation_history = self.conversation_manager.conversation_history
@@ -1071,7 +1166,18 @@ class CommandManager:
         return token_breakdown
 
     def display_token_usage(self) -> None:
-        """Display comprehensive token usage information"""
+        """
+        Display detailed token usage statistics and cost estimates.
+
+        Shows comprehensive token analysis including:
+        - Token counts by message type (system, user, assistant)
+        - Cost estimates for OpenAI models
+        - Last exchange token usage
+        - Current model information and pricing rates
+
+        Provides both conversation-wide and recent exchange statistics
+        to help users understand their API usage and costs.
+        """
         model = self.conversation_manager.model
 
         # Check if this is an OpenAI model for accuracy warning
