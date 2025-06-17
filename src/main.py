@@ -9,7 +9,7 @@ from conversation_manager import ConversationManager
 from command_manager import CommandManager
 from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
 from print_helper import print_info
-
+from api_key_check import check
 
 def confirm_exit() -> bool:
     response = input("Confirm quitting (Y/n)? ").strip().lower()
@@ -21,13 +21,36 @@ class NonEmptyValidator(Validator):
             raise ValidationError(message="", cursor_position=0)
 
 def main() -> None:
+    # Parse arguments first to check for --suppress-api
+    parser = argparse.ArgumentParser(description="I am Samantha.")
+    parser.add_argument(
+        "--input", type=str, action='append', help="Input string(s) to process sequentially. Can be used multiple times for batch processing."
+    )
+    parser.add_argument(
+        "--execute", action='store_true', help="Enable command execution mode. Allows AI to execute system commands with user permission."
+    )
+    parser.add_argument(
+        "--suppress-api", action='store_true', help="Suppress API key checking on startup."
+    )
+    args = parser.parse_args()
+
+    # Check API keys unless suppressed
+    if not args.suppress_api:
+        check()
+
     settings_manager = SettingsManager.getInstance()
 
     # Prompt setup
     user_input_history = InMemoryHistory()
 
-    # Init client
-    client = OpenAI()
+    # Init client - try OpenAI, if it fails create dummy for other providers
+    try:
+        client = OpenAI()
+    except Exception:
+        try:
+            client = OpenAI(api_key="dummy")
+        except Exception:
+            client = OpenAI(api_key="dummy", base_url="http://localhost")
 
     # Init managers
     conversation_manager = ConversationManager(
@@ -41,16 +64,6 @@ def main() -> None:
     current_model = settings_manager.setting_get("model")
     print_info(f"Using model: {current_model}")
     print_info("Start chatting or type '--' to see available commands!\n")
-
-    # Parse arguments
-    parser = argparse.ArgumentParser(description="I am Samantha.")
-    parser.add_argument(
-        "--input", type=str, action='append', help="Input string(s) to process sequentially. Can be used multiple times for batch processing."
-    )
-    parser.add_argument(
-        "--execute", action='store_true', help="Enable command execution mode. Allows AI to execute system commands with user permission."
-    )
-    args = parser.parse_args()
 
     # Handle --execute argument
     if args.execute:
@@ -90,7 +103,7 @@ def main() -> None:
                     for input_text in args.input:
                         print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                         print(f"> {input_text}")
-                        
+
                         # Check for commands first
                         if "--" in input_text:
                             command_processed = command_manager.parse_commands(input_text)

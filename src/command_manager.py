@@ -1075,7 +1075,7 @@ class CommandManager:
         print_info("Token Usage Summary:")
         print_info("─────────────────────")
         print_info(f"Current model: {model}")
-        print_info(f"System messages (instructions): {breakdown['system']:,} tokens")
+        print_info(f"System messages (e.g. instructions, search, RAG): {breakdown['system']:,} tokens")
         print_info(f"User messages: {breakdown['user']:,} tokens")
         print_info(f"Assistant responses: {breakdown['assistant']:,} tokens")
         print_info(f"Total conversation: {breakdown['total']:,} tokens")
