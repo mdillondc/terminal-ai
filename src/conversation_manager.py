@@ -851,7 +851,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             response = self.llm_client_manager.create_chat_completion(
                 model=self.model,
                 messages=[{"role": "user", "content": title_prompt}],
-                max_tokens=25,
+                max_tokens=500,
                 temperature=0.1
             )
 
