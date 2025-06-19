@@ -248,6 +248,9 @@ self.top_k_results = 5
 # TTS settings
 self.tts_voice = "nova"
 self.tts_model = "tts-1"
+
+# More
+# see settings_manager.py
 ```
 
 ## Shell Integration
