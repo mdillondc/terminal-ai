@@ -21,9 +21,6 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Advanced Features](#advanced-features)
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Features
 
