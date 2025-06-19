@@ -76,9 +76,19 @@ class CommandManager:
                 self.clear_model_cache()
                 command_processed = True
             elif command.startswith("--model"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 self.set_model(arg)
                 command_processed = True
             elif command.startswith("--instructions"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 self.conversation_manager.apply_instructions(
                     arg, self.settings_manager.setting_get("instructions")
                 )
@@ -200,6 +210,11 @@ class CommandManager:
                     self.extract_file_content(arg)
                     command_processed = True
             elif command == "--search":
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 if self.settings_manager.setting_get("search"):
                     self.settings_manager.setting_set("search", False)
                     print_info("Web search disabled")
@@ -208,6 +223,11 @@ class CommandManager:
                     print_info("Web search enabled")
                 command_processed = True
             elif command.startswith("--nothink"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 nothink = self.settings_manager.setting_get("nothink")
                 if nothink:
                     self.settings_manager.setting_set("nothink", False)
@@ -237,6 +257,11 @@ class CommandManager:
                 self.display_token_usage()
                 command_processed = True
             elif command.startswith("--tts-model"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 if arg is None:
                     print_info("Please specify a TTS model. Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
                     command_processed = True
@@ -249,6 +274,11 @@ class CommandManager:
                         print_info(f"Invalid TTS model: {arg}. Available models: {', '.join(valid_models)}")
                     command_processed = True
             elif command.startswith("--tts-voice"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 if arg is None:
                     print_info("Please specify a TTS voice. Available voices: alloy, echo, fable, onyx, nova, shimmer")
                     command_processed = True
@@ -261,6 +291,11 @@ class CommandManager:
                         print_info(f"Invalid TTS voice: {arg}. Available voices: {', '.join(valid_voices)}")
                     command_processed = True
             elif command.startswith("--tts-save-as-mp3"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
                 if tts_save_mp3:
                     self.settings_manager.setting_set("tts_save_mp3", False)
@@ -271,6 +306,11 @@ class CommandManager:
 
                 command_processed = True
             elif command.startswith("--tts"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 tts = self.settings_manager.setting_get("tts")
                 if tts:
                     self.settings_manager.setting_set("tts", False)
@@ -290,24 +330,44 @@ class CommandManager:
                 self.rag_status()
                 command_processed = True
             elif command.startswith("--rag-rebuild"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 if arg is None:
                     print_info("Please specify a collection name to rebuild")
                 else:
                     self.rag_rebuild(arg)
                 command_processed = True
             elif command.startswith("--rag-show"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 if arg is None:
                     print_info("Please specify a filename to show")
                 else:
                     self.rag_show(arg)
                 command_processed = True
             elif command.startswith("--rag-test"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 self.rag_test_connection()
                 command_processed = True
             elif command.startswith("--rag-info"):
                 self.rag_model_info()
                 command_processed = True
             elif command.startswith("--rag"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 if arg is None:
                     # Toggle RAG on/off
                     if self.rag_engine and self.rag_engine.is_active():
