@@ -4,7 +4,7 @@
 
 A powerful terminal-based AI assistant that combines the best of conversational AI with advanced features like RAG (Retrieval-Augmented Generation), web search, command execution, and multi-provider support.
 
-Born from the desire to create a terminal alternative to [OpenWebUI](https://github.com/open-webui/open-webui).
+Created from the desire to Born from the desire to create a terminal alternative to [OpenWebUI](https://github.com/open-webui/open-webui).build a terminal alternative to [OpenWebUI](https://github.com/open-webui/open-webui).
 
 ## Table of Contents
 
