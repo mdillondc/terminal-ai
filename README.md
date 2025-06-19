@@ -31,7 +31,6 @@ Born from the desire to merge [OpenWebUI](https://github.com/open-webui/open-web
 - **Multi-Provider AI**: OpenAI, Google Gemini, Anthropic, and Ollama (local models)
 - **Intelligent Web Search**: Real-time information via Tavily API with dynamic intent analysis
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
-- **Command Execution**: Execute system commands with AI assistance (like open-interpreter)
 - **Content Extraction**: YouTube transcripts, website content with paywall bypass
 
 ### Advanced Features  
@@ -204,12 +203,7 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 
 ## Advanced Features
 
-### Command Execution
-```bash
-# Enable command execution (experimental)
-> --execute
-> Create a Python script that prints "Hello, World!"
-```
+
 
 ### URL Content Extraction
 Automatic paywall/access block bypass using multiple methods:
@@ -234,7 +228,6 @@ Find instruction inspiration at [fabric/patterns](https://github.com/danielmiess
 | `--search` | Toggle web search mode |
 | `--nothink` | Disable thinking on Ollama models |
 | `--incognito` | Toggle private mode (no logs) |
-| `--execute` | Toggle command execution |
 
 ## Configuration
 

@@ -26,9 +26,7 @@ def main() -> None:
     parser.add_argument(
         "--input", type=str, action='append', help="Input string(s) to process sequentially. Can be used multiple times for batch processing."
     )
-    parser.add_argument(
-        "--execute", action='store_true', help="Enable command execution mode. Allows AI to execute system commands with user permission."
-    )
+
     parser.add_argument(
         "--suppress-api", action='store_true', help="Suppress API key checking on startup."
     )
@@ -65,12 +63,7 @@ def main() -> None:
     print_info(f"Using model: {current_model}")
     print_info("Start chatting or type '--' to see available commands!\n")
 
-    # Handle --execute argument
-    if args.execute:
-        settings_manager.setting_set("execute_enabled", True)
-        require_permission = settings_manager.setting_get("execute_require_permission")
-        permission_text = " (requires permission for each command)" if require_permission else " (automatic execution enabled)"
-        print_info(f"Execute mode enabled - AI can run system commands{permission_text}")
+
 
     # KeyBindings
     kb = KeyBindings()

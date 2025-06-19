@@ -3,7 +3,6 @@ import os
 import select
 import sys
 import json
-import subprocess
 import re
 from typing import Optional, Any
 from settings_manager import SettingsManager
@@ -58,11 +57,7 @@ class ConversationManager:
         if not hasattr(self, '_skip_leading_whitespace'):
             self._skip_leading_whitespace = False
 
-        # Initialize execute state if needed
-        if not hasattr(self, '_in_execute_block'):
-            self._in_execute_block = False
-        if not hasattr(self, '_execute_buffer'):
-            self._execute_buffer = ""  # Buffer for execute block content
+
 
         # Combine with any buffered content
         text_to_process = self._response_buffer + chunk
@@ -104,27 +99,7 @@ class ConversationManager:
                 i += 8
                 continue
 
-            # Look for complete <execute> tag
-            if text_to_process[i:i+9] == '<execute>':
-                if not self._in_execute_block:
-                    self._in_execute_block = True
-                    self._execute_buffer = ""
-                    output += '<execute>\n'
-                i += 9
-                continue
 
-            # Look for complete </execute> tag
-            if text_to_process[i:i+10] == '</execute>':
-                if self._in_execute_block:
-                    # Format the execute block properly
-                    output += self._execute_buffer + '\n</execute>\n\n'
-                    # Reset execute state
-                    self._in_execute_block = False
-                    self._execute_buffer = ""
-                else:
-                    output += '</execute>'
-                i += 10
-                continue
 
 
 
@@ -133,8 +108,6 @@ class ConversationManager:
             if i == len(text_to_process) - len(remaining):  # At the end
                 if (remaining.startswith('<think') and len(remaining) < 7) or \
                    (remaining.startswith('</think') and len(remaining) < 8) or \
-                   (remaining.startswith('<execute') and len(remaining) < 9) or \
-                   (remaining.startswith('</execute') and len(remaining) < 10) or \
                    (remaining == '<' or remaining.startswith('<') and len(remaining) < 10):
                     # Keep potential partial tag in buffer
                     self._response_buffer = remaining
@@ -153,9 +126,7 @@ class ConversationManager:
                 else:
                     # Already started output - stream normally with color
                     output += text_to_process[i]
-            elif self._in_execute_block:
-                # Buffer execute block content
-                self._execute_buffer += text_to_process[i]
+
             else:
                 # Check if we should skip leading whitespace after hidden thinking block
                 if self._skip_leading_whitespace and text_to_process[i] in ' \t\n\r':
@@ -224,13 +195,7 @@ class ConversationManager:
                         "content": rag_context
                     })
 
-        # Inject execute mode system prompt if execute mode is enabled
-        if self.settings_manager.setting_get("execute_enabled") and self.conversation_history:
-            execute_prompt = self._get_execute_mode_prompt()
-            self.conversation_history.append({
-                "role": "system",
-                "content": execute_prompt
-            })
+
 
         # Display AI name to user
         print(f"\n{self.settings_manager.get_ai_name_with_instructions()} (`q` + `Enter` to interrupt):")
@@ -278,18 +243,12 @@ class ConversationManager:
             self._thinking_started_output = False
         if hasattr(self, '_skip_leading_whitespace'):
             self._skip_leading_whitespace = False
-        if hasattr(self, '_in_execute_block'):
-            self._in_execute_block = False
-        if hasattr(self, '_execute_buffer'):
-            self._execute_buffer = ""
+
 
         # Only save if we got a response
         if ai_response:
-            # Process any command execution requests in the response
-            processed_response = self._process_execution_requests(ai_response)
-
-            # Append processed_response to the conversation_history array
-            self.conversation_history.append({"role": "assistant", "content": processed_response})
+            # Append ai_response to the conversation_history array
+            self.conversation_history.append({"role": "assistant", "content": ai_response})
 
             # Add newline after AI response for proper spacing
             print()
@@ -305,154 +264,13 @@ class ConversationManager:
 
         # Generate and play TTS audio if enabled
         if self.settings_manager.setting_get("tts") and ai_response:
-            # Use processed response for TTS to avoid reading execution tags
-            processed_response = self._process_execution_requests(ai_response) if ai_response else ""
-            self._handle_tts_playback(processed_response, interrupted)
+            self._handle_tts_playback(ai_response, interrupted)
 
         # Ensure proper spacing before next user prompt
         if ai_response:
             print()
 
-    def _process_execution_requests(self, response: str) -> str:
-        """
-        Process command execution requests in AI response.
-        Looks for <execute>command</execute> tags and executes them if execute mode is enabled.
-        Returns the response with execution tags removed and results added.
-        """
-        if not self.settings_manager.setting_get("execute_enabled"):
-            # If execution is disabled, just remove the tags and return
-            return re.sub(r'<execute>(.*?)</execute>', r'[Command execution disabled: \1]', response, flags=re.DOTALL)
 
-        # Find all execution requests (formatting already handled during streaming)
-        execution_pattern = r'<execute>(.*?)</execute>'
-        matches = list(re.finditer(execution_pattern, response, flags=re.DOTALL))
-
-        if not matches:
-            return response
-
-        # Process each execution request from end to start to preserve indices
-        processed_response = response
-        for match in reversed(matches):
-            command = match.group(1).strip()
-
-            # Execute the command
-            execution_result = self._execute_system_command(command)
-
-            # Replace the execution tag with the result
-            if execution_result:
-                replacement = f"\n[Executed: {command}]\n```\n{execution_result}\n```"
-            else:
-                replacement = f"\n[Command execution failed or denied: {command}]"
-
-            processed_response = processed_response[:match.start()] + replacement + processed_response[match.end():]
-
-        return processed_response
-
-    def _execute_system_command(self, command: str) -> Optional[str]:
-        """
-        Execute a system command with proper permission handling.
-        Returns the command output or None if execution was denied/failed.
-        """
-        if not self.settings_manager.setting_get("execute_enabled"):
-            return None
-
-        # Check if permission is required
-        if self.settings_manager.setting_get("execute_require_permission"):
-            response = input("- Allow execution? (Y/n): ").strip().lower()
-            if response not in ['', 'y', 'yes']:
-                print_info("Command execution denied by user")
-                return None
-
-        try:
-            # Execute the command safely
-            print_info(f"Running: {command}")
-
-            # Use shell=True for complex commands but be aware of security implications
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True
-            )
-
-            output = ""
-            if result.stdout:
-                output += f"STDOUT:\n{result.stdout}"
-            if result.stderr:
-                output += f"STDERR:\n{result.stderr}"
-            if not result.stdout and not result.stderr:
-                output = f"Command completed successfully (no output)"
-
-            output += f"\n\nReturn code: {result.returncode}"
-
-            # Display the command output immediately
-            if result.returncode == 0:
-                if result.stdout:
-                    print(result.stdout.rstrip())
-                else:
-                    print_info("Command ran successfully (no output produced)")
-            else:
-                if result.stderr:
-                    print_info(f"Command failed: {result.stderr.rstrip()}")
-                else:
-                    print_info(f"Command failed (exit code: {result.returncode})")
-
-            return output
-
-        except Exception as e:
-            error_msg = f"Could not run command: {str(e)}"
-            print_info(f"Error: {error_msg}")
-            return error_msg
-
-    def _get_execute_mode_prompt(self) -> str:
-        """
-        Get the system prompt for execute mode to make AI more proactive about command execution.
-        """
-        return """EXECUTE MODE ACTIVE: You can now run system commands using <execute>command</execute> tags.
-
-EXECUTION GUIDELINES:
-- BE DIRECT: Don't ask "would you like me to..." - just run the appropriate command
-- ONE COMMAND PER RESPONSE: Only include one <execute> tag per response
-- BE CONCISE: Give brief explanations (1-2 sentences), then execute
-- IMMEDIATE ACTION: Jump straight to running relevant commands
-- PRACTICAL FOCUS: Choose commands that directly answer the user's question
-- USE PYTHON FOR COMPLEXITY: For file conversion, data processing, calculations, or complex operations, use Python
-
-COMMAND PRIORITY:
-1. Simple system commands: ls, pwd, cat, grep, find, etc.
-2. Python for complex tasks: file conversion, data analysis, calculations, text processing, web scraping
-3. Development tools: git, npm, pip, docker, etc.
-4. System utilities: curl, wget, tar, zip, etc.
-
-TOOL AVAILABILITY:
-- ALWAYS check if required tools/packages are available before using them
-- For Python packages: <execute>python3 -c "import package_name; print('Available')"</execute>
-- For system commands: <execute>which command_name</execute> or <execute>command_name --version</execute>
-- If missing, suggest installation commands immediately
-
-INSTALLATION SUGGESTIONS:
-- Python packages: <execute>pip3 install package_name</execute>
-- System packages (Ubuntu/Debian): <execute>sudo apt update && sudo apt install package_name</execute>
-- System packages (MacOS): <execute>brew install package_name</execute>
-- Node packages: <execute>npm install -g package_name</execute>
-
-PYTHON ONE-LINERS FOR COMMON TASKS:
-- File conversion (JSON): python3 -c "import json; print(json.dumps({'converted': True}, indent=2))"
-- CSV analysis: python3 -c "import csv; rows=list(csv.reader(open('file.csv'))); print(f'Rows: {len(rows)}')"
-- Image resize: python3 -c "from PIL import Image; Image.open('in.jpg').resize((800,600)).save('out.jpg')"
-- Text processing: python3 -c "with open('file.txt') as f: print(len(f.read().split()))"
-- Math/calculations: python3 -c "import math; print(f'Result: {math.sqrt(64)}')"
-- Web requests: python3 -c "import requests; print(requests.get('http://httpbin.org/ip').json())"
-- Data structures: python3 -c "data=[1,2,3,4]; print(f'Sum: {sum(data)}, Avg: {sum(data)/len(data)}')"
-- File operations: python3 -c "import shutil; shutil.copy2('source.txt', 'backup.txt')"
-- These are just examples to help you understand how to use python, however you should use your own judgement
-
-RESPONSE PATTERN:
-1. Brief explanation of what you're doing
-2. Execute the most relevant command (prefer Python for data/file operations)
-3. Follow up with additional commands in next responses if needed
-
-The system will handle permission prompts - your job is to suggest the right commands directly."""
 
     def _handle_search_workflow(self) -> None:
         """

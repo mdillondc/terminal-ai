@@ -2,8 +2,7 @@ import requests
 from typing import Optional, Any
 import yt_dlp
 import clipboard
-import subprocess
-import shlex
+
 import tiktoken
 from settings_manager import SettingsManager
 from openai import OpenAI
@@ -12,7 +11,7 @@ from tavily_search import create_tavily_search, TavilySearchError
 from web_content_extractor import WebContentExtractor
 from document_processor import DocumentProcessor
 from rag_config import is_supported_file, get_supported_extensions_display
-from print_helper import print_info, print_lines
+from print_helper import print_info
 
 
 class CommandManager:
@@ -38,54 +37,7 @@ class CommandManager:
         # This ensures we don't create a duplicate RAG engine with a hardcoded OpenAI client
         self.rag_engine = self.conversation_manager.rag_engine
 
-    def execute_system_command(self, command: str) -> Optional[str]:
-        """
-        Execute a system command with proper permission handling.
-        Returns the command output or None if execution was denied/failed.
-        """
-        if not self.settings_manager.setting_get("execute_enabled"):
-            print_info("Execute mode is disabled")
-            return None
 
-        # Check if permission is required
-        if self.settings_manager.setting_get("execute_require_permission"):
-            response = input("- Allow execution? (Y/n): ").strip().lower()
-            if response not in ['', 'y', 'yes']:
-                print_info("Command execution denied by user")
-                return None
-
-        try:
-            # Execute the command safely
-            print_info(f"Running: {command}")
-
-            # Use shell=True for complex commands but be aware of security implications
-            # In a production environment, you might want to restrict this further
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True
-            )
-
-            output = ""
-            if result.stdout:
-                output += f"STDOUT:\n{result.stdout}\n"
-            if result.stderr:
-                output += f"STDERR:\n{result.stderr}\n"
-
-            output += f"Return code: {result.returncode}"
-
-            if result.returncode == 0:
-                print_info("Command ran successfully")
-            else:
-                print_info(f"Command finished with exit code: {result.returncode}")
-
-            return output
-
-        except Exception as e:
-            error_msg = f"Could not run command: {str(e)}"
-            print_info(error_msg)
-            return error_msg
 
     def process_commands(self, user_input: str) -> bool:
         """
@@ -235,18 +187,7 @@ class CommandManager:
                     print_info("Incognito mode enabled - no data will be saved to logs")
 
                 command_processed = True
-            elif command.startswith("--execute"):
-                execute_enabled = self.settings_manager.setting_get("execute_enabled")
-                if execute_enabled:
-                    self.settings_manager.setting_set("execute_enabled", False)
-                    print_info("Execute mode disabled - AI cannot run system commands")
-                else:
-                    self.settings_manager.setting_set("execute_enabled", True)
-                    require_permission = self.settings_manager.setting_get("execute_require_permission")
-                    permission_text = " (requires permission for each command)" if require_permission else " (automatic execution enabled)"
-                    print_info(f"Execute mode enabled - AI can run system commands{permission_text}")
 
-                command_processed = True
             elif command.startswith("--clear"):
                 self.conversation_manager.start_new_conversation_log()
                 print_info("Conversation history cleared - will create new log file after first AI response")
@@ -385,7 +326,7 @@ class CommandManager:
 
         Loads the specified collection and makes it available for context
         retrieval during AI conversations. If the collection hasn't been
-        built yet, it will be built automatically. If files on disk have 
+        built yet, it will be built automatically. If files on disk have
         changed since last build, it will be rebuilt. Only one collection
         can be active at a time.
 
