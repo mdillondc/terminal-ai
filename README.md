@@ -115,7 +115,7 @@ python src/main.py
 |---------|-------------|
 | `--` | Show all available commands |
 | `--model <name>` | Switch AI model (dynamically fetched from providers) |
-| `--clear-model-cache` | Force refresh of available models |
+| `--model-clear-cache` | Force refresh of available models |
 | `--clear` | Clear conversation history |
 | `--usage` | Show token usage and costs |
 
@@ -283,7 +283,7 @@ youtube() {
 
 **Model not found:**
 ```bash
-> --clear-model-cache
+> --model-clear-cache
 > --model gpt-4.1
 ```
 

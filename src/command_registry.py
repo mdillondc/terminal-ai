@@ -78,9 +78,9 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
-            name="--clear-model-cache",
+            name="--model-clear-cache",
             description="Clears the model cache and forces a fresh fetch of available models from OpenAI and Google APIs.",
-            usage="--clear-model-cache",
+            usage="--model-clear-cache",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False

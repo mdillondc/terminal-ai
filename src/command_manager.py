@@ -72,11 +72,11 @@ class CommandManager:
                 command_processed = True
                 continue
 
-            if command.startswith("--model"):
-                self.set_model(arg)
-                command_processed = True
-            elif command.startswith("--clear-model-cache"):
+            if command.startswith("--model-clear-cache"):
                 self.clear_model_cache()
+                command_processed = True
+            elif command.startswith("--model"):
+                self.set_model(arg)
                 command_processed = True
             elif command.startswith("--instructions"):
                 self.conversation_manager.apply_instructions(
