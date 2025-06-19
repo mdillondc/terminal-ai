@@ -127,6 +127,7 @@ python src/main.py
 | `--url <url>` | Extract website content with paywall bypass |
 | `--youtube <url>` | Extract video transcript |
 | `--cb` | Use clipboard contents |
+| `--cbl` | Copy latest AI reply to clipboard |
 | `--instructions <file>` | Apply instruction template |
 
 ### RAG (Document Analysis)

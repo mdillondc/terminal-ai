@@ -187,6 +187,15 @@ class CommandRegistry:
             requires_argument=False
         ))
 
+        self.register_command(CommandInfo(
+            name="--cbl",
+            description="Copy latest AI reply to clipboard.",
+            usage="--cbl",
+            execution_order=2,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
         # Conversation management commands
         self.register_command(CommandInfo(
             name="--log",

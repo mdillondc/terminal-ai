@@ -127,6 +127,29 @@ class CommandManager:
                     self.conversation_manager.log_resume()
 
                 command_processed = True
+            elif command.startswith("--cbl"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
+                # Find the latest assistant response
+                latest_reply = None
+                for message in reversed(self.conversation_manager.conversation_history):
+                    if message["role"] == "assistant":
+                        latest_reply = message["content"]
+                        break
+
+                if latest_reply:
+                    try:
+                        clipboard.copy(latest_reply)
+                        print_info("Latest AI reply copied to clipboard")
+                    except Exception as e:
+                        print_info(f"Failed to copy to clipboard: {e}")
+                else:
+                    print_info("No AI reply found to copy")
+
+                command_processed = True
             elif command.startswith("--cb"):
                 # Log the command
                 self.conversation_manager.conversation_history.append(
