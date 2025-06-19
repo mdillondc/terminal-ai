@@ -79,7 +79,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--model-clear-cache",
-            description="Clears the model cache and forces a fresh fetch of available models from OpenAI and Google APIs.",
+            description="Clears the model cache and forces a fresh fetch of available models from connected APIs.<",
             usage="--model-clear-cache",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
@@ -142,7 +142,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--nothink",
-            description="Toggles nothink mode on or off. When enabled, user messages are prepended with '/nothink ' to disable thinking on thinking Ollama models.",
+            description="Toggles thinking mode off/on for Ollama models.",
             usage="--nothink",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
