@@ -142,7 +142,7 @@ mkdir -p rag/my-docs
 
 # Activate collection (builds automatically)
 > --rag my-docs
-> What are the main topics in my documents?
+> Detail my latest visit to the doctor
 ```
 
 **Commands:**
