@@ -128,6 +128,11 @@ class CommandManager:
 
                 command_processed = True
             elif command.startswith("--cb"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
                 clipboard_content = clipboard.paste()
                 if clipboard_content:
                     print_info("Clipboard content added to conversation context")
@@ -143,6 +148,10 @@ class CommandManager:
                     print_info("Please specify a youtube url")
                     command_processed = True
                 else:
+                    # Log the command
+                    self.conversation_manager.conversation_history.append(
+                        {"role": "user", "content": command}
+                    )
                     self.extract_youtube_content(arg)
                     command_processed = True
             elif command.startswith("--url"):
@@ -150,6 +159,10 @@ class CommandManager:
                     print_info("Please specify a URL")
                     command_processed = True
                 else:
+                    # Log the command
+                    self.conversation_manager.conversation_history.append(
+                        {"role": "user", "content": command}
+                    )
                     self.extract_url_content(arg)
                     command_processed = True
             elif command.startswith("--file"):
@@ -157,6 +170,10 @@ class CommandManager:
                     print_info("Please specify a file path")
                     command_processed = True
                 else:
+                    # Log the command
+                    self.conversation_manager.conversation_history.append(
+                        {"role": "user", "content": command}
+                    )
                     self.extract_file_content(arg)
                     command_processed = True
             elif command == "--search":
