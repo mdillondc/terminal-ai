@@ -26,7 +26,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 
 ### Core Capabilities
 - **Multi-Provider AI**: OpenAI, Google Gemini, Anthropic, and Ollama (local models)
-- **Intelligent Web Search**: Real-time information via Tavily API with dynamic intent analysis
+- **Intelligent Web Search**: Real-time information via Tavily API with dynamic intent analysis (temporal, factual, controversial, etc.)
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
 - **Content Extraction**: YouTube transcripts, website content with paywall bypass
 
@@ -163,15 +163,14 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 # Enable web search
 > --search
 
-# Examples of intelligent query analysis:
-> How many people were affected by the Turkey earthquake?
-# → Advanced search with verification for numerical accuracy
-
-> What's the capital of France?  
-# → Basic search for simple factual query
-
-> Latest AI breakthrough this week?
-# → Advanced search with freshness filtering
+> list 5 of trumps crimes
+- Analyzing search intent...
+- Intent analysis: controversial query (confidence: 0.95)
+- Generating optimal search query...
+- Generated search queries: Donald Trump criminal charges and allegations 2025, List of crimes and legal cases involving Donald Trump 2025, Recent updates on Donald Trump criminal investigations 2025
+- Searching: Donald Trump criminal charges and allegations 2025 (depth: advanced)
+- Searching: List of crimes and legal cases involving Donald Trump 2025 (depth: advanced)
+- Search completed. Analyzing results...
 ```
 
 **Smart Features:**
