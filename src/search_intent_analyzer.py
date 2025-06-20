@@ -110,10 +110,10 @@ Instructions:
 - Focus on recent conversation messages to understand the current topic and user intent
 - Use the full conversation context to resolve unclear references (pronouns like "his", "their", "that event", company names, etc.)
 - Consider the conversational flow to understand what the user is really asking about
+- If the query is a user instruction (like "search for this", "look that up", "figure out what I'm talking about", etc.), analyze the conversation context to identify what should actually be searched, not the instruction itself
+- When users express disagreement or corrections, they typically want fact-checking of the topic being discussed, not a literal search of their correction
 - When analyzing temporal aspects, remember the current date is {current_date} and we are in {current_year}
 - For recent events queries, consider how fresh the information needs to be based on the current date
-- Determine if this query might contain claims that need fact-checking or verification
-
 Provide your analysis as a JSON object with these fields:
 
 {{
@@ -121,9 +121,8 @@ Provide your analysis as a JSON object with these fields:
   "search_depth": "basic|advanced",
   "topic_category": "news|finance|sports|general",
   "freshness_days": null or number (1, 7, 30),
-  "needs_verification": true|false,
   "max_results": number (3-10),
-  "search_strategy": "standard|verification|comprehensive|temporal",
+  "search_strategy": "standard|comprehensive|temporal",
   "confidence": number (0.0-1.0),
   "reasoning": "brief explanation of your analysis and what context informed your decision"
 }}
@@ -132,7 +131,6 @@ Guidelines:
 - Use "basic" search for simple, well-established factual queries
 - Use "advanced" search for complex, controversial, or nuanced topics
 - Set freshness_days for time-sensitive queries (1=today, 7=this week, 30=this month)
-- Set needs_verification=true for claims that should be fact-checked or appear controversial
 - Use higher max_results (6-10) for controversial topics needing multiple perspectives
 - Choose search_strategy based on what approach will get the best results
 
@@ -154,7 +152,6 @@ Respond with ONLY the JSON object, no other text."""
             'search_depth': 'basic',
             'topic_category': 'general',
             'freshness_days': None,
-            'needs_verification': False,
             'max_results': 5,
             'search_strategy': 'standard',
             'confidence': 0.5,
@@ -190,75 +187,7 @@ Respond with ONLY the JSON object, no other text."""
 
         return search_params
 
-    def should_use_verification_search(self, analysis: Dict[str, Any]) -> bool:
-        """
-        Determine if a verification search should be performed.
 
-        Args:
-            analysis: Results from analyze_query
-
-        Returns:
-            True if verification search is recommended
-        """
-        return analysis.get('needs_verification', False)
-
-    def get_verification_queries(self, original_query: str, analysis: Dict[str, Any]) -> List[str]:
-        """
-        Generate verification queries for fact-checking.
-
-        Args:
-            original_query: The original search query
-            analysis: Results from analyze_query
-
-        Returns:
-            List of verification queries
-        """
-        if not self.should_use_verification_search(analysis):
-            return []
-
-        try:
-            # Get current date for context
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            current_year = datetime.now().year
-
-            prompt = f"""The user asked: "{original_query}"
-
-TODAY'S DATE: {current_date} (Current year: {current_year})
-
-This query appears to need fact-checking or verification. Generate 2-3 additional search queries that would help verify the accuracy of any claims or get more objective information about this topic.
-
-IMPORTANT: Use the EXACT names, places, and specific details from the original query. Do NOT replace them with generic placeholders like "[Name of person]" or "[Location]". Use the actual names and terms mentioned.
-
-Focus on:
-- Finding authoritative sources
-- Getting multiple perspectives
-- Verifying specific claims or numbers
-- Finding fact-checking information
-- Use the correct current year ({current_year}) when generating queries about recent events
-
-Respond with just the search queries, one per line, no explanations."""
-
-            response = self.llm_client_manager.create_chat_completion(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Generate verification search queries to help fact-check information."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.3
-            )
-
-            queries = response.choices[0].message.content.strip().split('\n')
-            return [q.strip() for q in queries if q.strip()]
-
-        except Exception as e:
-            print_info(f"Failed to generate verification queries: {e}")
-            return []
 
     def _clean_json_response(self, text: str) -> str:
         """
@@ -308,7 +237,6 @@ Respond with just the search queries, one per line, no explanations."""
             'search_depth': 'basic',
             'topic_category': 'general',
             'freshness_days': None,
-            'needs_verification': False,
             'max_results': 5,
             'search_strategy': 'standard',
             'confidence': 0.7,
@@ -332,7 +260,7 @@ Respond with just the search queries, one per line, no explanations."""
         elif analysis['max_results'] > 10:
             analysis['max_results'] = 10
 
-        if analysis['search_strategy'] not in ['standard', 'verification', 'comprehensive', 'temporal']:
+        if analysis['search_strategy'] not in ['standard', 'comprehensive', 'temporal']:
             analysis['search_strategy'] = 'standard'
 
         if not isinstance(analysis['confidence'], (int, float)) or analysis['confidence'] < 0:

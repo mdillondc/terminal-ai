@@ -392,27 +392,7 @@ class ConversationManager:
                     print_info(f"Search failed for '{query}': {e}")
                     continue
 
-            # Perform verification searches if needed
-            if self.search_intent_analyzer.should_use_verification_search(intent_analysis):
-                print_info("Performing verification searches...")
-                verification_queries = self.search_intent_analyzer.get_verification_queries(
-                    last_user_message, intent_analysis
-                )
 
-                # Use higher result count and advanced search for verification
-                verification_params = search_params.copy()
-                verification_params['max_results'] = min(verification_params['max_results'] + 2, 8)
-                verification_params['search_depth'] = 'advanced'
-
-                for v_query in verification_queries[:2]:  # Limit verification queries
-                    print_info(f"Verification search: {v_query}")
-                    try:
-                        v_results = search_client.search_and_format(v_query, **verification_params)
-                        if v_results:
-                            all_search_results.append(v_results)
-                    except TavilySearchError as e:
-                        print_info(f"Verification search failed for '{v_query}': {e}")
-                        continue
 
             if all_search_results:
                 # Combine all search results
