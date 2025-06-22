@@ -99,7 +99,7 @@ class ScrollManager:
         # Display status line
         percent = int((self.scroll_position / max(1, len(self.history_lines) - terminal_height)) * 100) if len(self.history_lines) > terminal_height else 100
         status = f"[SCROLL MODE] Line {self.scroll_position + 1}/{len(self.history_lines)} ({percent}%) - j/k scroll, gg top, G bottom, Ctrl+V exit"
-        sys.stdout.write(f"\n\033[48;5;214m\033[30m{status}\033[0m")  # Gruvbox yellow background with black text
+        sys.stdout.write(f"\n\033[48;5;136m\033[30m{status}\033[0m")  # Gruvbox dark yellow background with black text
         sys.stdout.flush()
 
     def _exit_scroll_mode(self):
