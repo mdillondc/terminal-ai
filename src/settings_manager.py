@@ -84,6 +84,10 @@ class SettingsManager:
         # Privacy Settings
         self.incognito = False
 
+        # Navigation Settings
+        self.scroll = False
+        self.scroll_lines = 1
+
         # General Settings
         self.name_ai = "AI"
         self.name_user = "User"
@@ -134,6 +138,7 @@ class SettingsManager:
             enabled_toggles.append("nothink")
         if self.incognito:
             enabled_toggles.append("incognito")
+
 
         if self.rag_active_collection:
             enabled_toggles.append(f"rag {self.rag_active_collection}")

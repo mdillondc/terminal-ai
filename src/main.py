@@ -1,15 +1,18 @@
 import argparse
+import os
 from openai import OpenAI
 from prompt_toolkit import prompt
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.validation import Validator, ValidationError
+from prompt_toolkit.filters import Condition
 from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
 from command_manager import CommandManager
 from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
 from print_helper import print_info
 from api_key_check import check
+from scroll import ScrollManager
 
 def confirm_exit() -> bool:
     response = input("Confirm quitting (Y/n)? ").strip().lower()
@@ -58,6 +61,9 @@ def main() -> None:
 
     command_manager = CommandManager(conversation_manager)
 
+    # Init scroll manager
+    scroll_manager = ScrollManager(settings_manager, conversation_manager)
+
     # Display startup information
     current_model = settings_manager.setting_get("model")
     print_info(f"Using model: {current_model}")
@@ -67,6 +73,8 @@ def main() -> None:
 
     # KeyBindings
     kb = KeyBindings()
+
+
 
     @kb.add('backspace')
     def custom_backspace(event):
@@ -81,6 +89,23 @@ def main() -> None:
             event.current_buffer.complete_state = None
             # Force start new completion
             event.current_buffer.start_completion(select_first=False)
+
+    @kb.add('c-v')
+    def toggle_scroll_mode(event):
+        """Toggle scroll navigation mode with Ctrl+V key"""
+        if scroll_manager.scroll_mode:
+            # Exit scroll mode directly
+            scroll_manager.handle_toggle()
+        else:
+            # Enable scroll and immediately enter scroll mode
+            if settings_manager.setting_get("incognito"):
+                print_info("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
+            else:
+                settings_manager.setting_set("scroll", True)
+                scroll_manager._enter_scroll_mode()
+
+    # Set up scroll key bindings
+    scroll_manager.setup_key_bindings(kb)
 
     first_ai_interaction = True
     while True:

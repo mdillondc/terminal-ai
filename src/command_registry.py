@@ -158,6 +158,15 @@ class CommandRegistry:
             requires_argument=False
         ))
 
+        self.register_command(CommandInfo(
+            name="--scroll",
+            description="Toggle scroll navigation (hotkey Ctrl+V). Use j/k to scroll, gg for top, G for bottom.",
+            usage="--scroll",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
 
 
         self.register_command(CommandInfo(

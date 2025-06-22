@@ -200,8 +200,6 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 
 ## Advanced Features
 
-
-
 ### URL Content Extraction
 Automatic paywall/access block bypass using multiple methods:
 - Search engine bot headers
@@ -223,6 +221,7 @@ Find instruction inspiration at [fabric/patterns](https://github.com/danielmiess
 | Command | Description |
 |---------|-------------|
 | `--search` | Toggle web search mode |
+| `--scroll` | Toggle scroll navigation (hotkey Ctrl+V). Use j/k to scroll, gg for top, G for bottom |
 | `--nothink` | Disable thinking on Ollama models |
 | `--incognito` | Toggle private mode (no logs) |
 

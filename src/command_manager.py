@@ -222,6 +222,20 @@ class CommandManager:
                     self.settings_manager.setting_set("search", True)
                     print_info("Web search enabled")
                 command_processed = True
+            elif command == "--scroll":
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
+                if self.settings_manager.setting_get("scroll"):
+                    self.settings_manager.setting_set("scroll", False)
+                else:
+                    if self.settings_manager.setting_get("incognito"):
+                        print_info("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
+                    else:
+                        self.settings_manager.setting_set("scroll", True)
+                command_processed = True
             elif command.startswith("--nothink"):
                 # Log the command
                 self.conversation_manager.conversation_history.append(
