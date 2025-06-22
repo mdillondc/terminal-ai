@@ -233,7 +233,8 @@ Key settings in `src/settings_manager.py`:
 # Default model and provider settings
 self.default_model = "gpt-4.1"
 self.embedding_provider = "ollama"  # or "openai"
-self.openai_embedding_model = "snowflake-arctic-embed2:latest"
+self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
+self.openai_embedding_model = "text-embedding-3-small"
 
 # RAG configuration
 self.chunk_size = 1000
