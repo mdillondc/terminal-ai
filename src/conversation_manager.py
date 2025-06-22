@@ -893,6 +893,9 @@ Generate only the filename focusing on content substance:""".format(context[:100
             with open(path_to_log_json) as file:
                 self.conversation_history = json.load(file)
 
+            # Mark log as already renamed to prevent auto-renaming when resuming
+            self.log_renamed = True
+
             # Display the conversation history to the user
             self._display_conversation_history()
 
