@@ -951,11 +951,9 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
         # Show summary for long conversations
         total_messages = len(display_messages)
-        if total_messages > 10:
+        if total_messages > 0:
             print_info("Conversation Summary: " + str(total_messages) + " messages")
-            print_info("Showing last 8 messages (use full log file to see complete history)")
             print_lines()
-            display_messages = display_messages[-8:]
 
         for i, entry in enumerate(display_messages, 1):
             role = entry.get('role', 'unknown')
