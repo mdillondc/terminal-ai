@@ -808,6 +808,7 @@ class CommandManager:
                     if info:
                         video_title = "[" + info.get('title', 'Unknown Title') + "](" + video_url + ")"
                         channel_title = "[" + info.get('uploader', 'Unknown Channel') + "](" + info.get('uploader_url', video_url) + ")"
+                        print_info(f"Title: {info.get('title', 'Unknown Title')}")
                     else:
                         print_info("Could not extract video information")
                         return
