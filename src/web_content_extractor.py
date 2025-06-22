@@ -493,7 +493,7 @@ class WebContentExtractor:
                     content = self._extract_main_content(soup)
 
                     if content and len(content.split()) > 100:
-                        print_info(f"Found archived content from {time_desc} ({len(content.split())} words)")
+                        print_info(f"Found archived content from {time_desc}: \"{title}\" ({len(content.split())} words)")
                         return {
                             'title': title,
                             'content': content,
@@ -584,7 +584,7 @@ class WebContentExtractor:
                 content = self._extract_main_content(soup)
 
                 if content and len(content.split()) > 100:
-                    print_info(f"{agent_name} succeeded ({len(content.split())} words)")
+                    print_info(f"{agent_name} succeeded: \"{title}\" ({len(content.split())} words)")
                     return {
                         'title': title,
                         'content': content,
@@ -623,7 +623,7 @@ class WebContentExtractor:
                 content = self._extract_main_content(soup)
 
                 if content and len(content.split()) > 100:
-                    print_info(f"Print version {variation_desc} succeeded ({len(content.split())} words)")
+                    print_info(f"Print version {variation_desc} succeeded: \"{title}\" ({len(content.split())} words)")
                     return {
                         'title': title,
                         'content': content,
@@ -669,7 +669,7 @@ class WebContentExtractor:
                 content = self._extract_main_content(soup)
 
                 if content and len(content.split()) > 100:
-                    print_info(f"AMP version {variation_desc} succeeded ({len(content.split())} words)")
+                    print_info(f"AMP version {variation_desc} succeeded: \"{title}\" ({len(content.split())} words)")
                     return {
                         'title': title,
                         'content': content,
