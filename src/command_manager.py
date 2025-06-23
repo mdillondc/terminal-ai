@@ -1,3 +1,4 @@
+import os
 import requests
 from typing import Optional, Any
 import yt_dlp
@@ -93,12 +94,18 @@ class CommandManager:
                     arg, self.settings_manager.setting_get("instructions")
                 )
 
-                self.conversation_manager.log_save()
                 command_processed = True
             elif command.startswith("--logmv"):
                 # Check if incognito mode is enabled
                 if self.settings_manager.setting_get("incognito"):
                     print_info("Cannot rename log: incognito mode is enabled (no logging active)")
+                    command_processed = True
+                    continue
+
+                # Check if there's an existing log file to rename
+                current_log_location = self.settings_manager.setting_get("log_file_location")
+                if not current_log_location or not os.path.exists(current_log_location):
+                    print_info("No log file exists yet to rename. Log files are created after the first AI response.")
                     command_processed = True
                     continue
 
@@ -112,7 +119,6 @@ class CommandManager:
 
                 # Use the proper renaming method that preserves date/timestamp
                 actual_filename = self.conversation_manager.manual_log_rename(title)
-                self.conversation_manager.log_save()
                 print_info(f"Log renamed to: {actual_filename}")
 
                 command_processed = True
