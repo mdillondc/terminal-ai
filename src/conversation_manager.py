@@ -161,20 +161,35 @@ class ConversationManager:
     def _print_with_markdown(self, text: str) -> None:
         """
         Handle markdown rendering for streaming text.
-        Accumulates text for markdown rendering at the end of response.
+        Streams raw text immediately, then re-renders with formatting when complete.
         """
         if not hasattr(self, '_markdown_buffer'):
             self._markdown_buffer = ""
+        if not hasattr(self, '_markdown_raw_lines'):
+            self._markdown_raw_lines = 0
 
         # Accumulate text for markdown rendering
         self._markdown_buffer += text
 
+        # Also print immediately for streaming feedback
+        print(text, end="", flush=True)
+
+        # Track lines printed for later clearing
+        self._markdown_raw_lines += text.count('\n')
+
     def _render_complete_response_as_markdown(self, complete_response: str) -> None:
         """
         Render the complete response with markdown formatting.
+        Clears the previously streamed raw text and replaces with formatted version.
         """
         if not complete_response.strip():
             return
+
+        # Clear the previously printed raw text
+        if hasattr(self, '_markdown_raw_lines') and self._markdown_raw_lines > 0:
+            # Move cursor up and clear lines
+            for _ in range(self._markdown_raw_lines):
+                print('\033[1A\033[2K', end='', flush=True)
 
         try:
             # Render the complete response as markdown
@@ -305,9 +320,11 @@ class ConversationManager:
         if hasattr(self, '_skip_leading_whitespace'):
             self._skip_leading_whitespace = False
 
-        # Reset markdown buffer for next response
+        # Reset markdown buffer and line counter for next response
         if hasattr(self, '_markdown_buffer'):
             self._markdown_buffer = ""
+        if hasattr(self, '_markdown_raw_lines'):
+            self._markdown_raw_lines = 0
 
 
         # Only save if we got a response
