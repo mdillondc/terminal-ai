@@ -1,0 +1,37 @@
+# Terminal AI Configuration Example
+# Copy this file to ~/.config/terminal-ai/config and customize as needed
+# Lines starting with # are comments and will be ignored
+
+# This file is optional
+# If file does not exist or file exists but is missing some settings
+# the app will use defaults from settings_manager.py
+
+# This is a SMALL sample
+# See `settings_manager.py` for all available settings.
+
+# =============================================================================
+# API SETTINGS
+# =============================================================================
+
+# Default AI model to use (provider detected automatically)
+# model = gpt-4.1
+# model = gemini-2.5-flash
+# model = llama3.1:8b
+
+# Ollama server URL (if using Ollama models)
+# ollama_base_url = http://localhost:11434
+
+# =============================================================================
+# RAG (RETRIEVAL AUGMENTED GENERATION) SETTINGS
+# =============================================================================
+
+# Embedding provider (openai or ollama)
+# embedding_provider = ollama
+
+# OpenAI embedding model
+# openai_embedding_model = text-embedding-3-small
+
+# Ollama embedding model
+# ollama_embedding_model = snowflake-arctic-embed2:latest
+
+# ...

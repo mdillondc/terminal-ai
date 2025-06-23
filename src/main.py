@@ -10,7 +10,7 @@ from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
 from command_manager import CommandManager
 from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
-from print_helper import print_info
+from print_helper import print_info, print_lines
 from api_key_check import check
 from scroll import ScrollManager
 
@@ -64,10 +64,18 @@ def main() -> None:
     # Init scroll manager
     scroll_manager = ScrollManager(settings_manager, conversation_manager)
 
-    # Display startup information
+    # Display model info using centralized method with source attribution
     current_model = settings_manager.setting_get("model")
-    print_info(f"Using model: {current_model}")
-    print_info("Start chatting or type '--' to see available commands!\n")
+    print_info(f"Model: {current_model} (settings_manager.py)")
+
+    current_instructions = settings_manager.setting_get("instructions")
+    if current_instructions:
+        instruction_name = current_instructions.rsplit('.', 1)[0]
+        print_info(f"Instructions: {instruction_name} (settings_manager.py)")
+
+    # Load config file overrides after displaying defaults
+    settings_manager.load_config()
+    print()  # Add blank line before user interactions
 
 
 
@@ -117,32 +125,47 @@ def main() -> None:
                 first_ai_interaction = False
 
                 if args.input:
-                    # Process each input sequentially
+                    # Process each input sequentially, splitting commands individually
                     for input_text in args.input:
-                        print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
-                        print(f"> {input_text}")
-
-                        # Check for commands first
+                        # Split input into individual commands
                         if "--" in input_text:
-                            command_processed = command_manager.process_commands(input_text)
-                            if command_processed:
-                                continue
+                            commands = [
+                                "--" + command.strip()
+                                for command in input_text.split("--")
+                                if command.strip()
+                            ]
 
-                        # Check if nothink mode is enabled and prepend /nothink prefix
-                        final_user_input = input_text
-                        if settings_manager.setting_get("nothink"):
-                            final_user_input = "/nothink " + input_text
+                            # Process each command individually
+                            for command in commands:
+                                # Display prompt and command BEFORE processing (like normal user interaction)
+                                print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
+                                print(f"> {command}")
 
-                        # Add to conversation and generate response
-                        conversation_manager.conversation_history.append(
-                            {"role": "user", "content": final_user_input}
-                        )
+                                # Process the individual command
+                                command_manager.process_commands(command)
+                        else:
+                            # Display prompt for non-command inputs
+                            print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
+                            print(f"> {input_text}")
 
-                        conversation_manager.generate_response()
+                            # Check if nothink mode is enabled and prepend /nothink prefix
+                            final_user_input = input_text
+                            if settings_manager.setting_get("nothink"):
+                                final_user_input = "/nothink " + input_text
 
-                    # After processing all inputs, continue to interactive mode
+                            # Add to conversation and generate response
+                            conversation_manager.conversation_history.append(
+                                {"role": "user", "content": final_user_input}
+                            )
+
+                            conversation_manager.generate_response()
+
                     continue
             else:
+                # Show final startup message for interactive mode
+                if first_ai_interaction:
+                    first_ai_interaction = False
+
                 print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                 user_input = prompt(
                     "> ",

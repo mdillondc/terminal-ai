@@ -543,7 +543,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
             )
 
             # Inform user
-            notice = f"Applied instructions {file_name}"
+            notice = f"Instructions {file_name}"
             if old_file_name:
                 print_info(notice)
 

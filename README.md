@@ -11,6 +11,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+  - [Configurations](#configuration)
 - [Usage](#usage)
   - [Core Commands](#core-commands)
   - [Content Processing](#content-processing)
@@ -99,10 +100,24 @@ python src/main.py
 # Enable text-to-speech
 > --tts
 > Tell me a joke
+# The joke will be spoken aloud
 
 # Exit the application
 > quit
 ```
+
+### Configuration
+
+You can override any setting from `settings_manager.py` by creating `~/.config/terminal-ai/config`. See `config/config.example`.
+
+Settings follow a three-tier priority system: `--input` commands override config file settings, which override defaults from `settings_manager.py`.
+
+**Features:**
+- Simple `setting = value` format
+- Comments supported with `#`
+- Automatic type conversion (booleans, numbers, strings)
+- Graceful fallback to defaults for missing settings
+- Invalid setting warnings
 
 ## Usage
 

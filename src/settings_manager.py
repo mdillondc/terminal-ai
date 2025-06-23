@@ -1,8 +1,10 @@
+
 import os
 import time
 import datetime
-from typing import Optional, Any, ClassVar
+from typing import Optional, Any, ClassVar, Dict, List
 from command_registry import CommandRegistry
+from print_helper import print_info
 
 
 class SettingsManager:
@@ -128,6 +130,11 @@ class SettingsManager:
         """Get a formatted string of enabled toggles for display next to user name"""
         enabled_toggles = []
 
+        # Instructions
+        if self.instructions:
+            instruction_name = self.instructions.rsplit('.', 1)[0]
+            enabled_toggles.append(instruction_name)
+
         if self.tts:
             enabled_toggles.append("tts")
         if self.stt:
@@ -139,7 +146,6 @@ class SettingsManager:
         if self.incognito:
             enabled_toggles.append("incognito")
 
-
         if self.rag_active_collection:
             enabled_toggles.append(f"rag {self.rag_active_collection}")
 
@@ -148,15 +154,170 @@ class SettingsManager:
         return ""
 
     def get_ai_name_with_instructions(self) -> str:
-        """Get AI name with active instructions suffix"""
-        base_name = self.name_ai
+        """Get AI name (instructions now displayed in user prompt via get_enabled_toggles)"""
+        return self.name_ai
 
-        if self.instructions:
-            # Extract instruction name without .md extension
-            instruction_name = self.instructions.rsplit('.', 1)[0]
-            return f"{base_name} ({instruction_name})"
+    def display_model_info(self, context: str = "simple", provider: str = None, llm_client_manager = None) -> None:
+        """
+        Display model information with appropriate formatting for different contexts.
 
-        return base_name
+        Args:
+            context: Display context - "switch", "simple", or "config"
+            provider: Model provider (openai, google, anthropic, ollama)
+            llm_client_manager: Optional client manager for Ollama availability checking
+        """
+        model = self.setting_get("model")
+
+        if context == "switch":
+            # Full messaging for command switches
+            if provider == "ollama":
+                ollama_url = self.setting_get("ollama_base_url")
+                if llm_client_manager and llm_client_manager._is_ollama_available():
+                    print_info(f"Model: {model}")
+                    print_info(f"Running locally via Ollama at {ollama_url}")
+                else:
+                    print_info(f"Warning: Selected Ollama model '{model}' but Ollama not available")
+                    print_info(f"Make sure Ollama is running at {ollama_url}")
+            elif provider == "google":
+                print_info(f"Model: {model}")
+                print_info(f"https://ai.google.dev/gemini-api/docs/models")
+            elif provider == "anthropic":
+                print_info(f"Model: {model}")
+                print_info(f"https://docs.anthropic.com/en/docs/about-claude/models")
+            else:
+                print_info(f"Model: {model}")
+                print_info(f"https://platform.openai.com/docs/models")
+        else:
+            # Simplified messaging for startup/config
+            print_info(f"Model: {model}")
+
+    def get_config_path(self) -> str:
+        """Get the path to the config file"""
+        home = os.path.expanduser("~")
+        return os.path.join(home, ".config", "terminal-ai", "config")
+
+    def parse_config_file(self, config_path: str) -> Dict[str, str]:
+        """Parse the plain text config file with comments support"""
+        config_data = {}
+
+        try:
+            with open(config_path, 'r') as file:
+                for line_num, line in enumerate(file, 1):
+                    line = line.strip()
+
+                    # Skip empty lines and comments
+                    if not line or line.startswith('#'):
+                        continue
+
+                    # Handle inline comments
+                    if '#' in line:
+                        line = line.split('#')[0].strip()
+
+                    # Parse key = value
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip()
+
+                        if key and value:
+                            config_data[key] = value
+
+        except FileNotFoundError:
+            # Config file doesn't exist - that's fine, use defaults
+            pass
+        except Exception as e:
+            print_info(f"Error reading config file: {e}")
+
+        return config_data
+
+    def get_valid_settings(self) -> List[str]:
+        """Get list of valid setting names that can be configured"""
+        valid_settings = []
+
+        # Get all attributes that don't start with underscore and aren't methods
+        for attr_name in dir(self):
+            if not attr_name.startswith('_') and not callable(getattr(self, attr_name)):
+                # Exclude special attributes that shouldn't be configurable
+                if attr_name not in ['command_registry', 'working_dir', 'log_file_location']:
+                    valid_settings.append(attr_name)
+
+        return valid_settings
+
+    def convert_config_value(self, setting_name: str, config_value: str) -> Any:
+        """Convert config string value to appropriate type based on original setting"""
+        original_value = getattr(self, setting_name)
+        original_type = type(original_value)
+
+        # Handle None values - keep as string
+        if original_value is None:
+            return config_value
+
+        # Convert based on original type
+        if original_type == bool:
+            # Handle various boolean representations
+            lower_value = config_value.lower()
+            if lower_value in ['true', '1', 'yes', 'on']:
+                return True
+            elif lower_value in ['false', '0', 'no', 'off']:
+                return False
+            else:
+                return bool(config_value)  # Fallback
+
+        elif original_type == int:
+            try:
+                return int(config_value)
+            except ValueError:
+                return original_value  # Keep original if conversion fails
+
+        elif original_type == float:
+            try:
+                return float(config_value)
+            except ValueError:
+                return original_value  # Keep original if conversion fails
+
+        else:
+            # String or other types
+            return config_value
+
+    def load_config(self) -> None:
+        """Load and apply config file overrides with validation (public method for main.py)"""
+        config_path = self.get_config_path()
+        config_data = self.parse_config_file(config_path)
+
+        if not config_data:
+            return  # No config to process
+
+        # print_info(f"Apply settings from: {config_path}:")
+
+        valid_settings = self.get_valid_settings()
+        invalid_settings = []
+
+        # Process each config setting
+        for setting_name, config_value in config_data.items():
+            if setting_name in valid_settings:
+                # Valid setting - convert and apply
+                converted_value = self.convert_config_value(setting_name, config_value)
+                setattr(self, setting_name, converted_value)
+
+                # Show what's being overridden with source attribution
+                config_source = "~/.config/terminal-ai/config"
+                if setting_name == "model":
+                    print_info(f"Model: {converted_value} ({config_source})")
+                elif setting_name == "instructions":
+                    instruction_name = converted_value.rsplit('.', 1)[0] if converted_value else converted_value
+                    print_info(f"Instructions: {instruction_name} ({config_source})")
+                else:
+                    print_info(f"Set {setting_name}: {converted_value} ({config_source})")
+            else:
+                # Invalid setting - track for warning
+                invalid_settings.append(setting_name)
+
+        # Warn about invalid settings
+        if invalid_settings:
+            invalid_list = ', '.join(invalid_settings)
+            print_info(f"Config contains invalid setting(s): {invalid_list}")
+
+
 
     @staticmethod
     def read_file(filename: str) -> str:

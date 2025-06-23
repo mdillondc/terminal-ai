@@ -752,25 +752,8 @@ class CommandManager:
                 self.settings_manager.setting_set("tts", False)
                 print_info("TTS automatically disabled for privacy (Ollama models)")
 
-        # Show appropriate message based on provider
-
-        if provider == "ollama":
-            ollama_url = self.settings_manager.setting_get("ollama_base_url")
-            if self.conversation_manager.llm_client_manager._is_ollama_available():
-                print_info(f"Switched to Ollama model: {model}")
-                print_info(f"Running locally via Ollama at {ollama_url}")
-            else:
-                print_info(f"Warning: Selected Ollama model '{model}' but Ollama not available")
-                print_info(f"Make sure Ollama is running at {ollama_url}")
-        elif provider == "google":
-            print_info(f"Switched to Google Gemini model: {model}")
-            print_info(f"https://ai.google.dev/gemini-api/docs/models")
-        elif provider == "anthropic":
-            print_info(f"Switched to Anthropic model: {model}")
-            print_info(f"https://docs.anthropic.com/en/docs/about-claude/models")
-        else:
-            print_info(f"Switched to OpenAI model: {model}")
-            print_info(f"https://platform.openai.com/docs/models")
+        # Show appropriate message using centralized method
+        self.settings_manager.display_model_info("switch", provider, self.conversation_manager.llm_client_manager)
 
     def extract_youtube_content(self, arg: str) -> None:
         """
