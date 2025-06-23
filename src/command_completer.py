@@ -379,7 +379,7 @@ class CommandCompleter(Completer):
                     yield Completion(
                         text=file,
                         start_position=-len(partial_name),
-                        display_meta="Instruction set"
+                        display_meta="Apply to conversation"
                     )
         except OSError:
             pass
