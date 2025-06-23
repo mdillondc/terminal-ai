@@ -169,7 +169,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--scroll",
-            description="Toggle scroll navigation (hotkey Ctrl+V). Use j/k to scroll, gg for top, G for bottom.",
+            description="[EXPERIMENTAL] Toggle scroll navigation (hotkey Ctrl+V). Use j/k to scroll, gg for top, G for bottom.",
             usage="--scroll",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
@@ -282,7 +282,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--tts-save-as-mp3",
-            description="[EXPERIMENTAL] Save TTS responses to a MP3 files.",
+            description="Save TTS responses to a MP3 files.",
             usage="--tts-save-as-mp3",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
