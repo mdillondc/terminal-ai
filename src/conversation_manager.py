@@ -11,6 +11,8 @@ from tavily_search import create_tavily_search, TavilySearchError
 from search_intent_analyzer import SearchIntentAnalyzer
 from llm_client_manager import LLMClientManager
 from print_helper import print_info, print_lines
+from rich.console import Console
+from rich.markdown import Markdown
 
 
 class ConversationManager:
@@ -20,6 +22,7 @@ class ConversationManager:
         self._model = model
         self.conversation_history = []
         self.settings_manager = SettingsManager.getInstance()
+        self.console = Console()  # Rich console for markdown rendering
         self.log_renamed = False  # Track if we've already renamed the log with AI-generated title
         self._response_buffer = ""  # Buffer to accumulate response text for thinking coloring
         self._execution_buffer = ""  # Buffer to accumulate potential execution commands
@@ -42,6 +45,7 @@ class ConversationManager:
         """
         Process a response chunk, applying thinking text coloring while maintaining streaming.
         Hides empty thinking blocks that contain only whitespace.
+        Supports markdown rendering when enabled.
         """
         # ANSI color codes
         GRAY = '\033[38;2;204;204;204m'  # Light gray (#cccccc)
@@ -139,9 +143,46 @@ class ConversationManager:
                     output += text_to_process[i]
             i += 1
 
-        # Print immediately to maintain streaming
+        # Print immediately to maintain streaming (except in markdown mode)
         if output:
-            print(output, end="", flush=True)
+            # Check if markdown parsing is enabled
+            try:
+                markdown_enabled = self.settings_manager.setting_get("markdown")
+            except KeyError:
+                markdown_enabled = False
+
+            if markdown_enabled:
+                # In markdown mode, just accumulate text for later rendering
+                self._print_with_markdown(output)
+            else:
+                # Normal streaming mode - print immediately
+                print(output, end="", flush=True)
+
+    def _print_with_markdown(self, text: str) -> None:
+        """
+        Handle markdown rendering for streaming text.
+        Accumulates text for markdown rendering at the end of response.
+        """
+        if not hasattr(self, '_markdown_buffer'):
+            self._markdown_buffer = ""
+
+        # Accumulate text for markdown rendering
+        self._markdown_buffer += text
+
+    def _render_complete_response_as_markdown(self, complete_response: str) -> None:
+        """
+        Render the complete response with markdown formatting.
+        """
+        if not complete_response.strip():
+            return
+
+        try:
+            # Render the complete response as markdown
+            markdown_obj = Markdown(complete_response)
+            self.console.print(markdown_obj)
+        except Exception as e:
+            # If markdown rendering fails, just print the original text
+            print(complete_response, end="", flush=True)
 
     @property
     def model(self) -> str:
@@ -231,8 +272,28 @@ class ConversationManager:
 
         # Flush any remaining buffer content and reset state at the end
         if hasattr(self, '_response_buffer') and self._response_buffer:
-            print(self._response_buffer, end="", flush=True)
+            try:
+                markdown_enabled = self.settings_manager.setting_get("markdown")
+            except KeyError:
+                markdown_enabled = False
+
+            if markdown_enabled:
+                # In markdown mode, add to markdown buffer instead of printing
+                if not hasattr(self, '_markdown_buffer'):
+                    self._markdown_buffer = ""
+                self._markdown_buffer += self._response_buffer
+            else:
+                print(self._response_buffer, end="", flush=True)
             self._response_buffer = ""
+
+        # Render complete response as markdown if enabled
+        try:
+            markdown_enabled = self.settings_manager.setting_get("markdown")
+        except KeyError:
+            markdown_enabled = False
+
+        if ai_response and markdown_enabled:
+            self._render_complete_response_as_markdown(ai_response)
 
         # Reset thinking state for next response
         if hasattr(self, '_in_thinking_block'):
@@ -243,6 +304,10 @@ class ConversationManager:
             self._thinking_started_output = False
         if hasattr(self, '_skip_leading_whitespace'):
             self._skip_leading_whitespace = False
+
+        # Reset markdown buffer for next response
+        if hasattr(self, '_markdown_buffer'):
+            self._markdown_buffer = ""
 
 
         # Only save if we got a response
@@ -658,7 +723,6 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 # Clean up the title - ensure it's filename-safe
                 title = title.lower().replace(' ', '-').replace('_', '-')
                 # Remove any non-alphanumeric characters except hyphens
-                import re
                 title = re.sub(r'[^a-z0-9-]', '', title)
                 # Remove multiple consecutive hyphens
                 title = re.sub(r'-+', '-', title)

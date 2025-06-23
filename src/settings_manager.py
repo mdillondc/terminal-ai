@@ -98,6 +98,9 @@ class SettingsManager:
         # self.log_file_name = f"{int(time.time())}.md"
         # self.log_file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.md")
         self.log_file_name = self.generate_new_log_filename()
+
+        # Display Settings
+        self.markdown = False  # Enable markdown parsing and rendering
         self.log_file_location = None  # Do not change
 
         # Command Registry - centralized command management
@@ -145,6 +148,8 @@ class SettingsManager:
             enabled_toggles.append("nothink")
         if self.incognito:
             enabled_toggles.append("incognito")
+        if self.markdown:
+            enabled_toggles.append("markdown")
 
         if self.rag_active_collection:
             enabled_toggles.append(f"rag {self.rag_active_collection}")

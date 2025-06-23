@@ -1,6 +1,7 @@
 requests
 beautifulsoup4
 prompt_toolkit
+rich
 yt-dlp
 clipboard
 openai

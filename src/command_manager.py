@@ -251,6 +251,21 @@ class CommandManager:
                     print_info("Nothink mode enabled")
 
                 command_processed = True
+            elif command.startswith("--markdown"):
+                # Log the command
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": command}
+                )
+
+                markdown = self.settings_manager.setting_get("markdown")
+                if markdown:
+                    self.settings_manager.setting_set("markdown", False)
+                    print_info("Markdown rendering disabled")
+                else:
+                    self.settings_manager.setting_set("markdown", True)
+                    print_info("Markdown rendering enabled")
+
+                command_processed = True
             elif command.startswith("--incognito"):
                 incognito = self.settings_manager.setting_get("incognito")
                 if incognito:

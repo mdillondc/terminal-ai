@@ -232,10 +232,33 @@ Create custom AI behaviors/prompts in `instructions/`:
 
 Find instruction inspiration at [fabric/patterns](https://github.com/danielmiessler/fabric/tree/main/patterns).
 
+### Markdown Rendering
+
+The `--markdown` command enables beautiful formatting for AI responses with support for:
+- **Bold** and *italic* text
+- Headers, lists, and tables
+- Code blocks and inline code
+- Blockquotes and links
+
+**Important:** Markdown only applies to **NEW AI responses** after the command is activated. It does not retroactively format past messages in the conversation.
+
+```bash
+# Example workflow
+> Tell me about **Python**
+AI: Python is a programming language with **Python** features... (plain text)
+
+> --markdown
+- Markdown rendering enabled
+
+> Tell me about **Python** again
+AI: Python is a programming language with **Python** features... (now with bold formatting)
+```
+
 ### Mode Toggles
 | Command | Description |
 |---------|-------------|
 | `--search` | Toggle web search mode |
+| `--markdown` | Toggle markdown rendering for NEW AI responses only (bold, italic, lists, tables, etc.). Does not affect past messages |
 | `--scroll` | Toggle scroll navigation (hotkey Ctrl+V). Use j/k to scroll, gg for top, G for bottom |
 | `--nothink` | Disable thinking on Ollama models |
 | `--incognito` | Toggle private mode (no logs) |
