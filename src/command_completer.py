@@ -345,10 +345,24 @@ class CommandCompleter(Completer):
 
         for log_file in cached_results:
             filename = os.path.basename(log_file)
+            relative_path = self._get_relative_path(log_file, rules.base_directory)
+
+            # Extract directory name from relative path (e.g., "samantha" from "samantha/log.md")
+            directory_name = os.path.dirname(relative_path)
+            if directory_name and directory_name != '.':
+                # Special case for macgyver -> MacGyver
+                if directory_name.lower() == "macgyver":
+                    display_meta = "MacGyver"
+                else:
+                    # Capitalize first letter for other directories
+                    display_meta = directory_name.capitalize()
+            else:
+                display_meta = "Root"
+
             yield Completion(
                 text=filename,
                 start_position=-len(partial_name),
-                display_meta=f"Log: {self._get_relative_path(log_file, rules.base_directory)}"
+                display_meta=display_meta
             )
 
     def _complete_instruction_files(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
