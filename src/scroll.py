@@ -98,7 +98,7 @@ class ScrollManager:
 
         # Display status line
         percent = int((self.scroll_position / max(1, len(self.history_lines) - terminal_height)) * 100) if len(self.history_lines) > terminal_height else 100
-        status = f"[SCROLL MODE] Line {self.scroll_position + 1}/{len(self.history_lines)} ({percent}%) - j/k scroll, gg top, G bottom, Ctrl+V exit"
+        status = f"[SCROLL MODE] Line {self.scroll_position + 1}/{len(self.history_lines)} ({percent}%) - j/k scroll, d/u fast scroll, gg top, G bottom, Ctrl+V exit"
         sys.stdout.write(f"\n\033[48;5;136m\033[30m{status}\033[0m")  # Gruvbox dark yellow background with black text
         sys.stdout.flush()
 
@@ -178,6 +178,21 @@ class ScrollManager:
             scroll_lines = self.settings_manager.scroll_lines
             if self.scroll_position > 0:
                 self.scroll_position = max(0, self.scroll_position - scroll_lines)
+                self._display_scroll_view()
+
+        @kb.add('d', filter=Condition(lambda: self.scroll_mode))
+        def scroll_down_fast(event):
+            """Scroll down 5 lines in scroll mode"""
+            terminal_height = int(os.environ.get('LINES', 24)) - 3
+            if self.scroll_position < len(self.history_lines) - terminal_height:
+                self.scroll_position = min(self.scroll_position + 5, len(self.history_lines) - terminal_height)
+                self._display_scroll_view()
+
+        @kb.add('u', filter=Condition(lambda: self.scroll_mode))
+        def scroll_up_fast(event):
+            """Scroll up 5 lines in scroll mode"""
+            if self.scroll_position > 0:
+                self.scroll_position = max(0, self.scroll_position - 5)
                 self._display_scroll_view()
 
         @kb.add('g', filter=Condition(lambda: self.scroll_mode))
