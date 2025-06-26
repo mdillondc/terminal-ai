@@ -12,7 +12,7 @@ from tavily_search import create_tavily_search, TavilySearchError
 from web_content_extractor import WebContentExtractor
 from document_processor import DocumentProcessor
 from rag_config import is_supported_file, get_supported_extensions_display
-from print_helper import print_info
+from print_helper import print_info, start_capturing_print_info, stop_capturing_print_info
 
 
 class CommandManager:
@@ -38,15 +38,33 @@ class CommandManager:
         # This ensures we don't create a duplicate RAG engine with a hardcoded OpenAI client
         self.rag_engine = self.conversation_manager.rag_engine
 
+    def _log_command_with_output(self, command: str, captured_output: list) -> None:
+        """
+        Log a command and its captured print_info output to conversation history.
 
+        Args:
+            command: The command that was executed
+            captured_output: List of captured print_info messages
+        """
+        if self.settings_manager.setting_get("incognito"):
+            return
+
+        if captured_output:
+            command_with_output = f"{command}\n" + "\n".join(captured_output)
+        else:
+            command_with_output = command
+
+        self.conversation_manager.conversation_history.append(
+            {"role": "user", "content": command_with_output}
+        )
 
     def process_commands(self, user_input: str) -> bool:
         """
         Process and execute commands from user input.
 
-        Parses the user input for commands starting with '--' and executes them.
-        Handles various command types including model switching, file operations,
-        RAG operations, settings toggles, and content extraction commands.
+        DRY IMPLEMENTATION: All commands are automatically logged with their output.
+        Any new command added to this method will be automatically logged without
+        additional code changes.
 
         Args:
             user_input: Raw user input string that may contain commands
@@ -73,364 +91,270 @@ class CommandManager:
                 command_processed = True
                 continue
 
-            if command.startswith("--model-clear-cache"):
-                self.clear_model_cache()
-                command_processed = True
-            elif command.startswith("--model"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
+            # DRY SOLUTION: Start capturing for ANY valid command
+            start_capturing_print_info()
+            command_executed = False
 
-                self.set_model(arg)
-                command_processed = True
-            elif command.startswith("--instructions"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                self.conversation_manager.apply_instructions(
-                    arg, self.settings_manager.setting_get("instructions")
-                )
-
-                command_processed = True
-            elif command.startswith("--logmv"):
-                # Check if incognito mode is enabled
-                if self.settings_manager.setting_get("incognito"):
-                    print_info("Cannot rename log: incognito mode is enabled (no logging active)")
-                    command_processed = True
-                    continue
-
-                # Check if there's an existing log file to rename
-                current_log_location = self.settings_manager.setting_get("log_file_location")
-                if not current_log_location or not os.path.exists(current_log_location):
-                    print_info("No log file exists yet to rename. Log files are created after the first AI response.")
-                    command_processed = True
-                    continue
-
-                title = None
-                if arg is None:
-                    print_info("No log file name specified. AI will suggest log filename for you")
-                    title = self.conversation_manager.generate_ai_suggested_title()
-                else:
-                    # Title will be sanitized in manual_log_rename method
-                    title = arg
-
-                # Use the proper renaming method that preserves date/timestamp
-                actual_filename = self.conversation_manager.manual_log_rename(title)
-                print_info(f"Log renamed to: {actual_filename}")
-
-                command_processed = True
-            elif command.startswith("--logrm"):
-                # Delete the current log files
-                if self.conversation_manager.log_delete():
-                    print_info("Log deleted")
-                else:
-                    print_info("No log file to delete or deletion failed")
-
-                command_processed = True
-            elif command.startswith("--log"):
-                # Check if incognito mode is enabled
-                if self.settings_manager.setting_get("incognito"):
-                    print_info("Cannot load log: incognito mode is enabled (no logging active)")
-                    command_processed = True
-
-                if arg is None:
-                    print_info("Please specify the log you want to use")
-                else:
-                    self.settings_manager.setting_set("log_file_name", arg)
-                    self.conversation_manager.log_resume()
-
-                command_processed = True
-            elif command.startswith("--cbl"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                # Find the latest assistant response
-                latest_reply = None
-                for message in reversed(self.conversation_manager.conversation_history):
-                    if message["role"] == "assistant":
-                        latest_reply = message["content"]
-                        break
-
-                if latest_reply:
-                    try:
-                        clipboard.copy(latest_reply)
-                        print_info("Latest AI reply copied to clipboard")
-                    except Exception as e:
-                        print_info(f"Failed to copy to clipboard: {e}")
-                else:
-                    print_info("No AI reply found to copy")
-
-                command_processed = True
-            elif command.startswith("--cb"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                clipboard_content = clipboard.paste()
-                if clipboard_content:
-                    print_info("Clipboard content added to conversation context")
-                    self.conversation_manager.conversation_history.append(
-                        {"role": "user", "content": clipboard_content}
+            try:
+                if command.startswith("--model-clear-cache"):
+                    self.clear_model_cache()
+                    command_executed = True
+                elif command.startswith("--model"):
+                    self.set_model(arg)
+                    command_executed = True
+                elif command.startswith("--instructions"):
+                    self.conversation_manager.apply_instructions(
+                        arg, self.settings_manager.setting_get("instructions")
                     )
-                else:
-                    print_info("Clipboard is empty. Please type your input")
+                    command_executed = True
+                elif command.startswith("--logmv"):
+                    # Special case: log BEFORE renaming to capture in current log
+                    captured_so_far = stop_capturing_print_info()
+                    self._log_command_with_output(command, captured_so_far)
 
-                command_processed = True
-            elif command.startswith("--youtube"):
-                if arg is None:
-                    print_info("Please specify a youtube url")
-                    command_processed = True
-                else:
-                    # Log the command
-                    self.conversation_manager.conversation_history.append(
-                        {"role": "user", "content": command}
-                    )
-                    self.extract_youtube_content(arg)
-                    command_processed = True
-            elif command.startswith("--url"):
-                if arg is None:
-                    print_info("Please specify a URL")
-                    command_processed = True
-                else:
-                    # Log the command
-                    self.conversation_manager.conversation_history.append(
-                        {"role": "user", "content": command}
-                    )
-                    self.extract_url_content(arg)
-                    command_processed = True
-            elif command.startswith("--file"):
-                if arg is None:
-                    print_info("Please specify a file path")
-                    command_processed = True
-                else:
-                    # Log the command
-                    self.conversation_manager.conversation_history.append(
-                        {"role": "user", "content": command}
-                    )
-                    self.extract_file_content(arg)
-                    command_processed = True
-            elif command == "--search":
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
+                    # Now handle the rename
+                    start_capturing_print_info()
 
-                if self.settings_manager.setting_get("search"):
-                    self.settings_manager.setting_set("search", False)
-                    print_info("Web search disabled")
-                else:
-                    self.settings_manager.setting_set("search", True)
-                    print_info("Web search enabled")
-                command_processed = True
-            elif command == "--scroll":
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                print_info("Press F8 to toggle scroll mode")
-                
-                if self.settings_manager.setting_get("scroll"):
-                    self.settings_manager.setting_set("scroll", False)
-                else:
+                    # Check if incognito mode is enabled
                     if self.settings_manager.setting_get("incognito"):
-                        print_info("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
+                        print_info("Cannot rename log: incognito mode is enabled (no logging active)")
+                    elif not self.settings_manager.setting_get("log_file_location") or not os.path.exists(self.settings_manager.setting_get("log_file_location")):
+                        print_info("No log file exists yet to rename. Log files are created after the first AI response.")
                     else:
-                        self.settings_manager.setting_set("scroll", True)
-                command_processed = True
-            elif command.startswith("--nothink"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
+                        title = None
+                        if arg is None:
+                            print_info("No log file name specified. AI will suggest log filename for you")
+                            title = self.conversation_manager.generate_ai_suggested_title()
+                        else:
+                            title = arg
 
-                nothink = self.settings_manager.setting_get("nothink")
-                if nothink:
-                    self.settings_manager.setting_set("nothink", False)
-                    print_info("Nothink mode disabled")
-                else:
-                    self.settings_manager.setting_set("nothink", True)
-                    print_info("Nothink mode enabled")
+                        actual_filename = self.conversation_manager.manual_log_rename(title)
+                        print_info(f"Log renamed to: {actual_filename}")
 
-                command_processed = True
-            elif command.startswith("--markdown"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
+                    # Log rename output to NEW log file
+                    rename_output = stop_capturing_print_info()
+                    if rename_output and not self.settings_manager.setting_get("incognito"):
+                        self.conversation_manager.conversation_history.append(
+                            {"role": "user", "content": "\n".join(rename_output)}
+                        )
+                    command_processed = True
+                    continue  # Skip the normal logging flow
+                elif command.startswith("--logrm"):
+                    if self.conversation_manager.log_delete():
+                        print_info("Log deleted")
+                    else:
+                        print_info("No log file to delete or deletion failed")
+                    command_executed = True
+                elif command.startswith("--log"):
+                    if self.settings_manager.setting_get("incognito"):
+                        print_info("Cannot load log: incognito mode is enabled (no logging active)")
+                    elif arg is None:
+                        print_info("Please specify the log you want to use")
+                    else:
+                        self.settings_manager.setting_set("log_file_name", arg)
+                        self.conversation_manager.log_resume()
+                    command_executed = True
+                elif command.startswith("--cbl"):
+                    latest_reply = None
+                    for message in reversed(self.conversation_manager.conversation_history):
+                        if message["role"] == "assistant":
+                            latest_reply = message["content"]
+                            break
 
-                markdown = self.settings_manager.setting_get("markdown")
-                if markdown:
-                    self.settings_manager.setting_set("markdown", False)
-                    print_info("Markdown rendering disabled")
-                else:
-                    self.settings_manager.setting_set("markdown", True)
-                    print_info("Markdown rendering enabled")
+                    if latest_reply:
+                        try:
+                            clipboard.copy(latest_reply)
+                            print_info("Latest AI reply copied to clipboard")
+                        except Exception as e:
+                            print_info(f"Failed to copy to clipboard: {e}")
+                    else:
+                        print_info("No AI reply found to copy")
+                    command_executed = True
+                elif command.startswith("--cb"):
+                    clipboard_content = clipboard.paste()
+                    if clipboard_content:
+                        print_info("Clipboard content added to conversation context")
+                        self.conversation_manager.conversation_history.append(
+                            {"role": "user", "content": clipboard_content}
+                        )
+                    else:
+                        print_info("Clipboard is empty. Please type your input")
+                    command_executed = True
+                elif command.startswith("--youtube"):
+                    if arg is None:
+                        print_info("Please specify a youtube url")
+                    else:
+                        self.extract_youtube_content(arg)
+                    command_executed = True
+                elif command.startswith("--url"):
+                    if arg is None:
+                        print_info("Please specify a URL")
+                    else:
+                        self.extract_url_content(arg)
+                    command_executed = True
+                elif command.startswith("--file"):
+                    if arg is None:
+                        print_info("Please specify a file path")
+                    else:
+                        self.extract_file_content(arg)
+                    command_executed = True
+                elif command == "--search":
+                    if self.settings_manager.setting_get("search"):
+                        self.settings_manager.setting_set("search", False)
+                        print_info("Web search disabled")
+                    else:
+                        self.settings_manager.setting_set("search", True)
+                        print_info("Web search enabled")
+                    command_executed = True
+                elif command == "--scroll":
+                    print_info("Press F8 to toggle scroll mode")
+                    if self.settings_manager.setting_get("scroll"):
+                        self.settings_manager.setting_set("scroll", False)
+                    else:
+                        if self.settings_manager.setting_get("incognito"):
+                            print_info("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
+                        else:
+                            self.settings_manager.setting_set("scroll", True)
+                    command_executed = True
+                elif command.startswith("--nothink"):
+                    nothink = self.settings_manager.setting_get("nothink")
+                    if nothink:
+                        self.settings_manager.setting_set("nothink", False)
+                        print_info("Nothink mode disabled")
+                    else:
+                        self.settings_manager.setting_set("nothink", True)
+                        print_info("Nothink mode enabled")
+                    command_executed = True
+                elif command.startswith("--markdown"):
+                    markdown = self.settings_manager.setting_get("markdown")
+                    if markdown:
+                        self.settings_manager.setting_set("markdown", False)
+                        print_info("Markdown rendering disabled")
+                    else:
+                        self.settings_manager.setting_set("markdown", True)
+                        print_info("Markdown rendering enabled")
+                    command_executed = True
+                elif command.startswith("--incognito"):
+                    incognito = self.settings_manager.setting_get("incognito")
+                    if incognito:
+                        self.settings_manager.setting_set("incognito", False)
+                        print_info("Incognito mode disabled - logging resumed")
+                    else:
+                        self.settings_manager.setting_set("incognito", True)
+                        print_info("Incognito mode enabled - no data will be saved to logs")
+                    command_executed = True
+                elif command.startswith("--clear"):
+                    self.conversation_manager.start_new_conversation_log()
+                    print_info("Conversation history cleared - will create new log file after first AI response")
+                    print_info("AI instructions preserved")
+                    command_executed = True
+                elif command.startswith("--usage"):
+                    self.display_token_usage()
+                    command_executed = True
+                elif command.startswith("--tts-model"):
+                    if arg is None:
+                        print_info("Please specify a TTS model. Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
+                    else:
+                        valid_models = ["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
+                        if arg in valid_models:
+                            self.settings_manager.setting_set("tts_model", arg)
+                            print_info(f"TTS model set to: {arg}")
+                        else:
+                            print_info(f"Invalid TTS model: {arg}. Available models: {', '.join(valid_models)}")
+                    command_executed = True
+                elif command.startswith("--tts-voice"):
+                    if arg is None:
+                        print_info("Please specify a TTS voice. Available voices: alloy, echo, fable, onyx, nova, shimmer")
+                    else:
+                        valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+                        if arg in valid_voices:
+                            self.settings_manager.setting_set("tts_voice", arg)
+                            print_info(f"TTS voice set to: {arg}")
+                        else:
+                            print_info(f"Invalid TTS voice: {arg}. Available voices: {', '.join(valid_voices)}")
+                    command_executed = True
+                elif command.startswith("--tts-save-as-mp3"):
+                    tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
+                    if tts_save_mp3:
+                        self.settings_manager.setting_set("tts_save_mp3", False)
+                        print_info("TTS save as MP3 disabled")
+                    else:
+                        self.settings_manager.setting_set("tts_save_mp3", True)
+                        print_info("TTS save as MP3 enabled")
+                    command_executed = True
+                elif command.startswith("--tts"):
+                    tts = self.settings_manager.setting_get("tts")
+                    if tts:
+                        self.settings_manager.setting_set("tts", False)
+                        print_info("TTS disabled")
+                    else:
+                        # Check for privacy: don't enable TTS when using Ollama models
+                        current_model = self.settings_manager.setting_get("model")
+                        if current_model and self.conversation_manager.llm_client_manager.get_provider_for_model(current_model) == "ollama":
+                            print_info("TTS not available when using Ollama models")
+                            print_info("TTS would send your text to OpenAI, breaking local privacy")
+                        else:
+                            self.settings_manager.setting_set("tts", True)
+                            print_info("TTS enabled")
+                    command_executed = True
+                elif command.startswith("--rag-status"):
+                    self.rag_status()
+                    command_executed = True
+                elif command.startswith("--rag-rebuild"):
+                    if arg is None:
+                        print_info("Please specify a collection name to rebuild")
+                    else:
+                        self.rag_rebuild(arg)
+                    command_executed = True
+                elif command.startswith("--rag-show"):
+                    if arg is None:
+                        print_info("Please specify a filename to show")
+                    else:
+                        self.rag_show(arg)
+                    command_executed = True
+                elif command.startswith("--rag-test"):
+                    self.rag_test_connection()
+                    command_executed = True
+                elif command.startswith("--rag-info"):
+                    self.rag_model_info()
+                    command_executed = True
+                elif command.startswith("--rag"):
+                    if arg is None:
+                        # Toggle RAG on/off
+                        if self.rag_engine and self.rag_engine.is_active():
+                            self.rag_off()
+                        else:
+                            self.rag_list(from_toggle=True)
+                    else:
+                        # Activate specific collection
+                        self.rag_activate(arg)
+                    command_executed = True
+                elif command.startswith("--text"):
+                    if arg is None:
+                        print_info("Please specify text content")
+                    else:
+                        # Check if nothink mode is enabled and prepend /nothink prefix
+                        final_user_input = arg
+                        if self.settings_manager.setting_get("nothink"):
+                            final_user_input = "/nothink " + arg
 
-                command_processed = True
-            elif command.startswith("--incognito"):
-                incognito = self.settings_manager.setting_get("incognito")
-                if incognito:
-                    self.settings_manager.setting_set("incognito", False)
-                    print_info("Incognito mode disabled - logging resumed")
-                else:
-                    self.settings_manager.setting_set("incognito", True)
-                    print_info("Incognito mode enabled - no data will be saved to logs")
+                        # Add text content (not the command) to conversation and generate response
+                        self.conversation_manager.conversation_history.append(
+                            {"role": "user", "content": final_user_input}
+                        )
 
-                command_processed = True
+                        self.conversation_manager.generate_response()
+                    command_executed = True
 
-            elif command.startswith("--clear"):
-                self.conversation_manager.start_new_conversation_log()
-                print_info("Conversation history cleared - will create new log file after first AI response")
-                print_info("AI instructions preserved")
-                command_processed = True
-            elif command.startswith("--usage"):
-                self.display_token_usage()
-                command_processed = True
-            elif command.startswith("--tts-model"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                if arg is None:
-                    print_info("Please specify a TTS model. Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
+            finally:
+                # DRY LOGGING: This handles ALL commands automatically
+                if command_executed:
+                    captured_output = stop_capturing_print_info()
+                    self._log_command_with_output(command, captured_output)
                     command_processed = True
                 else:
-                    valid_models = ["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
-                    if arg in valid_models:
-                        self.settings_manager.setting_set("tts_model", arg)
-                        print_info(f"TTS model set to: {arg}")
-                    else:
-                        print_info(f"Invalid TTS model: {arg}. Available models: {', '.join(valid_models)}")
-                    command_processed = True
-            elif command.startswith("--tts-voice"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                if arg is None:
-                    print_info("Please specify a TTS voice. Available voices: alloy, echo, fable, onyx, nova, shimmer")
-                    command_processed = True
-                else:
-                    valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
-                    if arg in valid_voices:
-                        self.settings_manager.setting_set("tts_voice", arg)
-                        print_info(f"TTS voice set to: {arg}")
-                    else:
-                        print_info(f"Invalid TTS voice: {arg}. Available voices: {', '.join(valid_voices)}")
-                    command_processed = True
-            elif command.startswith("--tts-save-as-mp3"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
-                if tts_save_mp3:
-                    self.settings_manager.setting_set("tts_save_mp3", False)
-                    print_info("TTS save as MP3 disabled")
-                else:
-                    self.settings_manager.setting_set("tts_save_mp3", True)
-                    print_info("TTS save as MP3 enabled")
-
-                command_processed = True
-            elif command.startswith("--tts"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                tts = self.settings_manager.setting_get("tts")
-                if tts:
-                    self.settings_manager.setting_set("tts", False)
-                    print_info("TTS disabled")
-                else:
-                    # Check for privacy: don't enable TTS when using Ollama models
-                    current_model = self.settings_manager.setting_get("model")
-                    if current_model and self.conversation_manager.llm_client_manager.get_provider_for_model(current_model) == "ollama":
-                        print_info("TTS not available when using Ollama models")
-                        print_info("TTS would send your text to OpenAI, breaking local privacy")
-                    else:
-                        self.settings_manager.setting_set("tts", True)
-                        print_info("TTS enabled")
-
-                command_processed = True
-            elif command.startswith("--rag-status"):
-                self.rag_status()
-                command_processed = True
-            elif command.startswith("--rag-rebuild"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                if arg is None:
-                    print_info("Please specify a collection name to rebuild")
-                else:
-                    self.rag_rebuild(arg)
-                command_processed = True
-            elif command.startswith("--rag-show"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                if arg is None:
-                    print_info("Please specify a filename to show")
-                else:
-                    self.rag_show(arg)
-                command_processed = True
-            elif command.startswith("--rag-test"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                self.rag_test_connection()
-                command_processed = True
-            elif command.startswith("--rag-info"):
-                self.rag_model_info()
-                command_processed = True
-            elif command.startswith("--rag"):
-                # Log the command
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": command}
-                )
-
-                if arg is None:
-                    # Toggle RAG on/off
-                    if self.rag_engine and self.rag_engine.is_active():
-                        self.rag_off()
-                    else:
-                        self.rag_list(from_toggle=True)
-                else:
-                    # Activate specific collection
-                    self.rag_activate(arg)
-                command_processed = True
-            elif command.startswith("--text"):
-                if arg is None:
-                    print_info("Please specify text content")
-                else:
-                    # Check if nothink mode is enabled and prepend /nothink prefix
-                    final_user_input = arg
-                    if self.settings_manager.setting_get("nothink"):
-                        final_user_input = "/nothink " + arg
-
-                    # Add text content (not the command) to conversation and generate response
-                    self.conversation_manager.conversation_history.append(
-                        {"role": "user", "content": final_user_input}
-                    )
-
-                    self.conversation_manager.generate_response()
-                command_processed = True
+                    # Command not recognized - don't log it
+                    stop_capturing_print_info()  # Clean up capture
 
         # Ensure proper spacing before next user prompt
         if command_processed:

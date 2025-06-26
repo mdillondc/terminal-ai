@@ -215,6 +215,9 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 
 ## Advanced Features
 
+### Command Logging
+All commands executed with `--` prefix and their output are automatically logged to conversation files (`.md` and `.json`), providing complete audit trails of your AI interactions. This includes status messages, progress updates, and command results for easy debugging and workflow documentation.
+
 ### URL Content Extraction
 Automatic paywall/access block bypass using multiple methods:
 - Search engine bot headers

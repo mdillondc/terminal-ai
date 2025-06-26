@@ -3,4 +3,5 @@ __pycache__/
 logs/
 cache/
 rag/
+pdf/
 audio_output/
