@@ -1012,7 +1012,7 @@ class CommandManager:
             url: Web URL to extract content from (any valid HTTP/HTTPS URL)
         """
         # Check if this is a YouTube URL and redirect to YouTube command
-        if "youtube.com" in url.lower() or "youtu.be" in url.lower():
+        if "youtube.com" in url.lower() or "youtu.be" or "10.13.0.200:8090" in url.lower():
             print_info("YouTube URL detected - redirecting to --youtube command for better transcript extraction...")
             self.extract_youtube_content(url)
             return
