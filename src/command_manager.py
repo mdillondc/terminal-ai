@@ -234,6 +234,8 @@ class CommandManager:
                     {"role": "user", "content": command}
                 )
 
+                print_info("Press F8 to toggle scroll mode")
+                
                 if self.settings_manager.setting_get("scroll"):
                     self.settings_manager.setting_set("scroll", False)
                 else:
