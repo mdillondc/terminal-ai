@@ -237,7 +237,7 @@ Find instruction inspiration at [fabric/patterns](https://github.com/danielmiess
 |---------|-------------|
 | `--search` | Toggle web search mode |
 | `--markdown` | [EXPERIMENTAL] Toggle markdown rendering for AI responses |
-| `--scroll` | Toggle scroll navigation (hotkey Ctrl+V). Use j/k to scroll, gg for top, G for bottom |
+| `--scroll` | Toggle scroll navigation (hotkey F8). Use j/k to scroll, gg for top, G for bottom |
 | `--nothink` | Disable thinking on Ollama models |
 | `--incognito` | Toggle private mode (no logs) |
 

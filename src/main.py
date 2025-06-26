@@ -98,9 +98,9 @@ def main() -> None:
             # Force start new completion
             event.current_buffer.start_completion(select_first=False)
 
-    @kb.add('c-v')
+    @kb.add('f8')
     def toggle_scroll_mode(event):
-        """Toggle scroll navigation mode with Ctrl+V key"""
+        """Toggle scroll navigation mode with F8 key"""
         if scroll_manager.scroll_mode:
             # Exit scroll mode directly
             scroll_manager.handle_toggle()

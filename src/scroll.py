@@ -98,7 +98,7 @@ class ScrollManager:
 
         # Display status line
         percent = int((self.scroll_position / max(1, len(self.history_lines) - terminal_height)) * 100) if len(self.history_lines) > terminal_height else 100
-        status = f"[SCROLL MODE] Line {self.scroll_position + 1}/{len(self.history_lines)} ({percent}%) - j/k scroll, d/u fast scroll, gg top, G bottom, Ctrl+V exit"
+        status = f"[SCROLL MODE] Line {self.scroll_position + 1}/{len(self.history_lines)} ({percent}%) - j/k scroll, d/u fast scroll, gg top, G bottom, F8 to exit"
         sys.stdout.write(f"\n\033[48;5;136m\033[30m{status}\033[0m")  # Gruvbox dark yellow background with black text
         sys.stdout.flush()
 
@@ -213,6 +213,6 @@ class ScrollManager:
             self._go_to_bottom()
 
     def handle_toggle(self):
-        """Handle scroll mode toggle from Ctrl+V"""
+        """Handle scroll mode toggle from F8"""
         if self.scroll_mode:
             self._exit_scroll_mode()
