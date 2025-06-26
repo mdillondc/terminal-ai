@@ -202,6 +202,7 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 | `--log <filename>` | Resume previous conversation |
 | `--logmv [title]` | Rename current conversation |
 | `--logrm` | Delete current conversation |
+| `--pdf` | Generate PDF export of current conversation |
 | `--incognito` | Toggle private mode (no logging) |
 
 ### Text-to-Speech
@@ -217,6 +218,13 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 
 ### Command Logging
 All commands executed with `--` prefix and their output are automatically logged to conversation files (`.md` and `.json`), providing complete audit trails of your AI interactions. This includes status messages, progress updates, and command results for easy debugging and workflow documentation.
+
+### PDF Export
+Generate formatted PDF documents of your conversations with the `--pdf` command. PDFs are saved to the `pdf/` directory using your current conversation's log name. All conversation elements are preserved including:
+- System messages and instructions (formatted in light gray)
+- User messages and AI responses with proper formatting
+- Generation timestamp and metadata
+- Automatic file overwriting for updated exports
 
 ### URL Content Extraction
 Automatic paywall/access block bypass using multiple methods:
