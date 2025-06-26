@@ -11,6 +11,7 @@ anthropic
 pygame
 tavily-python
 pypdf
+reportlab
 pyarrow
 pandas
 numpy

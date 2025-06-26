@@ -345,6 +345,21 @@ class CommandManager:
 
                         self.conversation_manager.generate_response()
                     command_executed = True
+                elif command.startswith("--pdf"):
+                    # Generate PDF of the conversation
+                    if self.settings_manager.setting_get("incognito"):
+                        print_info("Cannot generate PDF: incognito mode is enabled (no logging active)")
+                    elif not self.conversation_manager.conversation_history:
+                        print_info("No conversation history to export to PDF")
+                    else:
+                        try:
+                            pdf_path = self.conversation_manager.generate_pdf()
+                            print_info(f"PDF generated successfully: {pdf_path}")
+                        except ValueError as e:
+                            print_info(f"Error generating PDF: {e}")
+                        except Exception as e:
+                            print_info(f"Unexpected error generating PDF: {e}")
+                    command_executed = True
 
             finally:
                 # DRY LOGGING: This handles ALL commands automatically
