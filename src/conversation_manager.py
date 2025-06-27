@@ -487,7 +487,7 @@ class ConversationManager:
                 # Add search results as a system message to provide context
                 search_context = {
                     "role": "system",
-                    "content": f"SEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this information to provide a comprehensive and current answer to the user's question. Cite sources when relevant."
+                    "content": f"SEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this information to provide a comprehensive and current answer to the user's question. MANDATORY: You MUST always conclude your response with a 'Sources:' section that includes:\n\n1. A numbered list of the sources used in your answer\n2. Each source must include the full URL as a clickable link in markdown format: [Title](URL)\n3. Prefer recent, authoritative sources over older or less credible ones\n4. Always include this sources section even if you only reference one source\n\nExample format:\n\n## Sources:\n1. [Article Title](https://example.com/article)\n2. [Another Source](https://example.com/source2)"
                 }
 
                 # Insert search context before the last user message
