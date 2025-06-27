@@ -293,19 +293,32 @@ class CommandCompleter(Completer):
 
             for file_path in files:
                 # Calculate the completion text and start position
-                completion_text = os.path.basename(file_path.rstrip("/"))
+                file_basename = os.path.basename(file_path.rstrip("/"))
 
                 if partial_path.endswith("/"):
-                    # Directory path - append to the existing path
-                    start_pos = 0
+                    base_path = partial_path.rstrip("/")  # Remove trailing slash for consistent joining
+                    if os.path.isdir(file_path.rstrip("/")):
+                        # Directory: append trailing slash for continued navigation
+                        completion_text = f"{base_path}/{file_basename}/"
+                    else:
+                        # File: no trailing slash
+                        completion_text = f"{base_path}/{file_basename}"
+
+                    # Replace the entire current path (including the trailing slash)
+                    start_pos = -len(partial_path)
                 elif filename_prefix:
-                    # Partial filename - replace the filename part
+                    # Partial filename completion (e.g., '--file READ' -> 'README.md')
+                    # Replace only the partial filename part
+                    completion_text = file_basename
                     start_pos = -len(filename_prefix)
                 else:
-                    # Empty or special paths - handle appropriately
+                    # Empty or special paths (e.g., '--file ' or '--file ~')
+                    completion_text = file_basename
                     if partial_path.strip() in ["/", "~"]:
+                        # Replace special path markers
                         start_pos = -len(partial_path)
                     else:
+                        # Insert at current position (empty path case)
                         start_pos = 0
 
                 yield Completion(
