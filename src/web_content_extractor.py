@@ -1,11 +1,15 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-from typing import Dict, Optional, List, Tuple
+from urllib.parse import urlparse
+from typing import Dict, Optional
 import re
 import time
+import json
 from datetime import datetime, timedelta
+
 from print_helper import print_info
+from settings_manager import SettingsManager
+from llm_client_manager import LLMClientManager
 
 
 class WebContentExtractor:
@@ -14,12 +18,16 @@ class WebContentExtractor:
     Attempts various bypass methods when access is blocked.
     """
 
-    def __init__(self):
+    def __init__(self, llm_client_manager: LLMClientManager):
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
         })
         self.timeout = 30
+
+        # Store the LLM client manager for content evaluation
+        self.llm_client_manager = llm_client_manager
+        self.settings_manager = SettingsManager.getInstance()
 
     def extract_content(self, url: str) -> Dict[str, Optional[str]]:
         """
@@ -60,7 +68,7 @@ class WebContentExtractor:
                     else:
                         print_info("Access blocked - attempting bypass methods...")
 
-                    bypass_result = self._try_access_bypass(url)
+                    bypass_result = self._try_access_bypass(url, "")
                     if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
                         return bypass_result
                     else:
@@ -69,16 +77,32 @@ class WebContentExtractor:
                 else:
                     return normal_result
 
-            # Check for access restrictions in content
-            block_type = self._is_access_blocked(normal_result['content'])
-            if block_type:
-                print_info(f"Access restriction detected ({block_type}) - attempting bypass methods...")
-                bypass_result = self._try_access_bypass(url)
-                if bypass_result['content'] and not self._is_access_blocked(bypass_result['content']):
+            # Check for access restrictions in content using LLM
+            if normal_result['content']:
+                is_blocked = self._llm_evaluate_content(normal_result['content'])
+                if is_blocked:
+                    print_info("Access restriction detected - attempting bypass methods...")
+                    bypass_result = self._try_access_bypass(url, normal_result['content'])
+                    if bypass_result['content']:
+                        return bypass_result
+                    else:
+                        content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
+                        print_info("All bypass methods failed - content appears blocked")
+                        print_info(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
+                        normal_result['warning'] = "Content may be incomplete due to access restrictions"
+                        normal_result['bypass_failed'] = True
+                        return normal_result
+            else:
+                # No content to evaluate
+                bypass_result = self._try_access_bypass(url, "")
+                if bypass_result['content']:
                     return bypass_result
                 else:
-                    print_info("Content appears incomplete due to access restrictions - no bypass methods worked")
-                    normal_result['warning'] = f"Content may be incomplete due to access restrictions ({block_type})"
+                    content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
+                    print_info("All bypass methods failed - content appears blocked")
+                    print_info(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
+                    normal_result['warning'] = "Content may be incomplete due to access restrictions"
+                    normal_result['bypass_failed'] = True
                     return normal_result
 
             return normal_result
@@ -303,121 +327,144 @@ class WebContentExtractor:
 
         return result
 
-    def _is_access_blocked(self, content: str) -> Optional[str]:
-        """Detect common access blocking indicators. Returns block type or None."""
+    def _strip_markdown_json(self, text: str) -> str:
+        """Strip markdown code block formatting from JSON responses."""
+        # Remove ```json and ``` markers
+        text = text.strip()
+        if text.startswith('```json'):
+            text = text[7:]  # Remove ```json
+        elif text.startswith('```'):
+            text = text[3:]   # Remove ```
+        if text.endswith('```'):
+            text = text[:-3]  # Remove trailing ```
+        return text.strip()
+
+    def _llm_evaluate_content(self, content: Optional[str]) -> Optional[str]:
+        """Use LLM to evaluate if content is complete or blocked by restrictions."""
         if not content:
             return None
 
-        content_lower = content.lower()
-        total_words = len(content.split())
+        try:
+            # Get current model from settings
+            current_model = self.settings_manager.setting_get("model")
 
-        # Paywall indicators
-        paywall_indicators = [
-            "subscribe to continue", "subscription required", "paywall",
-            "premium content", "members only", "subscriber exclusive",
-            "unlock this article", "start your subscription",
-            "support ensures", "independent journalism", "uncompromising quality",
-            "enduring impact", "bright future for independent journalism"
-        ]
+            prompt = """Is this web content blocked by a paywall or access restriction?
 
-        # Login/registration wall indicators
-        login_indicators = [
-            "login to continue", "sign in to read more",
-            "create account to continue", "please log in to continue",
-            "create account to unlock", "register to continue"
-        ]
+Content to analyze:
+{content}
 
-        # Bot detection indicators
-        bot_indicators = [
-            "access denied", "blocked", "security check", "captcha",
-            "unusual traffic", "automated requests", "bot detected",
-            "verify you are human", "please verify", "security verification"
-        ]
+Think like a human reader: Does this feel complete or are you being stopped and asked to pay/login?
 
-        # Geographic restriction indicators
-        geo_indicators = [
-            "not available in your region", "geographic restriction",
-            "content not available", "region blocked", "location restricted"
-        ]
+Common signs of blocked content:
+- Content ends abruptly mid-sentence
+- Subscription prompts like "Subscribe to continue"
+- Very short content that feels incomplete
+- Login requirements
 
-        # Rate limiting indicators
-        rate_indicators = [
-            "too many requests", "rate limit", "slow down", "try again later",
-            "exceeded limit"
-        ]
+Respond in JSON format only:
+{{
+  "blocked": true or false
+}}""".format(content=content)
 
-        # Check for specific block types
-        for indicator in paywall_indicators:
-            if indicator in content_lower:
-                return "paywall"
+            messages = [{"role": "user", "content": prompt}]
 
-        for indicator in login_indicators:
-            if indicator in content_lower:
-                return "login required"
+            response = self.llm_client_manager.create_chat_completion(
+                model=current_model,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=100
+            )
 
-        for indicator in bot_indicators:
-            if indicator in content_lower:
-                return "bot detection"
+            response_text = response.choices[0].message.content.strip()
 
-        for indicator in geo_indicators:
-            if indicator in content_lower:
-                return "geographic restriction"
+            # Strip markdown formatting and parse JSON
+            clean_json = self._strip_markdown_json(response_text)
 
-        for indicator in rate_indicators:
-            if indicator in content_lower:
-                return "rate limiting"
+            # Parse JSON response - strict validation, no fallbacks
+            try:
+                result = json.loads(clean_json)
+                if not isinstance(result, dict):
+                    print_info(f"ERROR: LLM returned invalid JSON structure (not a dictionary): {response_text}")
+                    return None
 
-        # Pattern-based detection for complex blocking messages
-        paywall_patterns = [
-            # The Atlantic style - more specific patterns
-            ("never miss a story", "free trial"),
-            ("uncompromising quality", "independent journalism"),
-            ("get started", "already have an account"),
-            ("support ensures", "bright future"),
-            # NYT style
-            ("subscribe", "continue reading"),
-            ("create account", "free articles"),
-            # WSJ style
-            ("subscriber", "exclusive"),
-            # General patterns - must be more specific
-            ("start your free trial", "sign in"),
-            ("subscription", "unlimited access")
-        ]
+                if result.get("blocked") == True:
+                    return "blocked"
+                else:
+                    return None  # Content is complete
+            except json.JSONDecodeError:
+                print_info(f"ERROR: LLM returned invalid JSON for content evaluation: {response_text}")
+                print_info("Cannot proceed with content evaluation - LLM must return valid JSON")
+                return None
 
-        # Check for pattern combinations - require both patterns to be present
-        for pattern1, pattern2 in paywall_patterns:
-            if pattern1 in content_lower and pattern2 in content_lower:
-                return "paywall"
+        except Exception as e:
+            print_info(f"LLM evaluation failed, falling back to basic checks: {str(e)}")
+            # Simple fallback - very short content is likely incomplete
+            if len(content.split()) < 30:
+                return "insufficient content"
+            return None
 
-        # Weaker indicators (need multiple) - removed overly broad terms
-        weak_indicators = [
-            "subscribe", "subscription", "premium", "member",
-            "sign in", "log in", "create account", "register",
-            "free trial", "start trial"
-        ]
+    def _llm_evaluate_bypass(self, original_content: Optional[str], bypass_content: Optional[str]) -> bool:
+        """Use LLM to compare original and bypass content to determine if bypass was successful."""
+        if not bypass_content:
+            return False
+        if not original_content:
+            original_content = ""
 
-        # For very short content, be more aggressive with detection
-        if total_words < 50:
-            weak_count = sum(1 for indicator in weak_indicators if indicator in content_lower)
-            if weak_count >= 3:  # Require more evidence even for short content
-                return "access restriction"
-        else:
-            # For longer content, need much more evidence
-            weak_count = sum(1 for indicator in weak_indicators if indicator in content_lower)
-            if weak_count >= 4:  # Raised threshold
-                return "access restriction"
+        try:
+            # Get current model from settings
+            current_model = self.settings_manager.setting_get("model")
 
-            # Check content length vs blocking text ratio - be more conservative
-            blocking_words = sum(content_lower.count(indicator) for indicator in weak_indicators)
-            if total_words < 150 and blocking_words > 8:  # More restrictive
-                return "access restriction"
+            prompt = """Is this web content blocked by a paywall or access restriction?
 
-        return None
+Content to analyze:
+{content}
 
-    def _try_access_bypass(self, url: str) -> Dict[str, Optional[str]]:
+Think like a human reader: Does this feel complete or are you being stopped and asked to pay/login?
+
+Respond in JSON format only:
+{{
+  "blocked": true or false
+}}""".format(content=bypass_content)
+
+            messages = [{"role": "user", "content": prompt}]
+
+            response = self.llm_client_manager.create_chat_completion(
+                model=current_model,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=50
+            )
+
+            response_text = response.choices[0].message.content.strip()
+
+            # Strip markdown formatting if present
+            clean_json = self._strip_markdown_json(response_text)
+
+            # Parse JSON response - strict validation, no fallbacks
+            try:
+                result = json.loads(clean_json)
+                if not isinstance(result, dict):
+                    print_info(f"ERROR: LLM returned invalid JSON structure for bypass evaluation: {response_text}")
+                    return False
+                return not result.get("blocked", True)  # If not blocked, bypass was successful
+            except json.JSONDecodeError:
+                print_info(f"ERROR: LLM returned invalid JSON for bypass evaluation: {response_text}")
+                print_info("Cannot proceed with bypass evaluation - LLM must return valid JSON")
+                return False
+
+        except Exception as e:
+            print_info(f"LLM bypass evaluation failed: {str(e)}")
+            # Fallback to simple length comparison
+            if not original_content or not bypass_content:
+                return bool(bypass_content and len(bypass_content.split()) > 50)
+            original_words = len(original_content.split())
+            bypass_words = len(bypass_content.split())
+            return bypass_words > original_words * 1.5  # 50% more content suggests success
+
+    def _try_access_bypass(self, url: str, original_content: str) -> Dict[str, Optional[str]]:
         """Try multiple methods to bypass access restrictions."""
         bypass_methods = [
-            ("search engine bot user agent", self._try_bot_user_agent),
+            ("alternative user agents", self._try_bot_user_agent),
             ("print version URL", self._try_print_version),
             ("AMP version URL", self._try_amp_version),
             ("Archive.org (Wayback Machine)", self._try_archive_org)
@@ -427,29 +474,30 @@ class WebContentExtractor:
             try:
                 print_info(f"Attempting bypass using {method_name}...")
                 result = method_func(url)
-                if (result and result.get('content') and
-                    not self._is_access_blocked(result['content']) and
-                    len(result['content'].split()) > 100):  # Ensure substantial content
-                    result['warning'] = f"Access restriction bypassed using {method_name}"
-                    return result
-                else:
-                    if result and result.get('content'):
-                        content_length = len(result['content'].split())
-                        block_type = self._is_access_blocked(result['content'])
-                        if block_type:
-                            print_info(f"{method_name} failed - still blocked ({block_type})")
-                        elif content_length <= 100:
-                            print_info(f"{method_name} failed - insufficient content ({content_length} words)")
-                        else:
-                            print_info(f"{method_name} failed - unknown issue")
+
+                # Check if we got content
+                if result and result.get('content'):
+                    # Use LLM to evaluate if bypass was successful
+                    bypass_successful = self._llm_evaluate_bypass(original_content, result.get('content'))
+
+                    if bypass_successful:
+                        # Success!
+                        specific_method = result.get('method', method_name)
+                        content_length = len(result.get('content', '').split())
+                        print_info(f"Success: Bypassed using {specific_method} - extracted {content_length} words")
+                        result['warning'] = f"Access restriction bypassed using {specific_method}"
+                        return result
                     else:
-                        print_info(f"{method_name} failed - no content retrieved")
+                        # Failed validation
+                        print_info(f"Failed: {method_name} - bypass did not improve content")
+                else:
+                    print_info(f"Failed: {method_name} - no content retrieved")
+
             except Exception as e:
-                print_info(f"{method_name} failed - {str(e)}")
+                print_info(f"Failed: {method_name} - {str(e)}")
                 continue
 
         # All methods failed
-        print_info("All bypass methods exhausted")
         return {'content': None, 'error': 'All bypass methods failed'}
 
 
@@ -472,7 +520,6 @@ class WebContentExtractor:
         for time_desc, timestamp in timestamps:
             try:
                 archive_url = f"https://web.archive.org/web/{timestamp}/{url}"
-                print_info(f"Checking Archive.org snapshot from {time_desc}...")
 
                 # Use different session to avoid rate limiting conflicts
                 archive_session = requests.Session()
@@ -492,24 +539,19 @@ class WebContentExtractor:
                     title = self._extract_title(soup)
                     content = self._extract_main_content(soup)
 
-                    if content and len(content.split()) > 100:
-                        print_info(f"Found archived content from {time_desc}: \"{title}\" ({len(content.split())} words)")
+                    if content:
                         return {
                             'title': title,
                             'content': content,
                             'url': url,
                             'error': None,
-                            'warning': None
+                            'warning': None,
+                            'method': f"Archive.org snapshot from {time_desc}"
                         }
-                    else:
-                        print_info(f"{time_desc} snapshot has insufficient content")
-                else:
-                    print_info(f"No {time_desc} snapshot available (HTTP {response.status_code})")
 
                 time.sleep(0.5)  # Be respectful to archive.org
 
-            except Exception as e:
-                print_info(f"{time_desc} snapshot failed: {str(e)}")
+            except Exception:
                 continue
 
         return {'content': None, 'error': 'No usable Archive.org snapshots found'}
@@ -572,7 +614,6 @@ class WebContentExtractor:
 
         for agent_name, headers in user_agent_configs:
             try:
-                print_info(f"Trying {agent_name} user agent...")
                 bot_session = requests.Session()
                 bot_session.headers.update(headers)
 
@@ -583,20 +624,17 @@ class WebContentExtractor:
                 title = self._extract_title(soup)
                 content = self._extract_main_content(soup)
 
-                if content and len(content.split()) > 100:
-                    print_info(f"{agent_name} succeeded: \"{title}\" ({len(content.split())} words)")
+                if content:
                     return {
                         'title': title,
                         'content': content,
                         'url': url,
                         'error': None,
-                        'warning': None
+                        'warning': None,
+                        'method': agent_name
                     }
-                else:
-                    print_info(f"{agent_name} returned insufficient content")
 
-            except Exception as e:
-                print_info(f"{agent_name} failed: {str(e)}")
+            except Exception:
                 continue
 
         return {'content': None, 'error': 'All user agents failed'}
@@ -614,7 +652,6 @@ class WebContentExtractor:
 
         for variation_desc, print_url in print_variations:
             try:
-                print_info(f"Trying print URL with {variation_desc}...")
                 response = self.session.get(print_url, timeout=self.timeout)
                 response.raise_for_status()
 
@@ -622,20 +659,17 @@ class WebContentExtractor:
                 title = self._extract_title(soup)
                 content = self._extract_main_content(soup)
 
-                if content and len(content.split()) > 100:
-                    print_info(f"Print version {variation_desc} succeeded: \"{title}\" ({len(content.split())} words)")
+                if content:
                     return {
                         'title': title,
                         'content': content,
                         'url': url,
                         'error': None,
-                        'warning': None
+                        'warning': None,
+                        'method': f"print version ({variation_desc})"
                     }
-                else:
-                    print_info(f"Print version {variation_desc} returned insufficient content")
 
-            except Exception as e:
-                print_info(f"Print version {variation_desc} failed: {str(e)}")
+            except Exception:
                 continue
 
         return {'content': None, 'error': 'No working print version found'}
@@ -654,7 +688,6 @@ class WebContentExtractor:
 
         for variation_desc, amp_url in amp_variations:
             try:
-                print_info(f"Trying AMP URL with {variation_desc}...")
                 response = self.session.get(amp_url, timeout=self.timeout)
                 response.raise_for_status()
 
@@ -668,20 +701,17 @@ class WebContentExtractor:
                 title = self._extract_title(soup)
                 content = self._extract_main_content(soup)
 
-                if content and len(content.split()) > 100:
-                    print_info(f"AMP version {variation_desc} succeeded: \"{title}\" ({len(content.split())} words)")
+                if content:
                     return {
                         'title': title,
                         'content': content,
                         'url': url,
                         'error': None,
-                        'warning': None
+                        'warning': None,
+                        'method': f"AMP version ({variation_desc})"
                     }
-                else:
-                    print_info(f"AMP version {variation_desc} returned insufficient content")
 
-            except Exception as e:
-                print_info(f"AMP version {variation_desc} failed: {str(e)}")
+            except Exception:
                 continue
 
         return {'content': None, 'error': 'No working AMP version found'}

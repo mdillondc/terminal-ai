@@ -962,7 +962,7 @@ class CommandManager:
 
         print_info("Extracting content from URL...")
 
-        extractor = WebContentExtractor()
+        extractor = WebContentExtractor(self.conversation_manager.llm_client_manager)
         result = extractor.extract_content(url)
 
         if result['error']:
@@ -986,8 +986,11 @@ class CommandManager:
             {"role": "user", "content": formatted_content}
         )
 
-        print_info("Content added to conversation context")
-        print_info("You can now ask questions about this content")
+        # Only show success messages if bypass didn't fail
+        # (WebContentExtractor already explained bypass failure to user)
+        if not result.get('bypass_failed'):
+            print_info("Content added to conversation context")
+            print_info("You can now ask questions about this content")
 
     def extract_file_content(self, file_path: str) -> None:
         """
