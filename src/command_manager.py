@@ -72,6 +72,36 @@ class CommandManager:
         Returns:
             bool: True if any commands were processed, False otherwise
         """
+        # Special case: --search followed by content
+        if user_input.strip().startswith("--search "):
+            # Toggle search setting
+            if self.settings_manager.setting_get("search"):
+                self.settings_manager.setting_set("search", False)
+                search_status = "Web search disabled"
+            else:
+                self.settings_manager.setting_set("search", True)
+                search_status = "Web search enabled"
+
+            print_info(search_status)
+
+            # Extract content after "--search "
+            content = user_input.strip()[9:]  # Remove "--search " (9 characters)
+
+            if content.strip():
+                # Check if nothink mode is enabled and prepend /nothink prefix
+                final_user_input = content
+                if self.settings_manager.setting_get("nothink"):
+                    final_user_input = "/nothink " + content
+
+                # Add content to conversation and generate response
+                self.conversation_manager.conversation_history.append(
+                    {"role": "user", "content": final_user_input}
+                )
+
+                self.conversation_manager.generate_response()
+
+            return True
+
         command_processed = False
         commands = [
             "--" + command.strip()
