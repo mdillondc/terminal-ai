@@ -190,7 +190,6 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 
 **Smart Features:**
 - Dynamic intent detection via LLM analysis
-- Automatic fact-checking for controversial topics
 - Conversation context awareness
 - Current date awareness in queries
 - Multi-query strategy (1-3 optimized searches per request)
@@ -215,9 +214,6 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 | `--tts-save-as-mp3` | Save responses as MP3 files |
 
 ## Advanced Features
-
-### Command Logging
-All commands executed with `--` prefix and their output are automatically logged to conversation files (`.md` and `.json`), providing complete audit trails of your AI interactions. This includes status messages, progress updates, and command results for easy debugging and workflow documentation.
 
 ### PDF Export
 Generate formatted PDF documents of your conversations with the `--pdf` command. PDFs are saved to the `pdf/` directory using your current conversation's log name. All conversation elements are preserved including:
