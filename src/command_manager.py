@@ -770,7 +770,12 @@ class CommandManager:
         Attempts to extract video transcripts using multiple strategies:
         1. Manual English subtitles (highest quality)
         2. Auto-generated captions in English
-        3. Fallback to video metadata only if no transcript available
+        3. Manual subtitles in other languages (as fallback)
+        4. Auto-generated captions in other languages (as fallback)
+        5. Fallback to video metadata only if no transcript available
+
+        When using non-English subtitles, a language note is added to the context
+        to inform the AI about the transcript language.
 
         Supports various YouTube URL formats and automatically extracts video ID.
         The extracted content (title, channel, transcript) is added to the
@@ -840,7 +845,7 @@ class CommandManager:
                         subtitles = subtitle_info.get('subtitles', {}) if subtitle_info else {}
                         automatic_captions = subtitle_info.get('automatic_captions', {}) if subtitle_info else {}
 
-                        # Try to find English subtitles in order of preference
+                        # Try to find subtitles in order of preference
                         subtitle_data = None
                         subtitle_source = None
 
@@ -852,7 +857,7 @@ class CommandManager:
                                 print_info(f"Found manual {lang} subtitles")
                                 break
 
-                        # If no manual subtitles, try automatic captions
+                        # If no manual English subtitles, try automatic English captions
                         if not subtitle_data:
                             for lang in ['en', 'en-US', 'en-GB', 'en-CA', 'en-AU']:
                                 if lang in automatic_captions and automatic_captions[lang]:
@@ -860,6 +865,31 @@ class CommandManager:
                                     subtitle_source = f"auto-generated {lang}"
                                     print_info(f"Found auto-generated {lang} captions")
                                     break
+
+                        # If no English subtitles found, try other languages as fallback
+                        if not subtitle_data:
+                            available_langs = list(subtitles.keys()) + list(automatic_captions.keys())
+                            if available_langs:
+                                print_info(f"Available subtitle languages: {', '.join(set(available_langs))}")
+                                print_info("No English subtitles found")
+                                print_info("Attempting to use other available subtitle languages...")
+
+                                # Try manual subtitles first (any language)
+                                for lang in subtitles.keys():
+                                    if subtitles[lang]:
+                                        subtitle_data = subtitles[lang]
+                                        subtitle_source = f"manual {lang}"
+                                        print_info(f"Using manual {lang} subtitles as fallback")
+                                        break
+
+                                # If no manual subtitles, try automatic captions (any language)
+                                if not subtitle_data:
+                                    for lang in automatic_captions.keys():
+                                        if automatic_captions[lang]:
+                                            subtitle_data = automatic_captions[lang]
+                                            subtitle_source = f"auto-generated {lang}"
+                                            print_info(f"Using auto-generated {lang} captions as fallback")
+                                            break
 
                         if subtitle_data:
                             # Find the best subtitle format (prefer vtt, then srv3, then srv2, then srv1)
@@ -917,9 +947,16 @@ class CommandManager:
                                             print_info(f"Successfully extracted transcript from {subtitle_source}")
                                             print_info(f"Processing {len(transcript_text)} characters as input...")
 
+                                            # Add language note if not English
+                                            language_note = ""
+                                            if not any(lang_code in subtitle_source for lang_code in ['en', 'en-US', 'en-GB', 'en-CA', 'en-AU']):
+                                                lang_code = subtitle_source.split()[-1]
+                                                language_note = f"\nNote: Transcript is in {lang_code} language. Please respond in the users preferred language regardless of the transcript language (infer preferred language based on users prompts)."
+
                                             user_input = (
                                                 "Channel title: " + channel_title +
                                                 "\nVideo title: " + video_title +
+                                                language_note +
                                                 "\nVideo transcript: " + transcript_text
                                             )
                                             self.conversation_manager.conversation_history.append(
@@ -937,14 +974,9 @@ class CommandManager:
                             else:
                                 raise Exception("No subtitle URL found")
                         else:
-                            # List available subtitle languages for debugging
-                            available_langs = list(subtitles.keys()) + list(automatic_captions.keys())
-                            if available_langs:
-                                print_info(f"Available subtitle languages: {', '.join(set(available_langs))}")
-                                print_info("No English subtitles found")
-                            else:
-                                print_info("No subtitles available for this video")
-                            raise Exception("No English subtitles available")
+                            # No subtitles found at all
+                            print_info("No subtitles available for this video")
+                            raise Exception("No subtitles available")
 
                 except Exception as e:
                     print_info(f"Could not extract transcript: {str(e)}")
