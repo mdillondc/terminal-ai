@@ -459,30 +459,25 @@ class CommandCompleter(Completer):
 
     def _complete_tts_voices(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete TTS voice names with fuzzy matching"""
-        # OpenAI TTS voices with descriptions
-        tts_voices = [
-            ("alloy", "Neutral, versatile voice"),
-            ("echo", "Clear, professional voice"),
-            ("fable", "Warm, storytelling voice"),
-            ("onyx", "Deep, authoritative voice"),
-            ("nova", "Bright, energetic voice"),
-            ("shimmer", "Soft, gentle voice")
-        ]
+        # Use custom suggestions if available, otherwise no completions
+        if not rules.custom_suggestions:
+            return
 
         matches = []
-        for voice_name, description in tts_voices:
+        for voice_name in rules.custom_suggestions:
             is_match, score = self._fuzzy_match(partial_name, voice_name)
             if is_match:
-                matches.append((score, voice_name, description))
+                matches.append((score, voice_name))
 
         # Sort by score (higher is better), then alphabetically
         matches.sort(key=lambda x: (-x[0], x[1]))
 
-        for score, voice_name, description in matches:
+        for score, voice_name in matches:
             yield Completion(
                 text=voice_name,
-                start_position=-len(partial_name),
-                display_meta=description
+                display_text=voice_name,
+                meta="TTS voice",
+                style="class:completion"
             )
 
     def _complete_rag_collections(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:

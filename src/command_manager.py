@@ -294,14 +294,10 @@ class CommandManager:
                     command_executed = True
                 elif command.startswith("--tts-voice"):
                     if arg is None:
-                        print_info("Please specify a TTS voice. Available voices: alloy, echo, fable, onyx, nova, shimmer")
+                        print_info("Please specify a TTS voice")
                     else:
-                        valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
-                        if arg in valid_voices:
-                            self.settings_manager.setting_set("tts_voice", arg)
-                            print_info(f"TTS voice set to: {arg}")
-                        else:
-                            print_info(f"Invalid TTS voice: {arg}. Available voices: {', '.join(valid_voices)}")
+                        self.settings_manager.setting_set("tts_voice", arg)
+                        print_info(f"TTS voice set to: {arg}")
                     command_executed = True
                 elif command.startswith("--tts-save-as-mp3"):
                     tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")

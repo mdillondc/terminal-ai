@@ -23,7 +23,7 @@ class TTSService:
     Text-to-Speech service using OpenAI's TTS API.
 
     Supports multiple models (tts-1, tts-1-hd, gpt-4o-mini-tts) and voices
-    (alloy, echo, fable, onyx, nova, shimmer) with optional file saving.
+    with optional file saving.
     """
 
     def __init__(self, client: Optional[OpenAI] = None):
@@ -122,9 +122,7 @@ class TTSService:
                 print_info(f"Invalid TTS model: {model}")
                 return None
 
-            if not self._validate_voice(voice):
-                print_info(f"Invalid TTS voice: {voice}")
-                return None
+
 
             # Check text length (OpenAI limit is 4096 characters)
             if len(text) > 4096:
@@ -150,10 +148,7 @@ class TTSService:
         valid_models = ["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
         return model in valid_models
 
-    def _validate_voice(self, voice: str) -> bool:
-        """Validate TTS voice name"""
-        valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
-        return voice in valid_voices
+
 
     def _save_audio_file(self, audio_data: bytes, text: str) -> Optional[str]:
         """

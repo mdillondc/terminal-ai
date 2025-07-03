@@ -274,8 +274,7 @@ class CommandRegistry:
             usage="--tts-voice onyx",
             execution_order=1,
             completion_rules=CompletionRules(
-                CompletionType.TTS_VOICE,
-                custom_suggestions=["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+                CompletionType.TTS_VOICE
             ),
             requires_argument=True
         ))
