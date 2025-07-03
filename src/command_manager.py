@@ -789,7 +789,7 @@ class CommandManager:
         video_url = None
 
         # Check if 'watch?v=' is in the URL, otherwise resolve URL
-        if "watch?v=" in arg:
+        if "watch?v=" in arg or "10.13.0.200:8090/embed" in arg:
             video_url = arg
         else:
             print_info("Video ID missing from URL")
@@ -803,7 +803,22 @@ class CommandManager:
 
         if video_url:
             try:
-                video_id = video_url.split("watch?v=")[1]
+                if "watch?v=" in video_url:
+                    video_id = video_url.split("watch?v=")[1]
+                    # Handle additional parameters after video ID
+                    if "&" in video_id:
+                        video_id = video_id.split("&")[0]
+                elif "10.13.0.200:8090/embed" in video_url:
+                    # Extract video ID from embed URL
+                    video_id = video_url.split("/embed/")[1]
+                    # Handle additional parameters after video ID
+                    if "?" in video_id:
+                        video_id = video_id.split("?")[0]
+                    # Convert embed URL to standard YouTube URL for yt-dlp
+                    video_url = f"https://www.youtube.com/watch?v={video_id}"
+                else:
+                    print_info("Unsupported URL format")
+                    return
                 print_info(f"Video ID found: {video_id}")
             except IndexError:
                 print_info("Invalid YouTube URL provided")
@@ -915,6 +930,7 @@ class CommandManager:
                                     if response.status_code == 200:
                                         subtitle_content = response.text
 
+
                                         # Parse VTT or SRV format to extract text
                                         import re
 
@@ -942,6 +958,7 @@ class CommandManager:
                                                     text_lines.append(clean_line)
 
                                         transcript_text = ' '.join(text_lines)
+
 
                                         if transcript_text:
                                             print_info(f"Successfully extracted transcript from {subtitle_source}")
@@ -1015,9 +1032,9 @@ class CommandManager:
             url: Web URL to extract content from (any valid HTTP/HTTPS URL)
         """
         # Check if this is a YouTube URL and redirect to YouTube command
-        # Detect YouTube URLs by common patterns including watch?v= parameter
+        # Detect YouTube URLs by common patterns including watch?v= parameter and embed URLs
         url_lower = url.lower()
-        if ("youtube.com" in url_lower or "youtu.be" in url_lower or "watch?v=" in url_lower):
+        if ("youtube.com" in url_lower or "youtu.be" in url_lower or "watch?v=" in url_lower or "10.13.0.200:8090/embed" in url_lower):
             print_info("YouTube URL detected - redirecting to --youtube command for better transcript extraction...")
             self.extract_youtube_content(url)
             return
