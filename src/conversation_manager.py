@@ -4,6 +4,7 @@ import select
 import sys
 import json
 import re
+import subprocess
 from typing import Optional, Any
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
@@ -217,6 +218,23 @@ class ConversationManager:
         # Init variable to hold AI response in its entirety
         ai_response = ""
 
+        # Check if markdown is enabled for response handling
+        try:
+            markdown_enabled = self.settings_manager.setting_get("markdown")
+        except KeyError:
+            markdown_enabled = False
+
+        # Start streamdown process for real-time markdown rendering
+        streamdown_process = None
+        if markdown_enabled:
+            streamdown_process = subprocess.Popen(
+                ['sd'],
+                stdin=subprocess.PIPE,
+                stdout=None,  # Let it print directly to terminal
+                stderr=None,  # Let it print directly to terminal
+                text=True
+            )
+
         # Process response stream with interrupt checking between chunks
         interrupted = False
         try:
@@ -233,32 +251,36 @@ class ConversationManager:
                         ai_response_chunk = delta.content
                         ai_response += ai_response_chunk
 
-                        # Process chunk with thinking text coloring
-                        self._process_and_print_chunk(ai_response_chunk)
+                        if markdown_enabled and streamdown_process and streamdown_process.stdin:
+                            # Send chunk to streamdown for real-time markdown rendering
+                            streamdown_process.stdin.write(ai_response_chunk)
+                            streamdown_process.stdin.flush()
+                        else:
+                            # Normal processing for non-markdown mode
+                            self._process_and_print_chunk(ai_response_chunk)
         except Exception as e:
             print_info(f"Error processing response stream: {e}")
 
-        # Flush any remaining buffer content and reset state at the end
-        if hasattr(self, '_response_buffer') and self._response_buffer:
-            try:
-                markdown_enabled = self.settings_manager.setting_get("markdown")
-            except KeyError:
-                markdown_enabled = False
+        # Close streamdown process if it was used
+        if markdown_enabled and streamdown_process and streamdown_process.stdin:
+            # Send any remaining buffer content to streamdown
+            if hasattr(self, '_response_buffer') and self._response_buffer:
+                streamdown_process.stdin.write(self._response_buffer)
+                streamdown_process.stdin.flush()
 
-            if markdown_enabled:
-                # In markdown mode, add to markdown buffer instead of printing
-                if not hasattr(self, '_markdown_buffer'):
-                    self._markdown_buffer = ""
-                self._markdown_buffer += self._response_buffer
-            else:
+            # Close stdin to signal end of input
+            streamdown_process.stdin.close()
+
+            # Wait for streamdown to finish processing
+            streamdown_process.wait()
+
+        # Handle remaining buffer content for non-markdown mode
+        complete_response = ai_response
+        if hasattr(self, '_response_buffer') and self._response_buffer:
+            complete_response += self._response_buffer
+            if not markdown_enabled:
                 print(self._response_buffer, end="", flush=True)
             self._response_buffer = ""
-
-        # Render complete response as markdown if enabled
-        try:
-            markdown_enabled = self.settings_manager.setting_get("markdown")
-        except KeyError:
-            markdown_enabled = False
 
 
 
@@ -280,9 +302,9 @@ class ConversationManager:
 
 
         # Only save if we got a response
-        if ai_response:
-            # Append ai_response to the conversation_history array
-            self.conversation_history.append({"role": "assistant", "content": ai_response})
+        if complete_response:
+            # Append complete_response to the conversation_history array
+            self.conversation_history.append({"role": "assistant", "content": complete_response})
 
             # Add newline after AI response for proper spacing
             print()
@@ -297,11 +319,11 @@ class ConversationManager:
             self._check_and_rename_log_after_first_exchange(interrupted)
 
         # Generate and play TTS audio if enabled
-        if self.settings_manager.setting_get("tts") and ai_response:
-            self._handle_tts_playback(ai_response, interrupted)
+        if self.settings_manager.setting_get("tts") and complete_response:
+            self._handle_tts_playback(complete_response, interrupted)
 
         # Ensure proper spacing before next user prompt
-        if ai_response:
+        if complete_response:
             print()
 
 
