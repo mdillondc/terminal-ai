@@ -13,7 +13,6 @@ from search_intent_analyzer import SearchIntentAnalyzer
 from llm_client_manager import LLMClientManager
 from print_helper import print_info, print_lines
 from rich.console import Console
-
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -163,6 +162,14 @@ class ConversationManager:
         return chunk
 
 
+    def _start_streamdown_process(self):
+        """Starts and returns a streamdown subprocess for markdown rendering."""
+        streamdown_cmd = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
+        return subprocess.Popen(
+            streamdown_cmd,
+            stdin=subprocess.PIPE,
+            text=True
+        )
 
     @property
     def model(self) -> str:
@@ -240,13 +247,7 @@ class ConversationManager:
         # Start streamdown process for real-time markdown rendering
         streamdown_process = None
         if markdown_enabled:
-            streamdown_process = subprocess.Popen(
-                ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 0'],  # HSV: gruvbox-ish orange-brown, no margins
-                stdin=subprocess.PIPE,
-                stdout=None,  # Let it print directly to terminal
-                stderr=None,  # Let it print directly to terminal
-                text=True
-            )
+            streamdown_process = self._start_streamdown_process()
 
         # Process response stream with interrupt checking between chunks
         interrupted = False
@@ -1009,16 +1010,13 @@ Generate only the filename focusing on content substance:""".format(context[:100
         self.settings_manager.setting_set("log_file_location", None)
 
     def _display_conversation_history(self) -> None:
-        """Display the loaded conversation history to the user in a readable format"""
+        """Display the loaded conversation history, applying markdown if enabled."""
         if not self.conversation_history:
             print_info("No conversation history to display")
             return
 
         # Filter out system messages for display
-        display_messages = []
-        for msg in self.conversation_history:
-            if msg.get('role') != 'system':
-                display_messages.append(msg)
+        display_messages = [msg for msg in self.conversation_history if msg.get('role') != 'system']
 
         if not display_messages:
             print_info("No user conversation to display (only system messages found)")
@@ -1029,24 +1027,44 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
         user_name = self.settings_manager.setting_get('name_user') or "User"
         ai_name = self.settings_manager.get_ai_name_with_instructions() or "Assistant"
+        markdown_enabled = self.settings_manager.setting_get("markdown")
 
         # Show summary for long conversations
         total_messages = len(display_messages)
         if total_messages > 0:
-            print_info("Conversation Summary: " + str(total_messages) + " messages")
+            print_info(f"Conversation Summary: {total_messages} messages")
             print_lines()
 
-        for i, entry in enumerate(display_messages, 1):
-            role = entry.get('role', 'unknown')
-            content = entry.get('content', '')
+        if markdown_enabled:
+            # Pipe the conversation through streamdown for rendering
+            streamdown_process = self._start_streamdown_process()
+            if streamdown_process.stdin:
+                for i, entry in enumerate(display_messages, 1):
+                    role = entry.get('role', 'unknown')
+                    content = entry.get('content', '')
 
-            # Display user and assistant messages with numbering
-            if role == 'user':
-                print("\n[" + str(i) + "] " + user_name + self.settings_manager.get_enabled_toggles() + ":")
-                print(content)
-            elif role == 'assistant':
-                print("\n[" + str(i) + "] " + ai_name + ":")
-                print(content)
+                    if role == 'user':
+                        output = f"**[{i}] {user_name}{self.settings_manager.get_enabled_toggles()}:**\n\n{content}\n\n"
+                        streamdown_process.stdin.write(output)
+                    elif role == 'assistant':
+                        adjusted_content = self._adjust_markdown_headers_for_streamdown(content)
+                        output = f"**[{i}] {ai_name}:**\n\n{adjusted_content}\n\n"
+                        streamdown_process.stdin.write(output)
+
+                streamdown_process.stdin.close()
+            streamdown_process.wait()
+        else:
+            # Original plain text display
+            for i, entry in enumerate(display_messages, 1):
+                role = entry.get('role', 'unknown')
+                content = entry.get('content', '')
+
+                if role == 'user':
+                    print(f"\n[{i}] {user_name}{self.settings_manager.get_enabled_toggles()}:")
+                    print(content)
+                elif role == 'assistant':
+                    print(f"\n[{i}] {ai_name}:")
+                    print(content)
 
         print_lines()
 
