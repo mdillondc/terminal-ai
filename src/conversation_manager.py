@@ -246,7 +246,7 @@ class ConversationManager:
         streamdown_process = None
         if markdown_enabled:
             streamdown_process = subprocess.Popen(
-                ['sd', '-b', '0.2,0.6,0.7', '-c', '[style]\nMargin = 0'],  # HSV: green-tinted, no margins
+                ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 0'],  # HSV: gruvbox-ish orange-brown, no margins
                 stdin=subprocess.PIPE,
                 stdout=None,  # Let it print directly to terminal
                 stderr=None,  # Let it print directly to terminal
