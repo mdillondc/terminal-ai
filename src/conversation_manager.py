@@ -157,13 +157,8 @@ class ConversationManager:
         """
         import re
 
-        # Convert level 1 headers (# ) to level 3 (### )
-        chunk = re.sub(r'^# ', '### ', chunk, flags=re.MULTILINE)
-        chunk = re.sub(r'\n# ', '\n### ', chunk)
-
-        # Convert level 2 headers (## ) to level 3 (### )
-        chunk = re.sub(r'^## ', '### ', chunk, flags=re.MULTILINE)
-        chunk = re.sub(r'\n## ', '\n### ', chunk)
+        # Convert L1/L2 headers to L3, capturing title to rebuild the line correctly.
+        chunk = re.sub(r'^[ \t]*(#{1,2})(?!#)[ \t]*(.*)', r'### \2', chunk, flags=re.MULTILINE)
 
         return chunk
 
