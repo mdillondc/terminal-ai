@@ -151,7 +151,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--markdown",
-            description="Toggle markdown rendering setting.",
+            description="Toggle markdown rendering for AI responses.",
             usage="--markdown",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),

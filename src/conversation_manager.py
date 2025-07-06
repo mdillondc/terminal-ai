@@ -151,6 +151,22 @@ class ConversationManager:
         if output:
             print(output, end="", flush=True)
 
+    def _adjust_markdown_headers_for_streamdown(self, chunk: str) -> str:
+        """
+        Adjust markdown headers for streamdown display by converting level 1 and 2 headers to level 3.
+        """
+        import re
+
+        # Convert level 1 headers (# ) to level 3 (### )
+        chunk = re.sub(r'^# ', '### ', chunk, flags=re.MULTILINE)
+        chunk = re.sub(r'\n# ', '\n### ', chunk)
+
+        # Convert level 2 headers (## ) to level 3 (### )
+        chunk = re.sub(r'^## ', '### ', chunk, flags=re.MULTILINE)
+        chunk = re.sub(r'\n## ', '\n### ', chunk)
+
+        return chunk
+
 
 
     @property
@@ -224,11 +240,13 @@ class ConversationManager:
         except KeyError:
             markdown_enabled = False
 
+
+
         # Start streamdown process for real-time markdown rendering
         streamdown_process = None
         if markdown_enabled:
             streamdown_process = subprocess.Popen(
-                ['sd'],
+                ['sd', '-b', '0.2,0.6,0.7', '-c', '[style]\nMargin = 0'],  # HSV: green-tinted, no margins
                 stdin=subprocess.PIPE,
                 stdout=None,  # Let it print directly to terminal
                 stderr=None,  # Let it print directly to terminal
@@ -252,8 +270,9 @@ class ConversationManager:
                         ai_response += ai_response_chunk
 
                         if markdown_enabled and streamdown_process and streamdown_process.stdin:
-                            # Send chunk to streamdown for real-time markdown rendering
-                            streamdown_process.stdin.write(ai_response_chunk)
+                            # Adjust headers for streamdown display and send chunk
+                            adjusted_chunk = self._adjust_markdown_headers_for_streamdown(ai_response_chunk)
+                            streamdown_process.stdin.write(adjusted_chunk)
                             streamdown_process.stdin.flush()
                         else:
                             # Normal processing for non-markdown mode
@@ -265,7 +284,8 @@ class ConversationManager:
         if markdown_enabled and streamdown_process and streamdown_process.stdin:
             # Send any remaining buffer content to streamdown
             if hasattr(self, '_response_buffer') and self._response_buffer:
-                streamdown_process.stdin.write(self._response_buffer)
+                adjusted_buffer = self._adjust_markdown_headers_for_streamdown(self._response_buffer)
+                streamdown_process.stdin.write(adjusted_buffer)
                 streamdown_process.stdin.flush()
 
             # Close stdin to signal end of input
@@ -299,6 +319,8 @@ class ConversationManager:
             self._markdown_buffer = ""
         if hasattr(self, '_markdown_raw_lines'):
             self._markdown_raw_lines = 0
+
+
 
 
         # Only save if we got a response
@@ -705,7 +727,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             response = self.llm_client_manager.create_chat_completion(
                 model=self.model,
                 messages=[{"role": "user", "content": title_prompt}],
-                max_tokens=500,
+                max_tokens=1000,
                 temperature=0.1
             )
 
