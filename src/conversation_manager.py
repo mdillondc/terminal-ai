@@ -268,7 +268,6 @@ class ConversationManager:
                     if hasattr(delta, 'content') and delta.content is not None:
                         ai_response_chunk = delta.content
                         ai_response += ai_response_chunk
-
                         if markdown_enabled and streamdown_process and streamdown_process.stdin:
                             # Adjust headers for streamdown display and send chunk
                             adjusted_chunk = self._adjust_markdown_headers_for_streamdown(ai_response_chunk)
@@ -287,6 +286,10 @@ class ConversationManager:
                 adjusted_buffer = self._adjust_markdown_headers_for_streamdown(self._response_buffer)
                 streamdown_process.stdin.write(adjusted_buffer)
                 streamdown_process.stdin.flush()
+
+            # Add final newline to ensure streamdown processes the content
+            streamdown_process.stdin.write('\n')
+            streamdown_process.stdin.flush()
 
             # Close stdin to signal end of input
             streamdown_process.stdin.close()
@@ -346,7 +349,9 @@ class ConversationManager:
 
         # Ensure proper spacing before next user prompt
         if complete_response:
-            print()
+            # Skip extra newline in markdown mode since we already add one for streamdown
+            if not self.settings_manager.setting_get("markdown"):
+                print()
 
 
 
@@ -828,6 +833,10 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
             # Adjust spacing based on whether response was interrupted
             print_info(f"Log renamed to: {new_filename}")
+
+            # Add spacing after log rename in markdown mode
+            if self.settings_manager.setting_get("markdown"):
+                print()
 
         except Exception as e:
             print_info(f"Error renaming log files: {e}")
