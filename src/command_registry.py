@@ -151,7 +151,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--markdown",
-            description="[EXPERIMENTAL] Toggles markdown rendering on or off. When enabled, only NEW AI responses after this command will be rendered with formatting (bold, italic, lists, tables, etc.). Does not affect past messages.",
+            description="Toggle markdown rendering setting (not implemented yet). This command currently has no effect on AI responses.",
             usage="--markdown",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),

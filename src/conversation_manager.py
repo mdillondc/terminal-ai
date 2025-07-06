@@ -12,7 +12,7 @@ from search_intent_analyzer import SearchIntentAnalyzer
 from llm_client_manager import LLMClientManager
 from print_helper import print_info, print_lines
 from rich.console import Console
-from rich.markdown import Markdown
+
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -26,7 +26,7 @@ class ConversationManager:
         self._model = model
         self.conversation_history = []
         self.settings_manager = SettingsManager.getInstance()
-        self.console = Console()  # Rich console for markdown rendering
+        self.console = Console()
         self.log_renamed = False  # Track if we've already renamed the log with AI-generated title
         self._response_buffer = ""  # Buffer to accumulate response text for thinking coloring
         self._execution_buffer = ""  # Buffer to accumulate potential execution commands
@@ -49,7 +49,6 @@ class ConversationManager:
         """
         Process a response chunk, applying thinking text coloring while maintaining streaming.
         Hides empty thinking blocks that contain only whitespace.
-        Supports markdown rendering when enabled.
         """
         # ANSI color codes
         GRAY = '\033[38;2;204;204;204m'  # Light gray (#cccccc)
@@ -147,61 +146,11 @@ class ConversationManager:
                     output += text_to_process[i]
             i += 1
 
-        # Print immediately to maintain streaming (except in markdown mode)
+        # Print immediately to maintain streaming
         if output:
-            # Check if markdown parsing is enabled
-            try:
-                markdown_enabled = self.settings_manager.setting_get("markdown")
-            except KeyError:
-                markdown_enabled = False
+            print(output, end="", flush=True)
 
-            if markdown_enabled:
-                # In markdown mode, just accumulate text for later rendering
-                self._print_with_markdown(output)
-            else:
-                # Normal streaming mode - print immediately
-                print(output, end="", flush=True)
 
-    def _print_with_markdown(self, text: str) -> None:
-        """
-        Handle markdown rendering for streaming text.
-        Streams raw text immediately, then re-renders with formatting when complete.
-        """
-        if not hasattr(self, '_markdown_buffer'):
-            self._markdown_buffer = ""
-        if not hasattr(self, '_markdown_raw_lines'):
-            self._markdown_raw_lines = 0
-
-        # Accumulate text for markdown rendering
-        self._markdown_buffer += text
-
-        # Also print immediately for streaming feedback
-        print(text, end="", flush=True)
-
-        # Track lines printed for later clearing
-        self._markdown_raw_lines += text.count('\n')
-
-    def _render_complete_response_as_markdown(self, complete_response: str) -> None:
-        """
-        Render the complete response with markdown formatting.
-        Clears the previously streamed raw text and replaces with formatted version.
-        """
-        if not complete_response.strip():
-            return
-
-        # Clear the previously printed raw text
-        if hasattr(self, '_markdown_raw_lines') and self._markdown_raw_lines > 0:
-            # Move cursor up and clear lines
-            for _ in range(self._markdown_raw_lines):
-                print('\033[1A\033[2K', end='', flush=True)
-
-        try:
-            # Render the complete response as markdown
-            markdown_obj = Markdown(complete_response)
-            self.console.print(markdown_obj)
-        except Exception as e:
-            # If markdown rendering fails, just print the original text
-            print(complete_response, end="", flush=True)
 
     @property
     def model(self) -> str:
@@ -311,8 +260,7 @@ class ConversationManager:
         except KeyError:
             markdown_enabled = False
 
-        if ai_response and markdown_enabled:
-            self._render_complete_response_as_markdown(ai_response)
+
 
         # Reset thinking state for next response
         if hasattr(self, '_in_thinking_block'):
