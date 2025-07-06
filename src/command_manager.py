@@ -388,22 +388,7 @@ class CommandManager:
                         # Activate specific collection
                         self.rag_activate(arg)
                     command_executed = True
-                elif command_name == "--text":
-                    if arg is None:
-                        print_info("Please specify text content")
-                    else:
-                        # Check if nothink mode is enabled and prepend /nothink prefix
-                        final_user_input = arg
-                        if self.settings_manager.setting_get("nothink"):
-                            final_user_input = "/nothink " + arg
 
-                        # Add text content (not the command) to conversation and generate response
-                        self.conversation_manager.conversation_history.append(
-                            {"role": "user", "content": final_user_input}
-                        )
-
-                        self.conversation_manager.generate_response()
-                    command_executed = True
                 elif command_name == "--pdf":
                     # Generate PDF of the conversation
                     if self.settings_manager.setting_get("incognito"):

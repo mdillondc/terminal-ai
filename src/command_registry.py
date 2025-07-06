@@ -289,14 +289,6 @@ class CommandRegistry:
         ))
 
         # Utility commands
-        self.register_command(CommandInfo(
-            name="--text",
-            description="Allows you to send a text input directly as a command, useful for scripting or automation.",
-            usage="python3 main.py --input '--instructions summary.md --youtube https://www.youtube.com/watch?v=9gCHMuC7T40'",
-            execution_order=2,
-            completion_rules=CompletionRules(CompletionType.NONE),
-            requires_argument=True
-        ))
 
         # PDF Export command
         self.register_command(CommandInfo(
