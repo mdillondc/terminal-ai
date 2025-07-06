@@ -258,7 +258,7 @@ class ConversationManager:
 
 
         # Display AI name to user
-        print(f"\n\033[1m{self.settings_manager.get_ai_name_with_instructions()}\033[0m (`q` + `Enter` to interrupt):")
+        print(f"\n{self.settings_manager.get_ai_name_with_instructions()}:")
 
         # Setup stream to receive response from AI
         stream = self.llm_client_manager.create_chat_completion(

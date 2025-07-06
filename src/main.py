@@ -138,14 +138,14 @@ def main() -> None:
                             # Process each command individually
                             for command in commands:
                                 # Display prompt and command BEFORE processing (like normal user interaction)
-                                print(f"\033[1m{settings_manager.setting_get('name_user')}\033[0m{settings_manager.get_enabled_toggles()}:")
+                                print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                                 print(f"> {command}")
 
                                 # Process the individual command
                                 command_manager.process_commands(command)
                         else:
                             # Display prompt for non-command inputs
-                            print(f"\033[1m{settings_manager.setting_get('name_user')}\033[0m{settings_manager.get_enabled_toggles()}:")
+                            print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                             print(f"> {input_text}")
 
                             # Check if nothink mode is enabled and prepend /nothink prefix
@@ -166,7 +166,7 @@ def main() -> None:
                 if first_ai_interaction:
                     first_ai_interaction = False
 
-                print(f"\033[1m{settings_manager.setting_get('name_user')}\033[0m{settings_manager.get_enabled_toggles()}:")
+                print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
                 user_input = prompt(
                     "> ",
                     completer=command_manager.completer,
