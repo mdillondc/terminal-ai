@@ -1,6 +1,7 @@
 import os
+import re
 import requests
-from typing import Optional, Any
+from typing import Optional, Any, Dict, List, Tuple
 import yt_dlp
 import clipboard
 
@@ -58,6 +59,67 @@ class CommandManager:
             {"role": "user", "content": command_with_output}
         )
 
+    def _extract_valid_commands(self, user_input: str) -> Tuple[List[Dict[str, Any]], str]:
+        """
+        Extract valid commands from user input using the command registry.
+
+        Args:
+            user_input: Raw user input string that may contain commands
+
+        Returns:
+            tuple: (list of command dictionaries, remaining text)
+                   Each command dict contains: {'command': str, 'argument': str|None}
+        """
+        valid_commands = self.command_registry.get_available_commands()
+        extracted_commands = []
+        remaining_text = user_input
+
+        # Sort commands by length (longest first) to avoid partial matches
+        sorted_commands = sorted(valid_commands, key=len, reverse=True)
+
+        # Process text to find and extract commands
+        for command_name in sorted_commands:
+            # Find all occurrences of this command
+            pattern = re.escape(command_name) + r'(?=\s|$)'
+
+            matches = list(re.finditer(pattern, remaining_text))
+
+            for match in reversed(matches):  # Process in reverse order to maintain indices
+                start_pos = match.start()
+                end_pos = match.end()
+
+                # Check if this command requires an argument
+                requires_arg = self.command_registry.requires_argument(command_name)
+
+                argument = None
+                if requires_arg:
+                    # Extract argument - single word only
+                    rest_of_text = remaining_text[end_pos:].lstrip()
+                    if rest_of_text:
+                        # Split by whitespace and take first word as argument
+                        words = rest_of_text.split()
+                        if words:
+                            argument = words[0]
+                            # Update end position to include the argument and any whitespace after it
+                            arg_end = rest_of_text.find(argument) + len(argument)
+                            end_pos = end_pos + len(remaining_text[end_pos:]) - len(rest_of_text) + arg_end
+
+                extracted_commands.append({
+                    'command': command_name,
+                    'argument': argument
+                })
+
+                # Remove the extracted command (and its argument if any) from remaining text
+                remaining_text = remaining_text[:start_pos] + remaining_text[end_pos:]
+
+        # Clean up remaining text (remove extra spaces)
+        remaining_text = ' '.join(remaining_text.split())
+
+        # Reverse to get original order
+        extracted_commands.reverse()
+
+        return extracted_commands, remaining_text
+
     def process_commands(self, user_input: str) -> bool:
         """
         Process and execute commands from user input.
@@ -72,47 +134,15 @@ class CommandManager:
         Returns:
             bool: True if any commands were processed, False otherwise
         """
-        # Special case: --search followed by content
-        if user_input.strip().startswith("--search "):
-            # Toggle search setting
-            if self.settings_manager.setting_get("search"):
-                self.settings_manager.setting_set("search", False)
-                search_status = "Web search disabled"
-            else:
-                self.settings_manager.setting_set("search", True)
-                search_status = "Web search enabled"
-
-            print_info(search_status)
-
-            # Extract content after "--search "
-            content = user_input.strip()[9:]  # Remove "--search " (9 characters)
-
-            if content.strip():
-                # Check if nothink mode is enabled and prepend /nothink prefix
-                final_user_input = content
-                if self.settings_manager.setting_get("nothink"):
-                    final_user_input = "/nothink " + content
-
-                # Add content to conversation and generate response
-                self.conversation_manager.conversation_history.append(
-                    {"role": "user", "content": final_user_input}
-                )
-
-                self.conversation_manager.generate_response()
-
-            return True
+        # Extract valid commands from user input
+        extracted_commands, remaining_text = self._extract_valid_commands(user_input)
 
         command_processed = False
-        commands = [
-            "--" + command.strip()
-            for command in user_input.split("--")
-            if command.strip()
-        ]
 
-        for command in commands:
-            parts = command.split(" ", 1)
-            command_name = parts[0]
-            arg = parts[1] if len(parts) > 1 else None
+        # Process each extracted command
+        for cmd_info in extracted_commands:
+            command_name = cmd_info['command']
+            arg = cmd_info['argument']
 
             # Validate command using registry
             is_valid, error_msg = self.command_registry.validate_command_input(command_name, arg)
@@ -121,23 +151,26 @@ class CommandManager:
                 command_processed = True
                 continue
 
+            # Reconstruct full command for logging and processing
+            command = command_name + (f" {arg}" if arg else "")
+
             # DRY SOLUTION: Start capturing for ANY valid command
             start_capturing_print_info()
             command_executed = False
 
             try:
-                if command.startswith("--model-clear-cache"):
+                if command_name == "--model-clear-cache":
                     self.clear_model_cache()
                     command_executed = True
-                elif command.startswith("--model"):
+                elif command_name == "--model":
                     self.set_model(arg)
                     command_executed = True
-                elif command.startswith("--instructions"):
+                elif command_name == "--instructions":
                     self.conversation_manager.apply_instructions(
                         arg, self.settings_manager.setting_get("instructions")
                     )
                     command_executed = True
-                elif command.startswith("--logmv"):
+                elif command_name == "--logmv":
                     # Special case: log BEFORE renaming to capture in current log
                     captured_so_far = stop_capturing_print_info()
                     self._log_command_with_output(command, captured_so_far)
@@ -169,13 +202,13 @@ class CommandManager:
                         )
                     command_processed = True
                     continue  # Skip the normal logging flow
-                elif command.startswith("--logrm"):
+                elif command_name == "--logrm":
                     if self.conversation_manager.log_delete():
                         print_info("Log deleted")
                     else:
                         print_info("No log file to delete or deletion failed")
                     command_executed = True
-                elif command.startswith("--log"):
+                elif command_name == "--log":
                     if self.settings_manager.setting_get("incognito"):
                         print_info("Cannot load log: incognito mode is enabled (no logging active)")
                     elif arg is None:
@@ -184,7 +217,7 @@ class CommandManager:
                         self.settings_manager.setting_set("log_file_name", arg)
                         self.conversation_manager.log_resume()
                     command_executed = True
-                elif command.startswith("--cbl"):
+                elif command_name == "--cbl":
                     latest_reply = None
                     for message in reversed(self.conversation_manager.conversation_history):
                         if message["role"] == "assistant":
@@ -200,7 +233,7 @@ class CommandManager:
                     else:
                         print_info("No AI reply found to copy")
                     command_executed = True
-                elif command.startswith("--cb"):
+                elif command_name == "--cb":
                     clipboard_content = clipboard.paste()
                     if clipboard_content:
                         print_info("Clipboard content added to conversation context")
@@ -210,25 +243,25 @@ class CommandManager:
                     else:
                         print_info("Clipboard is empty. Please type your input")
                     command_executed = True
-                elif command.startswith("--youtube"):
+                elif command_name == "--youtube":
                     if arg is None:
                         print_info("Please specify a youtube url")
                     else:
                         self.extract_youtube_content(arg)
                     command_executed = True
-                elif command.startswith("--url"):
+                elif command_name == "--url":
                     if arg is None:
                         print_info("Please specify a URL")
                     else:
                         self.extract_url_content(arg)
                     command_executed = True
-                elif command.startswith("--file"):
+                elif command_name == "--file":
                     if arg is None:
                         print_info("Please specify a file path")
                     else:
                         self.extract_file_content(arg)
                     command_executed = True
-                elif command == "--search":
+                elif command_name == "--search":
                     if self.settings_manager.setting_get("search"):
                         self.settings_manager.setting_set("search", False)
                         print_info("Web search disabled")
@@ -236,7 +269,7 @@ class CommandManager:
                         self.settings_manager.setting_set("search", True)
                         print_info("Web search enabled")
                     command_executed = True
-                elif command == "--scroll":
+                elif command_name == "--scroll":
                     print_info("Press F8 to toggle scroll mode")
                     if self.settings_manager.setting_get("scroll"):
                         self.settings_manager.setting_set("scroll", False)
@@ -246,7 +279,7 @@ class CommandManager:
                         else:
                             self.settings_manager.setting_set("scroll", True)
                     command_executed = True
-                elif command.startswith("--nothink"):
+                elif command_name == "--nothink":
                     nothink = self.settings_manager.setting_get("nothink")
                     if nothink:
                         self.settings_manager.setting_set("nothink", False)
@@ -255,7 +288,7 @@ class CommandManager:
                         self.settings_manager.setting_set("nothink", True)
                         print_info("Nothink mode enabled")
                     command_executed = True
-                elif command.startswith("--markdown"):
+                elif command_name == "--markdown":
                     markdown = self.settings_manager.setting_get("markdown")
                     if markdown:
                         self.settings_manager.setting_set("markdown", False)
@@ -264,7 +297,7 @@ class CommandManager:
                         self.settings_manager.setting_set("markdown", True)
                         print_info("Markdown rendering enabled")
                     command_executed = True
-                elif command.startswith("--incognito"):
+                elif command_name == "--incognito":
                     incognito = self.settings_manager.setting_get("incognito")
                     if incognito:
                         self.settings_manager.setting_set("incognito", False)
@@ -273,15 +306,15 @@ class CommandManager:
                         self.settings_manager.setting_set("incognito", True)
                         print_info("Incognito mode enabled - no data will be saved to logs")
                     command_executed = True
-                elif command.startswith("--clear"):
+                elif command_name == "--clear":
                     self.conversation_manager.start_new_conversation_log()
                     print_info("Conversation history cleared - will create new log file after first AI response")
                     print_info("AI instructions preserved")
                     command_executed = True
-                elif command.startswith("--usage"):
+                elif command_name == "--usage":
                     self.display_token_usage()
                     command_executed = True
-                elif command.startswith("--tts-model"):
+                elif command_name == "--tts-model":
                     if arg is None:
                         print_info("Please specify a TTS model. Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
                     else:
@@ -292,14 +325,14 @@ class CommandManager:
                         else:
                             print_info(f"Invalid TTS model: {arg}. Available models: {', '.join(valid_models)}")
                     command_executed = True
-                elif command.startswith("--tts-voice"):
+                elif command_name == "--tts-voice":
                     if arg is None:
                         print_info("Please specify a TTS voice")
                     else:
                         self.settings_manager.setting_set("tts_voice", arg)
                         print_info(f"TTS voice set to: {arg}")
                     command_executed = True
-                elif command.startswith("--tts-save-as-mp3"):
+                elif command_name == "--tts-save-as-mp3":
                     tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
                     if tts_save_mp3:
                         self.settings_manager.setting_set("tts_save_mp3", False)
@@ -308,7 +341,7 @@ class CommandManager:
                         self.settings_manager.setting_set("tts_save_mp3", True)
                         print_info("TTS save as MP3 enabled")
                     command_executed = True
-                elif command.startswith("--tts"):
+                elif command_name == "--tts":
                     tts = self.settings_manager.setting_get("tts")
                     if tts:
                         self.settings_manager.setting_set("tts", False)
@@ -323,28 +356,28 @@ class CommandManager:
                             self.settings_manager.setting_set("tts", True)
                             print_info("TTS enabled")
                     command_executed = True
-                elif command.startswith("--rag-status"):
+                elif command_name == "--rag-status":
                     self.rag_status()
                     command_executed = True
-                elif command.startswith("--rag-rebuild"):
+                elif command_name == "--rag-rebuild":
                     if arg is None:
                         print_info("Please specify a collection name to rebuild")
                     else:
                         self.rag_rebuild(arg)
                     command_executed = True
-                elif command.startswith("--rag-show"):
+                elif command_name == "--rag-show":
                     if arg is None:
                         print_info("Please specify a filename to show")
                     else:
                         self.rag_show(arg)
                     command_executed = True
-                elif command.startswith("--rag-test"):
+                elif command_name == "--rag-test":
                     self.rag_test_connection()
                     command_executed = True
-                elif command.startswith("--rag-info"):
+                elif command_name == "--rag-info":
                     self.rag_model_info()
                     command_executed = True
-                elif command.startswith("--rag"):
+                elif command_name == "--rag":
                     if arg is None:
                         # Toggle RAG on/off
                         if self.rag_engine and self.rag_engine.is_active():
@@ -355,7 +388,7 @@ class CommandManager:
                         # Activate specific collection
                         self.rag_activate(arg)
                     command_executed = True
-                elif command.startswith("--text"):
+                elif command_name == "--text":
                     if arg is None:
                         print_info("Please specify text content")
                     else:
@@ -371,7 +404,7 @@ class CommandManager:
 
                         self.conversation_manager.generate_response()
                     command_executed = True
-                elif command.startswith("--pdf"):
+                elif command_name == "--pdf":
                     # Generate PDF of the conversation
                     if self.settings_manager.setting_get("incognito"):
                         print_info("Cannot generate PDF: incognito mode is enabled (no logging active)")
@@ -396,6 +429,20 @@ class CommandManager:
                 else:
                     # Command not recognized - don't log it
                     stop_capturing_print_info()  # Clean up capture
+
+        # Send remaining text to AI if there's any non-command content
+        if remaining_text.strip():
+            # Check if nothink mode is enabled and prepend /nothink prefix
+            final_user_input = remaining_text.strip()
+            if self.settings_manager.setting_get("nothink"):
+                final_user_input = "/nothink " + final_user_input
+
+            # Add remaining text to conversation and generate response
+            self.conversation_manager.conversation_history.append(
+                {"role": "user", "content": final_user_input}
+            )
+
+            self.conversation_manager.generate_response()
 
         # Ensure proper spacing before next user prompt
         if command_processed:
