@@ -92,7 +92,8 @@ def is_text_file_by_mime(file_path: str) -> bool:
             'application/xml',
             'application/javascript',
             'application/x-yaml',
-            'application/x-sh'
+            'application/x-sh',
+            'message/rfc822',
         ]
     except Exception:
         # Fallback to built-in mimetypes
