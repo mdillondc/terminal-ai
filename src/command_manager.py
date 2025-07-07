@@ -363,7 +363,11 @@ class CommandManager:
                     if arg is None:
                         print_info("Please specify a collection name to rebuild")
                     else:
-                        self.rag_rebuild(arg)
+                        # Check if --force-full flag is present
+                        force_full = False
+                        if user_input and "--force-full" in user_input:
+                            force_full = True
+                        self.rag_rebuild(arg, force_full)
                     command_executed = True
                 elif command_name == "--rag-show":
                     if arg is None:
@@ -379,11 +383,7 @@ class CommandManager:
                     command_executed = True
                 elif command_name == "--rag":
                     if arg is None:
-                        # Toggle RAG on/off
-                        if self.rag_engine and self.rag_engine.is_active():
-                            self.rag_off()
-                        else:
-                            self.rag_list(from_toggle=True)
+                        print_info("Please specify a collection name to activate")
                     else:
                         # Activate specific collection
                         self.rag_activate(arg)
@@ -508,24 +508,22 @@ class CommandManager:
 
         self.rag_engine.deactivate_collection()
 
-    def rag_rebuild(self, collection_name: str) -> None:
+    def rag_rebuild(self, collection_name: str, force_full: bool = False) -> None:
         """
-        Force a complete rebuild of a RAG collection's vector index.
+        Rebuild a RAG collection's vector index.
 
-        Deletes the existing index and recreates it from scratch by
-        re-processing all documents in the collection. Should not be
-        necessary since RAG collections are automatically rebuilt when
-        new documents are added or existing ones are updated. Kept for
-        posterity.
+        By default, performs a smart rebuild that only processes changed files.
+        Use --force-full to force a complete rebuild from scratch.
 
         Args:
             collection_name: Name of the collection to rebuild
+            force_full: If True, force complete rebuild ignoring smart rebuild
         """
         if not self.rag_engine:
             print_info("RAG engine not available")
             return
 
-        self.rag_engine.build_collection(collection_name, force_rebuild=True)
+        self.rag_engine.build_collection(collection_name, force_rebuild=True, force_full=force_full)
 
     def rag_show(self, filename: str) -> None:
         """

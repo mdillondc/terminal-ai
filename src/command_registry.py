@@ -307,13 +307,13 @@ class CommandRegistry:
             usage="--rag [collection_name]",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
-            requires_argument=False
+            requires_argument=True
         ))
 
         self.register_command(CommandInfo(
             name="--rag-rebuild",
-            description="Force rebuild embeddings index for a RAG collection. Note: --rag automatically builds collections when needed.",
-            usage="--rag-rebuild collection_name",
+            description="Rebuild embeddings index for a RAG collection. Uses smart rebuild by default (only processes changed files). Add --force-full to force complete rebuild from scratch.",
+            usage="--rag-rebuild collection_name [--force-full]",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
             requires_argument=True

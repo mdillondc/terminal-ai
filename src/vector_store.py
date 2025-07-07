@@ -128,7 +128,14 @@ class VectorStore:
             if meta_rows:
                 file_meta_df = pd.DataFrame(meta_rows)
             else:
-                file_meta_df = pd.DataFrame(columns=["filename", "file_path", "file_size", "modified_time", "file_hash"])
+                # Create empty DataFrame with proper column structure
+                file_meta_df = pd.DataFrame({
+                    "filename": [],
+                    "file_path": [],
+                    "file_size": [],
+                    "modified_time": [],
+                    "file_hash": []
+                })
 
             # Add collection metadata as attributes (we'll store them separately)
             collection_meta_df = pd.DataFrame([meta_data])
@@ -267,6 +274,127 @@ class VectorStore:
         except Exception as e:
             print_info(f"Error checking cache validity for {collection_name}: {e}")
             return False
+
+    def get_file_changes(self, collection_name: str) -> tuple:
+        """
+        Get lists of changed, unchanged, and deleted files in a collection
+
+        Args:
+            collection_name: Name of the collection to check
+
+        Returns:
+            Tuple of (changed_files, unchanged_files, deleted_files)
+            Each is a list of relative file paths
+        """
+        try:
+            # Get current and cached file metadata
+            current_meta = self._get_collection_file_metadata(collection_name)
+
+            # Load cached metadata if it exists
+            cached_file_meta = {}
+            meta_file_path = self._get_meta_file_path(collection_name)
+
+            if os.path.exists(meta_file_path):
+                try:
+                    meta_df = pd.read_parquet(meta_file_path)
+                    if len(meta_df) > 1:
+                        file_rows = meta_df.iloc[1:].copy()
+                        file_rows = file_rows.dropna(subset=['filename'])
+
+                        for _, row in file_rows.iterrows():
+                            if pd.notna(row['filename']):
+                                cached_file_meta[row['filename']] = {
+                                    "path": row['file_path'],
+                                    "size": row['file_size'],
+                                    "modified_time": row['modified_time'],
+                                    "hash": row['file_hash']
+                                }
+                except Exception:
+                    # If we can't read cached metadata, treat all files as changed
+                    pass
+
+            # Categorize files
+            changed_files = []
+            unchanged_files = []
+            deleted_files = []
+
+            # Check current files
+            for filename, current_info in current_meta.items():
+                if filename not in cached_file_meta:
+                    # New file
+                    changed_files.append(filename)
+                else:
+                    cached_info = cached_file_meta[filename]
+                    # Check if file was modified
+                    if (current_info["modified_time"] != cached_info["modified_time"] or
+                        current_info["size"] != cached_info["size"] or
+                        current_info["hash"] != cached_info["hash"]):
+                        changed_files.append(filename)
+                    else:
+                        unchanged_files.append(filename)
+
+            # Check for deleted files
+            for filename in cached_file_meta:
+                if filename not in current_meta:
+                    deleted_files.append(filename)
+
+            return (changed_files, unchanged_files, deleted_files)
+
+        except Exception as e:
+            print_info(f"Error getting file changes for {collection_name}: {e}")
+            # On error, treat all current files as changed
+            current_meta = self._get_collection_file_metadata(collection_name)
+            return (list(current_meta.keys()), [], [])
+
+    def load_chunks_for_files(self, collection_name: str, file_paths: List[str]) -> List[Dict[str, Any]]:
+        """
+        Load existing chunks for specific files from a collection index
+
+        Args:
+            collection_name: Name of the collection
+            file_paths: List of relative file paths to load chunks for
+
+        Returns:
+            List of chunk dictionaries for the specified files
+        """
+        try:
+            index_file_path = self._get_index_file_path(collection_name)
+
+            if not os.path.exists(index_file_path):
+                return []
+
+            # Load existing chunks
+            chunks_df = pd.read_parquet(index_file_path)
+
+            if len(chunks_df) == 0:
+                return []
+
+            # Filter chunks by source file paths
+            matching_chunks = []
+            for _, row in chunks_df.iterrows():
+                chunk_dict = row.to_dict()
+
+                # Check if this chunk belongs to one of the requested files
+                chunk_source = chunk_dict.get('source_file_path', '')
+                if chunk_source:
+                    # Convert to relative path for comparison
+                    try:
+                        chunk_relative = os.path.relpath(chunk_source,
+                                                       os.path.join(self.collections_path, collection_name))
+                        if chunk_relative in file_paths:
+                            # Convert numpy array back to list for embedding
+                            if 'embedding' in chunk_dict and hasattr(chunk_dict['embedding'], 'tolist'):
+                                chunk_dict['embedding'] = chunk_dict['embedding'].tolist()
+                            matching_chunks.append(chunk_dict)
+                    except (ValueError, TypeError):
+                        # Skip chunks with invalid paths
+                        continue
+
+            return matching_chunks
+
+        except Exception as e:
+            print_info(f"Error loading chunks for files in {collection_name}: {e}")
+            return []
 
     def get_available_collections(self) -> List[str]:
         """Get list of available collection names - just show all directories in rag/ except vectorstore"""

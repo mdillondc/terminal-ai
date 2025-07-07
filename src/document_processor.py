@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 from typing import List, Dict, Any, Optional, Tuple
 import tiktoken
 import pypdf
@@ -424,10 +425,15 @@ class DocumentProcessor:
         for i, chunk_text in enumerate(chunks):
             start_line, end_line = self.estimate_line_numbers(content, chunk_text)
 
+            # Calculate file hash for tracking
+            file_hash = self._get_file_hash(file_path)
+
             chunk_data = {
                 "content": chunk_text,
                 "filename": filename,
                 "file_path": file_path,
+                "source_file_path": file_path,  # For smart rebuild tracking
+                "source_file_hash": file_hash,  # For smart rebuild tracking
                 "collection_name": collection_name,
                 "chunk_index": i,
                 "total_chunks": len(chunks),
@@ -439,6 +445,18 @@ class DocumentProcessor:
             processed_chunks.append(chunk_data)
 
         return processed_chunks
+
+    def _get_file_hash(self, file_path: str) -> str:
+        """Calculate SHA-256 hash of a file for tracking changes"""
+        try:
+            hash_sha256 = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_sha256.update(chunk)
+            return hash_sha256.hexdigest()
+        except Exception as e:
+            print_info(f"Error calculating hash for {file_path}: {e}")
+            return ""
 
     def process_collection(self, collection_path: str) -> List[Dict[str, Any]]:
         """

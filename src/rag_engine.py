@@ -51,13 +51,14 @@ class RAGEngine:
 
         return collections
 
-    def build_collection(self, collection_name: str, force_rebuild: bool = False) -> bool:
+    def build_collection(self, collection_name: str, force_rebuild: bool = False, force_full: bool = False) -> bool:
         """
         Build/rebuild embeddings for a collection
 
         Args:
             collection_name: Name of the collection to build
             force_rebuild: If True, rebuild even if cache is valid
+            force_full: If True, force full rebuild (ignore smart rebuild)
 
         Returns:
             True if successful, False otherwise
@@ -71,7 +72,23 @@ class RAGEngine:
             print_info(f"Collection '{collection_name}' index is up to date")
             return True
 
-        print_info(f"Building embeddings for collection '{collection_name}'...")
+        # Choose rebuild strategy
+        if force_full:
+            return self._build_collection_full(collection_name)
+        else:
+            return self._build_collection_smart(collection_name)
+
+    def _build_collection_full(self, collection_name: str) -> bool:
+        """
+        Full rebuild of collection - processes all files from scratch
+
+        Args:
+            collection_name: Name of the collection to build
+
+        Returns:
+            True if successful, False otherwise
+        """
+        print_info(f"Full rebuild of collection '{collection_name}'...")
 
         try:
             # Get collection path
@@ -121,6 +138,100 @@ class RAGEngine:
             print_info(f"Error building collection '{collection_name}': {e}")
             return False
 
+    def _build_collection_smart(self, collection_name: str) -> bool:
+        """
+        Smart rebuild of collection - only processes changed files
+
+        Args:
+            collection_name: Name of the collection to build
+
+        Returns:
+            True if successful, False otherwise
+        """
+        print_info(f"Smart rebuild of collection '{collection_name}'...")
+
+        try:
+            # Get collection path
+            collections_path = os.path.join(self.settings_manager.setting_get("working_dir"), "rag")
+            collection_path = os.path.join(collections_path, collection_name)
+
+            # Get file changes
+            changed_files, unchanged_files, deleted_files = self.vector_store.get_file_changes(collection_name)
+
+            print_info(f"Found {len(changed_files)} changed files, {len(unchanged_files)} unchanged files, {len(deleted_files)} deleted files")
+
+            # If no existing index or all files changed, do full rebuild
+            if not unchanged_files and not os.path.exists(self.vector_store._get_index_file_path(collection_name)):
+                print_info("No existing index found, performing full rebuild...")
+                return self._build_collection_full(collection_name)
+
+            # Load existing chunks for unchanged files
+            existing_chunks = []
+            if unchanged_files:
+                print_info(f"Loading existing chunks for {len(unchanged_files)} unchanged files...")
+                existing_chunks = self.vector_store.load_chunks_for_files(collection_name, unchanged_files)
+
+            # Process changed files
+            new_chunks = []
+            if changed_files:
+                print_info(f"Processing {len(changed_files)} changed files...")
+                for file_path in changed_files:
+                    full_file_path = os.path.join(collection_path, file_path)
+                    if os.path.exists(full_file_path):
+                        try:
+                            file_chunks = self.document_processor.process_file(full_file_path, collection_name, collection_path)
+                            new_chunks.extend(file_chunks)
+                        except Exception as e:
+                            print_info(f"Error processing {file_path}: {e}")
+                            continue
+
+            # Generate embeddings for new chunks only
+            if new_chunks:
+                print_info(f"Generating embeddings for {len(new_chunks)} new chunks...")
+                chunk_texts = [chunk["content"] for chunk in new_chunks]
+                embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
+
+                if len(embeddings) != len(new_chunks):
+                    print_info("Mismatch between new chunks and embeddings")
+                    return False
+
+                # Add embeddings to new chunks
+                for i, embedding in enumerate(embeddings):
+                    new_chunks[i]["embedding"] = embedding
+                    new_chunks[i]["created_at"] = time.time()
+
+            # Combine existing and new chunks
+            all_chunks = existing_chunks + new_chunks
+
+            if not all_chunks:
+                print_info("No processable documents found in collection")
+                return False
+
+            # Save to vector store
+            print_info("Saving index...")
+            success = self.vector_store.save_collection_index(collection_name, all_chunks)
+
+            if success:
+                total_chunks = len(all_chunks)
+                new_chunk_count = len(new_chunks)
+                reused_chunk_count = len(existing_chunks)
+                print_info(f"Successfully built collection '{collection_name}' ({total_chunks} chunks: {new_chunk_count} new, {reused_chunk_count} reused)")
+
+                # If this is the active collection, reload it
+                if self.active_collection == collection_name:
+                    self.active_collection_chunks = all_chunks
+
+                return True
+            else:
+                print_info(f"Failed to save collection '{collection_name}'")
+                return False
+
+        except Exception as e:
+            print_info(f"Error smart building collection '{collection_name}': {e}")
+            # On error, fall back to full rebuild
+            print_info("Falling back to full rebuild...")
+            return self._build_collection_full(collection_name)
+
     def activate_collection(self, collection_name: str, verbose: bool = True) -> bool:
         """
         Activate a collection for RAG queries
@@ -147,7 +258,7 @@ class RAGEngine:
                 print_info(f"Auto-building collection...")
 
             # Auto-build the collection
-            success = self.build_collection(collection_name, force_rebuild=True)
+            success = self.build_collection(collection_name, force_rebuild=True, force_full=False)
             if not success:
                 if verbose:
                     print_info(f"Failed to build collection '{collection_name}'")
@@ -159,7 +270,7 @@ class RAGEngine:
                 print_info(f"Auto-rebuilding collection...")
 
             # Auto-rebuild the collection
-            success = self.build_collection(collection_name, force_rebuild=True)
+            success = self.build_collection(collection_name, force_rebuild=True, force_full=False)
             if not success:
                 if verbose:
                     print_info(f"Failed to rebuild collection '{collection_name}'")
