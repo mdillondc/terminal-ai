@@ -49,6 +49,8 @@ class DocumentProcessor:
             return self.load_ods_file(file_path)
         elif processor == 'odp':
             return self.load_odp_file(file_path)
+        elif processor == 'email':
+            return self.load_email_file(file_path)
         else:
             return self.load_text_file(file_path)
 
@@ -280,6 +282,84 @@ class DocumentProcessor:
         except Exception as e:
             print_info(f"Error loading ODP file {file_path}: {e}")
             return ""
+
+    def load_email_file(self, file_path: str) -> str:
+        """Load content from an email file, skipping attachments"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            try:
+                with open(file_path, 'r', encoding='latin-1') as f:
+                    content = f.read()
+            except Exception as e:
+                print_info(f"Error reading email file {file_path}: {e}")
+                return ""
+        except Exception as e:
+            print_info(f"Error loading email file {file_path}: {e}")
+            return ""
+
+        # Parse email content and extract only text parts
+        return self._parse_email_content(content)
+
+    def _parse_email_content(self, content: str) -> str:
+        """Parse email content and extract only text parts, skipping attachments"""
+        lines = content.split('\n')
+        result_lines = []
+
+        # Extract headers until we find the first empty line
+        header_section = True
+        boundary = None
+        current_section_type = None
+        skip_current_section = False
+
+        for line in lines:
+            if header_section:
+                if line.strip() == '':
+                    header_section = False
+                    result_lines.append(line)
+                    continue
+
+                # Extract boundary from Content-Type header
+                if line.startswith('Content-Type:') and 'boundary=' in line:
+                    boundary_start = line.find('boundary=') + 9
+                    boundary_end = line.find(';', boundary_start)
+                    if boundary_end == -1:
+                        boundary_end = len(line)
+                    boundary = line[boundary_start:boundary_end].strip().strip('"')
+
+                result_lines.append(line)
+                continue
+
+            # If we have a boundary, check for MIME parts
+            if boundary and line.startswith('--' + boundary):
+                # Reset section state
+                current_section_type = None
+                skip_current_section = False
+                result_lines.append(line)
+                continue
+
+            # Check content headers within MIME parts
+            if line.startswith('Content-Type:'):
+                current_section_type = line.lower()
+                result_lines.append(line)
+                continue
+
+            if line.startswith('Content-Transfer-Encoding:'):
+                if 'base64' in line.lower():
+                    skip_current_section = True
+                result_lines.append(line)
+                continue
+
+            # Skip base64 encoded content (attachments)
+            if skip_current_section and line.strip() and not line.startswith('Content-') and not line.startswith('--'):
+                # This is likely base64 content, skip it
+                continue
+
+            # Include all other content
+            result_lines.append(line)
+
+        return '\n'.join(result_lines)
 
     def clean_text(self, text: str) -> str:
         """Clean and normalize text content"""

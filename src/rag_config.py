@@ -74,9 +74,29 @@ BINARY_FILE_TYPE_INFO: Dict[str, Dict[str, Any]] = {
     }
 }
 
+def is_email_file(file_path: str) -> bool:
+    """
+    Check if a file is an email file using MIME type detection.
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if the file is detected as an email, False otherwise
+    """
+    try:
+        # Use python-magic for accurate MIME detection
+        mime_type = magic.from_file(file_path, mime=True)
+        return mime_type == 'message/rfc822'
+    except Exception:
+        # Fallback to built-in mimetypes
+        mime_type, _ = mimetypes.guess_type(file_path)
+        return mime_type == 'message/rfc822' if mime_type else False
+
 def is_text_file_by_mime(file_path: str) -> bool:
     """
     Check if a file is a text file using MIME type detection.
+    Note: Email files (message/rfc822) are handled separately.
 
     Args:
         file_path: Path to the file to check
@@ -93,7 +113,6 @@ def is_text_file_by_mime(file_path: str) -> bool:
             'application/javascript',
             'application/x-yaml',
             'application/x-sh',
-            'message/rfc822',
         ]
     except Exception:
         # Fallback to built-in mimetypes
@@ -121,7 +140,7 @@ def get_supported_extensions() -> Set[str]:
 def is_supported_file(file_path: str) -> bool:
     """
     Check if a file is supported by the RAG system.
-    Supports binary files (PDF, DOCX, etc.) and text files (detected via MIME type).
+    Supports binary files (PDF, DOCX, etc.), text files, and email files (detected via MIME type).
 
     Args:
         file_path: Path to the file to check
@@ -135,9 +154,9 @@ def is_supported_file(file_path: str) -> bool:
     if file_ext in BINARY_FILE_EXTENSIONS:
         return True
 
-    # Check if it's a text file using MIME detection
+    # Check if it's a text file or email file using MIME detection
     if os.path.exists(file_path):
-        return is_text_file_by_mime(file_path)
+        return is_text_file_by_mime(file_path) or is_email_file(file_path)
 
     return False
 
@@ -156,6 +175,14 @@ def get_file_type_info(file_path: str) -> Dict[str, Any]:
     # Check binary file types first
     if extension in BINARY_FILE_TYPE_INFO:
         return BINARY_FILE_TYPE_INFO[extension].copy()
+
+    # Check if it's an email file
+    if os.path.exists(file_path) and is_email_file(file_path):
+        return {
+            'name': 'Email file',
+            'description': 'Email message (RFC822 format)',
+            'processor': 'email'
+        }
 
     # For all other supported files (text files), return generic text info
     if is_supported_file(file_path):
