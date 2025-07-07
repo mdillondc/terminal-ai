@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 from openai import OpenAI
 import ollama
 import tiktoken
+import requests
 from settings_manager import SettingsManager
 from rag_hybrid_search import HybridSearchService
 from llm_client_manager import LLMClientManager
@@ -104,7 +105,63 @@ class EmbeddingService:
         return embeddings
 
     def _generate_ollama_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using Ollama (processes one by one as Ollama doesn't support batch)"""
+        """Generate embeddings using Ollama with proper batching via /api/embed endpoint"""
+        model = self.settings_manager.setting_get("ollama_embedding_model")
+        ollama_url = self.settings_manager.setting_get("ollama_base_url")
+        batch_size = self.settings_manager.setting_get("rag_batch_size")
+        embeddings = []
+
+        # Process texts in batches for optimal GPU utilization
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+
+            try:
+                # Use the new /api/embed endpoint with batch support
+                response = requests.post(
+                    f"{ollama_url}/api/embed",
+                    json={
+                        "model": model,
+                        "input": batch_texts,
+                        "keep_alive": "5m",  # Keep model loaded in GPU memory
+                        "truncate": True
+                    },
+                    timeout=300  # 5 minutes timeout for large batches
+                )
+
+                if response.status_code != 200:
+                    print_info(f"Ollama API error: {response.status_code} - {response.text}")
+                    raise Exception(f"Ollama API request failed with status {response.status_code}")
+
+                result = response.json()
+
+                # Extract embeddings from response
+                if 'embeddings' in result:
+                    batch_embeddings = result['embeddings']
+                    embeddings.extend(batch_embeddings)
+                else:
+                    print_info(f"Unexpected response format: {result}")
+                    raise Exception("Invalid response format from Ollama API")
+
+                # Progress tracking for large batches
+                if len(texts) > 100:
+                    processed = min(i + batch_size, len(texts))
+                    print_info(f"Processed {processed}/{len(texts)} chunks...")
+
+            except requests.exceptions.RequestException as e:
+                print_info(f"Network error during batch embedding generation: {e}")
+                # Fallback to individual processing for this batch
+                batch_embeddings = self._generate_ollama_embeddings_fallback(batch_texts)
+                embeddings.extend(batch_embeddings)
+            except Exception as e:
+                print_info(f"Error generating Ollama batch embeddings: {e}")
+                # Fallback to individual processing for this batch
+                batch_embeddings = self._generate_ollama_embeddings_fallback(batch_texts)
+                embeddings.extend(batch_embeddings)
+
+        return embeddings
+
+    def _generate_ollama_embeddings_fallback(self, texts: List[str]) -> List[List[float]]:
+        """Fallback method for individual embedding generation when batch fails"""
         model = self.settings_manager.setting_get("ollama_embedding_model")
         embeddings = []
 

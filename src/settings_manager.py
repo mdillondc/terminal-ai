@@ -52,6 +52,7 @@ class SettingsManager:
         self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
         self.rag_chunk_size = 400
         self.rag_chunk_overlap = 80
+        self.rag_batch_size = 16
         self.rag_top_k = 8
         self.rag_active_collection = None
 
