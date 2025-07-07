@@ -160,7 +160,7 @@ mkdir -p rag/my-docs
 **Commands:**
 | Command | Description |
 |---------|-------------|
-| `--rag [collection]` | Toggle RAG or activate specific collection |
+| `--rag [collection]` | Activate specific collection |
 | `--rag-rebuild <collection>` | Rebuild embeddings index (smart rebuild by default) |
 | `--rag-rebuild <collection> --force-full` | Force complete rebuild from scratch |
 | `--rag-show <filename>` | View relevant chunks from file |
@@ -254,7 +254,7 @@ Find instruction inspiration at [fabric/patterns](https://github.com/danielmiess
 | Command | Description |
 |---------|-------------|
 | `--search` | Toggle web search mode |
-| `--markdown` | Toggle markdown rendering setting (not implemented yet) |
+| `--markdown` | Toggle markdown rendering setting |
 | `--scroll` | Toggle scroll navigation (hotkey F8). Use j/k to scroll, gg for top, G for bottom |
 | `--nothink` | Disable thinking on Ollama models |
 | `--incognito` | Toggle private mode (no logs) |
@@ -269,18 +269,11 @@ self.default_model = "gpt-4.1"
 self.embedding_provider = "ollama"  # or "openai"
 self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
 self.openai_embedding_model = "text-embedding-3-small"
-
-# RAG configuration
 self.chunk_size = 1000
 self.chunk_overlap = 200
-self.top_k_results = 5
-
-# TTS settings
-self.tts_voice = "nova"
-self.tts_model = "tts-1"
-
-# More
-# see settings_manager.py
+self.rag_batch_size = 16
+# ...
+# see settings_manager.py for all settings (there are many more)
 ```
 
 ## Shell Integration
@@ -339,7 +332,5 @@ ollama serve
 - Press `q` + `Enter` during AI responses to interrupt (not exit)
 
 ---
-
-**Note**: This project is actively maintained and new features are added regularly based on user feedback and personal workflow needs.
 
 For support or questions, please open an issue on the repository.
