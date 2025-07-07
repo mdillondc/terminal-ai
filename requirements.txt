@@ -21,3 +21,4 @@ python-magic
 docx2txt
 xlrd
 odfpy
+streamdown
