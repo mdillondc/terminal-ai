@@ -166,6 +166,7 @@ mkdir -p rag/my-docs
 | `--rag-show <filename>` | View relevant chunks from file |
 | `--rag-status` | Show RAG configuration |
 | `--rag-test` | Test embedding provider connection |
+| `--rag-deactivate` | Deactivate RAG |
 
 **Smart Rebuild:**
 RAG collections now use smart rebuild by default, which only processes changed files instead of rebuilding everything from scratch. This provides significant performance improvements:

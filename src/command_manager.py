@@ -356,6 +356,10 @@ class CommandManager:
                             self.settings_manager.setting_set("tts", True)
                             print_info("TTS enabled")
                     command_executed = True
+                elif command_name == "--rag-deactivate":
+                    self.rag_off()
+                    print_info("RAG deactivated")
+                    command_executed = True
                 elif command_name == "--rag-status":
                     self.rag_status()
                     command_executed = True

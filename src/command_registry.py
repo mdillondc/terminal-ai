@@ -309,6 +309,15 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
             requires_argument=True
         ))
+        
+        self.register_command(CommandInfo(
+            name="--rag-deactivate",
+            description="Deactivate RAG",
+            usage="--rag-deactivate",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
 
         self.register_command(CommandInfo(
             name="--rag-rebuild",
