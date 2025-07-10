@@ -23,18 +23,19 @@ def stop_capturing_print_info() -> List[str]:
     _local.capture_buffer = None
     return captured
 
-def print_info(message: str, newline_before: bool = False) -> None:
+def print_info(message: str, newline_before: bool = False, prefix: str = "- ") -> None:
     """
     Print a status message with consistent formatting.
 
     Args:
         message: The status message to display
         newline_before: Whether to add a blank line before the message
+        prefix: The prefix to add before the message (default: "- ")
     """
     if newline_before:
         print()
 
-    formatted_message = f"- {message}"
+    formatted_message = f"{prefix}{message}"
     print(formatted_message)
 
     # Also capture the message if we're in capture mode
