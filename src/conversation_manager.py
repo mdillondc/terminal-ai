@@ -9,6 +9,7 @@ from typing import Optional, Any
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
+from print_helper import print_md
 from search_intent_analyzer import SearchIntentAnalyzer
 from llm_client_manager import LLMClientManager
 from print_helper import print_info, print_lines
@@ -368,7 +369,7 @@ class ConversationManager:
                 print_info("No user message found for search")
                 return
 
-            print_info("Analyzing search intent...")
+
 
             # Build full conversation context with recent messages first
             char_limit = self.settings_manager.search_context_char_limit
@@ -407,14 +408,10 @@ class ConversationManager:
 
             # Analyze search intent
             intent_analysis = self.search_intent_analyzer.analyze_query(last_user_message, context_text)
-            print_info(f"Intent analysis: {intent_analysis.get('intent_type', 'general')} query "
-                      f"(confidence: {intent_analysis.get('confidence', 0.5):.2f})")
 
             # Extract key topics/entities from conversation context for better search queries
             key_topics = self._extract_key_topics_from_context(context_text)
             topics_text = f"Key topics from conversation: {', '.join(key_topics)}" if key_topics else ""
-
-            print_info("Generating optimal search query...")
 
             # Get current date for search context
             current_date = datetime.now().strftime("%Y-%m-%d")
@@ -442,8 +439,6 @@ class ConversationManager:
             search_queries = query_response.choices[0].message.content.strip().split('\n')
             search_queries = [q.strip() for q in search_queries if q.strip()]
 
-            print_info(f"Generated search queries: {', '.join(search_queries)}")
-
             # Perform searches
             search_client = create_tavily_search()
             if not search_client:
@@ -453,6 +448,13 @@ class ConversationManager:
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
 
+            # Build markdown for search progress
+            markdown_content = "- Analyzing search intent...\n- Generating search queries...\n"
+
+            # Add queries to markdown
+            for query in search_queries[:max_queries]:
+                markdown_content += f"    - {query}\n"
+
             # Get search parameters from intent analysis
             search_params = {
                 'max_results': intent_analysis.get('max_results', 3),
@@ -461,14 +463,29 @@ class ConversationManager:
                 'topic': intent_analysis.get('topic_category')
             }
 
-            for query in search_queries[:max_queries]:  # Limit queries to avoid overwhelming
-                print_info(f"Searching: {query} (depth: {search_params['search_depth']})")
+            all_source_metadata = []
+            for i, query in enumerate(search_queries[:max_queries], 1):  # Limit queries to avoid overwhelming
+                markdown_content += f"- Searching ({i}/{min(len(search_queries), max_queries)}): {query}\n"
                 try:
-                    results = search_client.search_and_format(query, **search_params)
+                    results, source_metadata = search_client.search_and_format(query, return_metadata=True, **search_params)
                     if results:
                         all_search_results.append(results)
+                        all_source_metadata.extend(source_metadata)
+
+                        # Add sources to markdown
+                        if source_metadata:
+                            for source in source_metadata:
+                                title = source.get('title', 'Unknown Source')
+                                url = source.get('url', '')
+
+                                if url:
+                                    markdown_content += f"    - [{title}]({url})\n"
+                                else:
+                                    markdown_content += f"    - {title}\n"
+                        else:
+                            markdown_content += "    - No sources found\n"
                 except TavilySearchError as e:
-                    print_info(f"Search failed for '{query}': {e}")
+                    markdown_content += f"    - Search failed: {e}\n"
                     continue
 
 
@@ -485,9 +502,14 @@ class ConversationManager:
 
                 # Insert search context before the last user message
                 self.conversation_history.insert(-1, search_context)
-                print_info("Search completed. Analyzing results...")
+                total_sources = len(all_source_metadata)
+                markdown_content += f"- Synthesizing {total_sources} sources...\n"
+
+                # Print the complete markdown content
+                print_md(markdown_content)
             else:
-                print_info("No search results found. Continuing without search data")
+                markdown_content += "- No search results found. Continuing without search data\n"
+                print_md(markdown_content)
 
         except Exception as e:
             print_info(f"Search workflow error: {e}. Continuing without search")

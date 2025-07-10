@@ -4,6 +4,7 @@ Provides standardized formatting for status, info, error, and success messages.
 """
 
 import threading
+import subprocess
 from typing import List, Optional
 
 # Thread-local storage for capturing print_info messages during command execution
@@ -54,3 +55,44 @@ def print_lines():
     print()
     print("=" * 50)
     print()
+
+def print_md(markdown_content: str):
+    """
+    Print markdown content using streamdown.
+    Automatically adds bullet points based on indentation.
+
+    Args:
+        markdown_content: The markdown content to render
+    """
+    # Split into lines and add bullet points
+    lines = markdown_content.split('\n')
+    formatted_lines = []
+
+    for line in lines:
+        if line.strip():  # If line is not empty
+            # Count leading spaces
+            leading_spaces = len(line) - len(line.lstrip())
+            # Add bullet after the leading spaces
+            formatted_line = line[:leading_spaces] + line[leading_spaces:]
+            formatted_lines.append(formatted_line)
+        else:
+            # Keep empty lines as-is
+            formatted_lines.append(line)
+
+    formatted_content = '\n'.join(formatted_lines)
+
+    try:
+        streamdown_cmd = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
+        process = subprocess.Popen(
+            streamdown_cmd,
+            stdin=subprocess.PIPE,
+            text=True
+        )
+
+        if process.stdin:
+            process.stdin.write(formatted_content + '\n')
+            process.stdin.close()
+            process.wait()
+    except Exception:
+        # Fallback to plain text if streamdown fails
+        print(formatted_content)

@@ -143,11 +143,75 @@ class TavilySearch:
 
         return "\n".join(formatted_output) + "\n"
 
+    def get_source_metadata(self, search_results: Dict[str, Any]) -> List[Dict[str, str]]:
+        """
+        Extract structured source metadata from search results.
+
+        Args:
+            search_results: Raw search results from Tavily API
+
+        Returns:
+            List of dictionaries with keys: 'title', 'url', 'domain', 'published_date'
+        """
+        metadata = []
+
+        if not search_results or 'results' not in search_results:
+            return metadata
+
+        results = search_results.get('results', [])
+        for result in results:
+            try:
+                url = result.get('url', '')
+
+                # Skip sources with invalid URLs
+                if not url or not isinstance(url, str):
+                    continue
+
+                # Extract domain from URL
+                domain = 'unknown'
+                if url:
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url)
+                        domain = parsed.netloc
+                        if not domain:
+                            # Skip sources with malformed URLs
+                            continue
+                    except:
+                        # Skip sources with malformed URLs
+                        continue
+
+                # Get title with fallbacks
+                title = result.get('title', '')
+                if not title or not isinstance(title, str):
+                    # Use domain name as fallback title
+                    title = domain
+                if not title:
+                    # Final fallback
+                    title = 'Unknown Source'
+
+                source_info = {
+                    'title': title,
+                    'url': url,
+                    'domain': domain,
+                    'published_date': result.get('published_date', '')
+                }
+
+                metadata.append(source_info)
+
+            except Exception as e:
+                # Log warning for debugging but continue processing other sources
+                from print_helper import print_info
+                print_info(f"Warning: Skipping problematic source: {e}")
+                continue
+
+        return metadata
+
     def search_and_format(self, query: str, max_results: int = 5,
                          include_domains: Optional[List[str]] = None,
                          exclude_domains: Optional[List[str]] = None,
                          search_depth: str = "advanced", days: Optional[int] = None,
-                         topic: Optional[str] = None) -> str:
+                         topic: Optional[str] = None, return_metadata: bool = False):
         """
         Convenience method that searches and formats results in one call.
 
@@ -159,9 +223,10 @@ class TavilySearch:
             search_depth: "basic" or "advanced" search depth
             days: Number of days for freshness filtering (optional)
             topic: Topic category ("news", "finance", "sports", "general")
+            return_metadata: Whether to return metadata along with formatted results
 
         Returns:
-            Formatted search results string
+            Formatted search results string, or tuple of (formatted_results, source_metadata) if return_metadata=True
 
         Raises:
             TavilySearchError: If search fails
@@ -169,7 +234,13 @@ class TavilySearch:
         try:
             results = self.search(query, max_results, include_domains, exclude_domains,
                                 search_depth, days, topic)
-            return self.format_results_for_ai(results, query)
+            formatted_results = self.format_results_for_ai(results, query)
+
+            if return_metadata:
+                source_metadata = self.get_source_metadata(results)
+                return (formatted_results, source_metadata)
+            else:
+                return formatted_results
         except TavilySearchError:
             raise
         except Exception as e:
@@ -193,24 +264,3 @@ def create_tavily_search() -> Optional[TavilySearch]:
         return None
 
 
-# Convenience function for quick searches
-def quick_search(query: str, max_results: int = 5) -> Optional[str]:
-    """
-    Perform a quick web search and return formatted results.
-
-    Args:
-        query: Search query string
-        max_results: Maximum number of results to return
-
-    Returns:
-        Formatted search results string, or None if search fails
-    """
-    search_client = create_tavily_search()
-    if not search_client:
-        return None
-
-    try:
-        return search_client.search_and_format(query, max_results)
-    except TavilySearchError as e:
-        print_info(f"Search failed: {e}")
-        return None
