@@ -73,7 +73,7 @@ def print_md(markdown_content: str):
             # Count leading spaces
             leading_spaces = len(line) - len(line.lstrip())
             # Add bullet after the leading spaces
-            formatted_line = line[:leading_spaces] + line[leading_spaces:]
+            formatted_line = line[:leading_spaces] + "- " + line.lstrip()
             formatted_lines.append(formatted_line)
         else:
             # Keep empty lines as-is

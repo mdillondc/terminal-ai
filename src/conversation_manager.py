@@ -448,12 +448,16 @@ class ConversationManager:
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
 
-            # Build markdown for search progress
-            markdown_content = "- Analyzing search intent...\n- Generating search queries...\n"
+            # Print search progress incrementally
+            print_md("Analyzing search intent...")
+            print_md("Generating search queries...")
 
-            # Add queries to markdown
+            # Print queries as they're generated
+            query_content = ""
             for query in search_queries[:max_queries]:
-                markdown_content += f"    - {query}\n"
+                query_content += f"  {query}\n"
+            if query_content:
+                print_md(query_content.rstrip())
 
             # Get search parameters from intent analysis
             search_params = {
@@ -467,7 +471,9 @@ class ConversationManager:
             seen_urls = set()
             display_seen_urls = set()
             for i, query in enumerate(search_queries[:max_queries], 1):  # Limit queries to avoid overwhelming
-                markdown_content += f"- Searching ({i}/{min(len(search_queries), max_queries)}): {query}\n"
+                # Build complete section with search query and sources
+                search_section = f"Searching ({i}/{min(len(search_queries), max_queries)}): {query}\n"
+
                 try:
                     results, source_metadata = search_client.search_and_format(query, return_metadata=True, **search_params)
                     if results:
@@ -478,22 +484,30 @@ class ConversationManager:
                                 all_source_metadata.append(source)
                                 seen_urls.add(source['url'])
 
-                        # Add sources to markdown, avoiding duplicates
+                        # Build source lines, avoiding duplicates
+                        source_lines = []
                         if source_metadata:
                             for source in source_metadata:
                                 title = source.get('title', 'Unknown Source')
                                 url = source.get('url', '')
 
                                 if url and url not in display_seen_urls:
-                                    markdown_content += f"    - [{title}]({url})\n"
+                                    source_lines.append(f"    [{title}]({url})")
                                     display_seen_urls.add(url)
                                 elif not url:
-                                    markdown_content += f"    - {title}\n"
+                                    source_lines.append(f"    {title}")
                         else:
-                            markdown_content += "    - No sources found\n"
+                            source_lines.append("    No sources found")
+
+                        # Add sources to the complete section
+                        if source_lines:
+                            search_section += "\n".join(source_lines)
+
                 except TavilySearchError as e:
-                    markdown_content += f"    - Search failed: {e}\n"
-                    continue
+                    search_section += f"    Search failed: {e}"
+
+                # Print the complete section
+                print_md(search_section)
 
 
 
@@ -510,13 +524,9 @@ class ConversationManager:
                 # Insert search context before the last user message
                 self.conversation_history.insert(-1, search_context)
                 unique_sources = len(all_source_metadata)
-                markdown_content += f"- Synthesizing {unique_sources} sources...\n"
-
-                # Print the complete markdown content
-                print_md(markdown_content)
+                print_md(f"Synthesizing {unique_sources} sources...")
             else:
-                markdown_content += "- No search results found. Continuing without search data\n"
-                print_md(markdown_content)
+                print_md("No search results found. Continuing without search data")
 
         except Exception as e:
             print_info(f"Search workflow error: {e}. Continuing without search")
