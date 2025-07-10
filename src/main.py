@@ -6,6 +6,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.validation import Validator, ValidationError
 from prompt_toolkit.filters import Condition
+from prompt_toolkit.styles import Style
 from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
 from command_manager import CommandManager
@@ -167,6 +168,30 @@ def main() -> None:
                     first_ai_interaction = False
 
                 print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
+
+                # Gruvbox dark two-toned completion menu styling
+                gruvbox_style = Style.from_dict({
+                    # Left side (completion text) - darker background
+                    'completion-menu.completion': 'bg:#2c2c2c #ebdbb2',
+                    'completion-menu.completion.current': 'bg:#504945 #ebdbb2',
+
+                    # Right side (meta info) - lighter background for two-tone effect
+                    'completion-menu.meta': 'bg:#3c3836 #bdae93',
+                    'completion-menu.meta.completion': 'bg:#3c3836 #bdae93',
+                    'completion-menu.meta.completion.current': 'bg:#665c54 #bdae93',
+
+                    # Overall menu container
+                    'completion-menu': 'bg:#282828',
+
+                    # Scrollbar styling
+                    'scrollbar.background': 'bg:#3c3836',
+                    'scrollbar.button': 'bg:#504945',
+                    'scrollbar.arrow': 'bg:#504945 #ebdbb2',
+
+                    # Custom completion class
+                    'completion': 'bg:#282828 #ebdbb2',
+                })
+
                 user_input = prompt(
                     "> ",
                     completer=command_manager.completer,
@@ -174,6 +199,7 @@ def main() -> None:
                     key_bindings=kb,
                     validator=NonEmptyValidator(),
                     complete_while_typing=True,
+                    style=gruvbox_style,
                 )
 
                 # Check if user wants to interrupt TTS playback
