@@ -448,12 +448,8 @@ class ConversationManager:
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
 
-            # Print search progress incrementally
-            print_md("Analyzing search intent...")
-            print_md("Generating search queries...")
-
-            # Print queries as they're generated
-            query_content = ""
+            # Print queries
+            query_content = "Generating search queries...\n"
             for query in search_queries[:max_queries]:
                 query_content += f"  {query}\n"
             if query_content:
@@ -466,6 +462,12 @@ class ConversationManager:
                 'days': intent_analysis.get('freshness_days'),
                 'topic': intent_analysis.get('topic_category')
             }
+
+            # Inform user about search mode and intent
+            search_mode = search_params['search_depth'].capitalize()
+            search_intent = intent_analysis.get('intent_type', 'general').replace('_', ' ').title()
+            print_md(f"Search mode: {search_mode}")
+            print_md(f"Search intent: {search_intent}")
 
             all_source_metadata = []
             seen_urls = set()
