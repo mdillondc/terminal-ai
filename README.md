@@ -183,7 +183,7 @@ Use `--rag-rebuild collection --force-full` to force a complete rebuild when tro
 
 ### Web Search
 
-Intelligent web search with dynamic intent analysis (temporal, factual, controversial, etc).
+Intelligent web search using Tavily with LLM query optimization, generation, context awareness, and parallel processing for faster results.
 
 ```bash
 # Enable web search
@@ -208,6 +208,7 @@ Intelligent web search with dynamic intent analysis (temporal, factual, controve
 - Dynamic intent detection via LLM analysis
 - Conversation context awareness
 - Current date awareness in queries
+- Parallel query execution to significantly reduce search response times
 - Multi-query strategy (1-3 optimized searches per request)
 
 ### Conversation Management

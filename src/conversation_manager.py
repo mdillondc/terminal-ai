@@ -5,6 +5,7 @@ import sys
 import json
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Any
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
@@ -461,50 +462,62 @@ class ConversationManager:
             all_source_metadata = []
             seen_urls = set()
             display_seen_urls = set()
-            for i, query in enumerate(search_queries[:max_queries], 1):  # Limit queries to avoid overwhelming
-                # Build complete section with search query and sources
-                search_section = f"Searching ({i}/{min(len(search_queries), max_queries)}): {query}\n"
 
-                try:
-                    # Get search results using auto-parameters
-                    raw_results = search_client.search(query, **search_params)
+            # Execute all searches in parallel
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                # Start all searches at once
+                future_to_query = {
+                    executor.submit(search_client.search, query, **search_params): query
+                    for query in search_queries[:max_queries]
+                }
 
-                    # Format results for display
-                    results = search_client.format_results_for_ai(raw_results, query)
-                    source_metadata = search_client.get_source_metadata(raw_results)
+                # Process results as they complete
+                for i, future in enumerate(as_completed(future_to_query), 1):
+                    query = future_to_query[future]
+                    search_section = f"Searching ({i}/{min(len(search_queries), max_queries)}): {query}\n"
 
-                    if results:
-                        all_search_results.append(results)
-                        # Add sources, avoiding duplicates by URL
-                        for source in source_metadata:
-                            if source.get('url') and source['url'] not in seen_urls:
-                                all_source_metadata.append(source)
-                                seen_urls.add(source['url'])
+                    try:
+                        # Get search results
+                        raw_results = future.result()
 
-                        # Build source lines, avoiding duplicates
-                        source_lines = []
-                        if source_metadata:
+                        # Format results for display
+                        results = search_client.format_results_for_ai(raw_results, query)
+                        source_metadata = search_client.get_source_metadata(raw_results)
+
+                        if results:
+                            all_search_results.append(results)
+                            # Add sources, avoiding duplicates by URL
                             for source in source_metadata:
-                                title = source.get('title', 'Unknown Source')
-                                url = source.get('url', '')
+                                if source.get('url') and source['url'] not in seen_urls:
+                                    all_source_metadata.append(source)
+                                    seen_urls.add(source['url'])
 
-                                if url and url not in display_seen_urls:
-                                    source_lines.append(f"    [{title}]({url})")
-                                    display_seen_urls.add(url)
-                                elif not url:
-                                    source_lines.append(f"    {title}")
-                        else:
-                            source_lines.append("    No sources found")
+                            # Build source lines, avoiding duplicates
+                            source_lines = []
+                            if source_metadata:
+                                for source in source_metadata:
+                                    title = source.get('title', 'Unknown Source')
+                                    url = source.get('url', '')
 
-                        # Add sources to the complete section
-                        if source_lines:
-                            search_section += "\n".join(source_lines)
+                                    if url and url not in display_seen_urls:
+                                        source_lines.append(f"    [{title}]({url})")
+                                        display_seen_urls.add(url)
+                                    elif not url:
+                                        source_lines.append(f"    {title}")
+                            else:
+                                source_lines.append("    No sources found")
 
-                except TavilySearchError as e:
-                    search_section += f"    Search failed: {e}"
+                            # Add sources to the complete section
+                            if source_lines:
+                                search_section += "\n".join(source_lines)
 
-                # Print the complete section
-                print_md(search_section)
+                    except TavilySearchError as e:
+                        search_section += f"    Search failed: {e}"
+                    except Exception as e:
+                        search_section += f"    Search failed: {e}"
+
+                    # Print the complete section
+                    print_md(search_section)
 
 
 
