@@ -7,7 +7,7 @@ import time
 import json
 from datetime import datetime, timedelta
 
-from print_helper import print_info
+from print_helper import print_md
 from settings_manager import SettingsManager
 from llm_client_manager import LLMClientManager
 
@@ -52,7 +52,7 @@ class WebContentExtractor:
                 return result
 
             # Try normal extraction first
-            print_info("Fetching webpage...")
+            print_md("Fetching webpage...")
             normal_result = self._basic_extraction(url)
 
             # Check if we got an error that might be bypassed (403, 429, etc.)
@@ -60,19 +60,19 @@ class WebContentExtractor:
                 error_msg = normal_result['error'].lower()
                 if any(code in error_msg for code in ['403', '429', 'forbidden', 'blocked', 'bot']):
                     if '403' in error_msg:
-                        print_info("Access denied (HTTP 403) - attempting bypass methods...")
+                        print_md("Access denied (HTTP 403) - attempting bypass methods...")
                     elif '429' in error_msg:
-                        print_info("Rate limited (HTTP 429) - attempting bypass methods...")
+                        print_md("Rate limited (HTTP 429) - attempting bypass methods...")
                     elif 'bot' in error_msg:
-                        print_info("Bot detection triggered - attempting bypass methods...")
+                        print_md("Bot detection triggered - attempting bypass methods...")
                     else:
-                        print_info("Access blocked - attempting bypass methods...")
+                        print_md("Access blocked - attempting bypass methods...")
 
                     bypass_result = self._try_access_bypass(url, "")
                     if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
                         return bypass_result
                     else:
-                        print_info("All bypass methods failed - returning original error")
+                        print_md("All bypass methods failed - returning original error")
                         return normal_result
                 else:
                     return normal_result
@@ -81,14 +81,14 @@ class WebContentExtractor:
             if normal_result['content']:
                 is_blocked = self._llm_evaluate_content(normal_result['content'])
                 if is_blocked:
-                    print_info("Access restriction detected - attempting bypass methods...")
+                    print_md("Access restriction detected - attempting bypass methods...")
                     bypass_result = self._try_access_bypass(url, normal_result['content'])
                     if bypass_result['content']:
                         return bypass_result
                     else:
                         content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
-                        print_info("All bypass methods failed - content appears blocked")
-                        print_info(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
+                        print_md("All bypass methods failed - content appears blocked")
+                        print_md(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
                         normal_result['warning'] = "Content may be incomplete due to access restrictions"
                         normal_result['bypass_failed'] = True
                         return normal_result
@@ -99,8 +99,8 @@ class WebContentExtractor:
                     return bypass_result
                 else:
                     content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
-                    print_info("All bypass methods failed - content appears blocked")
-                    print_info(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
+                    print_md("All bypass methods failed - content appears blocked")
+                    print_md(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
                     normal_result['warning'] = "Content may be incomplete due to access restrictions"
                     normal_result['bypass_failed'] = True
                     return normal_result
@@ -314,7 +314,7 @@ class WebContentExtractor:
                 result['error'] = "No readable content found on the page"
                 return result
 
-            print_info(f"Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
+            print_md(f"Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
 
         except requests.exceptions.Timeout:
             result['error'] = "Request timed out"
@@ -384,7 +384,7 @@ Respond in JSON format only:
             try:
                 result = json.loads(clean_json)
                 if not isinstance(result, dict):
-                    print_info(f"ERROR: LLM returned invalid JSON structure (not a dictionary): {response_text}")
+                    print_md(f"ERROR: LLM returned invalid JSON structure (not a dictionary): {response_text}")
                     return None
 
                 if result.get("blocked") == True:
@@ -392,12 +392,12 @@ Respond in JSON format only:
                 else:
                     return None  # Content is complete
             except json.JSONDecodeError:
-                print_info(f"ERROR: LLM returned invalid JSON for content evaluation: {response_text}")
-                print_info("Cannot proceed with content evaluation - LLM must return valid JSON")
+                print_md(f"ERROR: LLM returned invalid JSON for content evaluation: {response_text}")
+                print_md("Cannot proceed with content evaluation - LLM must return valid JSON")
                 return None
 
         except Exception as e:
-            print_info(f"LLM evaluation failed, falling back to basic checks: {str(e)}")
+            print_md(f"LLM evaluation failed, falling back to basic checks: {str(e)}")
             # Simple fallback - very short content is likely incomplete
             if len(content.split()) < 30:
                 return "insufficient content"
@@ -444,16 +444,16 @@ Respond in JSON format only:
             try:
                 result = json.loads(clean_json)
                 if not isinstance(result, dict):
-                    print_info(f"ERROR: LLM returned invalid JSON structure for bypass evaluation: {response_text}")
+                    print_md(f"ERROR: LLM returned invalid JSON structure for bypass evaluation: {response_text}")
                     return False
                 return not result.get("blocked", True)  # If not blocked, bypass was successful
             except json.JSONDecodeError:
-                print_info(f"ERROR: LLM returned invalid JSON for bypass evaluation: {response_text}")
-                print_info("Cannot proceed with bypass evaluation - LLM must return valid JSON")
+                print_md(f"ERROR: LLM returned invalid JSON for bypass evaluation: {response_text}")
+                print_md("Cannot proceed with bypass evaluation - LLM must return valid JSON")
                 return False
 
         except Exception as e:
-            print_info(f"LLM bypass evaluation failed: {str(e)}")
+            print_md(f"LLM bypass evaluation failed: {str(e)}")
             # Fallback to simple length comparison
             if not original_content or not bypass_content:
                 return bool(bypass_content and len(bypass_content.split()) > 50)
@@ -472,7 +472,7 @@ Respond in JSON format only:
 
         for method_name, method_func in bypass_methods:
             try:
-                print_info(f"Attempting bypass using {method_name}...")
+                print_md(f"Attempting bypass using {method_name}...")
                 result = method_func(url)
 
                 # Check if we got content
@@ -484,17 +484,17 @@ Respond in JSON format only:
                         # Success!
                         specific_method = result.get('method', method_name)
                         content_length = len(result.get('content', '').split())
-                        print_info(f"Success: Bypassed using {specific_method} - extracted {content_length} words")
+                        print_md(f"Success: Bypassed using {specific_method} - extracted {content_length} words")
                         result['warning'] = f"Access restriction bypassed using {specific_method}"
                         return result
                     else:
                         # Failed validation
-                        print_info(f"Failed: {method_name} - bypass did not improve content")
+                        print_md(f"Failed: {method_name} - bypass did not improve content")
                 else:
-                    print_info(f"Failed: {method_name} - no content retrieved")
+                    print_md(f"Failed: {method_name} - no content retrieved")
 
             except Exception as e:
-                print_info(f"Failed: {method_name} - {str(e)}")
+                print_md(f"Failed: {method_name} - {str(e)}")
                 continue
 
         # All methods failed

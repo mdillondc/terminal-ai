@@ -14,7 +14,7 @@ from odf.opendocument import load as odf_load
 from odf.text import P
 from odf.table import Table, TableRow, TableCell
 from odf import text, teletype
-from print_helper import print_info
+from print_helper import print_md
 
 
 class DocumentProcessor:
@@ -67,10 +67,10 @@ class DocumentProcessor:
                     content = f.read()
                 return content
             except Exception as e:
-                print_info(f"Error reading file {file_path}: {e}")
+                print_md(f"Error reading file {file_path}: {e}")
                 return ""
         except Exception as e:
-            print_info(f"Error loading file {file_path}: {e}")
+            print_md(f"Error loading file {file_path}: {e}")
             return ""
 
     def load_pdf_file(self, file_path: str) -> str:
@@ -86,12 +86,12 @@ class DocumentProcessor:
                         if page_text.strip():
                             content.append(f"--- Page {page_num + 1} ---\n{page_text}")
                     except Exception as e:
-                        print_info(f"Error extracting text from page {page_num + 1} of {file_path}: {e}")
+                        print_md(f"Error extracting text from page {page_num + 1} of {file_path}: {e}")
                         continue
 
             return "\n\n".join(content)
         except Exception as e:
-            print_info(f"Error loading PDF file {file_path}: {e}")
+            print_md(f"Error loading PDF file {file_path}: {e}")
             return ""
 
     def load_docx_file(self, file_path: str) -> str:
@@ -101,7 +101,7 @@ class DocumentProcessor:
             content = docx2txt.process(file_path)
             return content if content else ""
         except Exception as e:
-            print_info(f"Error loading Word file {file_path}: {e}")
+            print_md(f"Error loading Word file {file_path}: {e}")
             return ""
 
     def load_xlsx_file(self, file_path: str) -> str:
@@ -131,7 +131,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print_info(f"Error loading Excel file {file_path}: {e}")
+            print_md(f"Error loading Excel file {file_path}: {e}")
             return ""
 
     def load_xls_file(self, file_path: str) -> str:
@@ -163,7 +163,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print_info(f"Error loading legacy Excel file {file_path}: {e}")
+            print_md(f"Error loading legacy Excel file {file_path}: {e}")
             return ""
 
     def load_rtf_file(self, file_path: str) -> str:
@@ -183,10 +183,10 @@ class DocumentProcessor:
                 plain_text = rtf_to_text(rtf_content)
                 return plain_text
             except Exception as e:
-                print_info(f"Error reading RTF file {file_path}: {e}")
+                print_md(f"Error reading RTF file {file_path}: {e}")
                 return ""
         except Exception as e:
-            print_info(f"Error loading RTF file {file_path}: {e}")
+            print_md(f"Error loading RTF file {file_path}: {e}")
             return ""
 
     def load_odt_file(self, file_path: str) -> str:
@@ -215,7 +215,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print_info(f"Error loading ODT file {file_path}: {e}")
+            print_md(f"Error loading ODT file {file_path}: {e}")
             return ""
 
     def load_ods_file(self, file_path: str) -> str:
@@ -249,7 +249,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print_info(f"Error loading ODS file {file_path}: {e}")
+            print_md(f"Error loading ODS file {file_path}: {e}")
             return ""
 
     def load_odp_file(self, file_path: str) -> str:
@@ -280,7 +280,7 @@ class DocumentProcessor:
 
             return "\n\n".join(content)
         except Exception as e:
-            print_info(f"Error loading ODP file {file_path}: {e}")
+            print_md(f"Error loading ODP file {file_path}: {e}")
             return ""
 
     def load_email_file(self, file_path: str) -> str:
@@ -293,10 +293,10 @@ class DocumentProcessor:
                 with open(file_path, 'r', encoding='latin-1') as f:
                     content = f.read()
             except Exception as e:
-                print_info(f"Error reading email file {file_path}: {e}")
+                print_md(f"Error reading email file {file_path}: {e}")
                 return ""
         except Exception as e:
-            print_info(f"Error loading email file {file_path}: {e}")
+            print_md(f"Error loading email file {file_path}: {e}")
             return ""
 
         # Parse email content and extract only text parts
@@ -535,7 +535,7 @@ class DocumentProcessor:
                     hash_sha256.update(chunk)
             return hash_sha256.hexdigest()
         except Exception as e:
-            print_info(f"Error calculating hash for {file_path}: {e}")
+            print_md(f"Error calculating hash for {file_path}: {e}")
             return ""
 
     def process_collection(self, collection_path: str) -> List[Dict[str, Any]]:
@@ -564,16 +564,16 @@ class DocumentProcessor:
 
                 # Get relative path for better display
                 relative_path = os.path.relpath(file_path, collection_path)
-                print_info(f"Processing {relative_path}...")
+                print_md(f"Processing {relative_path}...")
 
                 try:
                     file_chunks = self.process_file(file_path, collection_name, collection_path)
                     all_chunks.extend(file_chunks)
                 except Exception as e:
-                    print_info(f"Error processing {relative_path}: {e}")
+                    print_md(f"Error processing {relative_path}: {e}")
                     continue
 
-        print_info(f"Processed {len(all_chunks)} chunks from {collection_name}")
+        print_md(f"Processed {len(all_chunks)} chunks from {collection_name}")
         return all_chunks
 
     def get_collection_stats(self, collection_path: str) -> Dict[str, Any]:

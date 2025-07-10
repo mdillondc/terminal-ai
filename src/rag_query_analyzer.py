@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 from openai import OpenAI
 from settings_manager import SettingsManager
 from llm_client_manager import LLMClientManager
-from print_helper import print_info
+from print_helper import print_md
 
 class RAGQueryAnalyzer:
     """
@@ -118,7 +118,7 @@ Now analyze the given query and respond with ONLY the JSON object:"""
                 return cached_result['analysis']
 
         try:
-            print_info("Analyzing RAG query for intent (temporal, factual, analytical, etc)...")
+            print_md("Analyzing RAG query for intent (temporal, factual, analytical, etc)...")
             # Get analysis from LLM
             prompt = self._get_analysis_prompt(query, domain)
 
@@ -152,7 +152,7 @@ Now analyze the given query and respond with ONLY the JSON object:"""
             return analysis
 
         except Exception as e:
-            print_info(f"Error in rag_query_analyzer: {e}")
+            print_md(f"Error in rag_query_analyzer: {e}")
             # Fallback to simple analysis on error
             return self._simple_fallback_analysis(query)
 

@@ -8,7 +8,7 @@ No hardcoded patterns - all analysis is done dynamically by the LLM.
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-from print_helper import print_info
+from print_helper import print_md
 
 
 class SearchIntentAnalyzer:
@@ -76,11 +76,11 @@ class SearchIntentAnalyzer:
             return analysis
 
         except json.JSONDecodeError as e:
-            print_info(f"Failed to parse intent analysis JSON: {e}")
-            print_info(f"Raw LLM response: {analysis_text[:200]}...")
+            print_md(f"Failed to parse intent analysis JSON: {e}")
+            print_md(f"Raw LLM response: {analysis_text[:200]}...")
             return self._fallback_analysis(query)
         except Exception as e:
-            print_info(f"Intent analysis failed: {e}")
+            print_md(f"Intent analysis failed: {e}")
             return self._fallback_analysis(query)
 
     def _create_analysis_prompt(self, query: str, conversation_context: str) -> str:

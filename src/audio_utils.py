@@ -15,7 +15,7 @@ from typing import Optional, Union
 from io import BytesIO
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
-from print_helper import print_info
+from print_helper import print_md
 
 
 class AudioPlayer:
@@ -40,10 +40,10 @@ class AudioPlayer:
             pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
             pygame.mixer.init()
             self.initialized = True
-            print_info("Audio playback initialized successfully!")
+            print_md("Audio playback initialized successfully!")
             return True
         except Exception as e:
-            print_info(f"Failed to initialize audio system: {e}")
+            print_md(f"Failed to initialize audio system: {e}")
             return False
     
     def play_audio_bytes(self, audio_bytes: bytes, format_hint: str = "mp3") -> bool:
@@ -58,7 +58,7 @@ class AudioPlayer:
             bool: True if playback started successfully, False otherwise
         """
         if not self.initialized:
-            print_info("Audio system not initialized")
+            print_md("Audio system not initialized")
             return False
         
         try:
@@ -84,7 +84,7 @@ class AudioPlayer:
             return success
             
         except Exception as e:
-            print_info(f"Error playing audio bytes: {e}")
+            print_md(f"Error playing audio bytes: {e}")
             return False
     
     def play_audio_file(self, file_path: str) -> bool:
@@ -98,11 +98,11 @@ class AudioPlayer:
             bool: True if playback started successfully, False otherwise
         """
         if not self.initialized:
-            print_info("Audio system not initialized")
+            print_md("Audio system not initialized")
             return False
         
         if not os.path.exists(file_path):
-            print_info(f"Audio file not found: {file_path}")
+            print_md(f"Audio file not found: {file_path}")
             return False
         
         try:
@@ -121,7 +121,7 @@ class AudioPlayer:
             return True
             
         except Exception as e:
-            print_info(f"Error playing audio file {file_path}: {e}")
+            print_md(f"Error playing audio file {file_path}: {e}")
             return False
     
     def _monitor_playback(self):
@@ -142,7 +142,7 @@ class AudioPlayer:
             pygame.mixer.music.stop()
             self.playing = False
         except Exception as e:
-            print_info(f"Error stopping audio: {e}")
+            print_md(f"Error stopping audio: {e}")
     
     def is_playing(self) -> bool:
         """Check if audio is currently playing"""
@@ -168,7 +168,7 @@ class AudioPlayer:
             volume = max(0.0, min(1.0, volume))  # Clamp to valid range
             pygame.mixer.music.set_volume(volume)
         except Exception as e:
-            print_info(f"Error setting volume: {e}")
+            print_md(f"Error setting volume: {e}")
     
     def wait_for_completion(self, timeout: Optional[float] = None) -> bool:
         """
@@ -292,23 +292,23 @@ def cleanup_audio():
 # Test function for debugging
 def test_audio_system():
     """Test the audio system functionality"""
-    print_info("Testing audio system...")
+    print_md("Testing audio system...")
     
     player = get_audio_player()
     
     if not player.initialized:
-        print_info("Audio system failed to initialize")
+        print_md("Audio system failed to initialize")
         return False
     
-    print_info("Audio system initialized successfully")
-    print_info(f"pygame version: {pygame.version.ver}")
+    print_md("Audio system initialized successfully")
+    print_md(f"pygame version: {pygame.version.ver}")
     
     # Test basic functionality
     try:
         player.set_volume(0.5)
-        print_info("Volume control working")
+        print_md("Volume control working")
     except Exception as e:
-        print_info(f"Volume control error: {e}")
+        print_md(f"Volume control error: {e}")
         return False
     
     return True

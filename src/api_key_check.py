@@ -3,7 +3,7 @@ import urllib.request
 
 from pydantic import annotated_handlers
 from settings_manager import SettingsManager
-from print_helper import print_info, print_lines
+from print_helper import print_md, print_lines
 
 def _check_ollama():
     try:
@@ -28,16 +28,16 @@ def check():
         print_lines()
 
     if not openai_key:
-        print_info("OPENAI_API_KEY not set.")
+        print_md("OPENAI_API_KEY not set.")
     if not google_key:
-        print_info("GOOGLE_API_KEY not set.")
+        print_md("GOOGLE_API_KEY not set.")
     if not anthropic_key:
-        print_info("ANTHROPIC_API_KEY not set.")
+        print_md("ANTHROPIC_API_KEY not set.")
     if not tavily_key:
-        print_info("TAVILY_API_KEY not set. Web search unavailable (--search)")
+        print_md("TAVILY_API_KEY not set. Web search unavailable (--search)")
     if not ollama_available:
-        print_info("Ollama not available.")
+        print_md("Ollama not available.")
 
     if not openai_key or not google_key or not tavily_key or not ollama_available:
-        print_info("You can suppress these messages with --suppress-api")
+        print_md("You can suppress these messages with --suppress-api")
         print_lines()

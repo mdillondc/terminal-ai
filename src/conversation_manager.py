@@ -12,7 +12,7 @@ from tavily_search import create_tavily_search, TavilySearchError
 from print_helper import print_md
 from search_intent_analyzer import SearchIntentAnalyzer
 from llm_client_manager import LLMClientManager
-from print_helper import print_info, print_lines
+from print_helper import print_md, print_lines
 from rich.console import Console
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -43,7 +43,7 @@ class ConversationManager:
             from rag_engine import RAGEngine
             self.rag_engine = RAGEngine(self._original_openai_client)
         except ImportError as e:
-            print_info(f"Warning: Could not initialize RAG engine: {e}")
+            print_md(f"Warning: Could not initialize RAG engine: {e}")
             self.rag_engine = None
 
     def _process_and_print_chunk(self, chunk: str) -> None:
@@ -199,7 +199,7 @@ class ConversationManager:
         try:
             self.client = self.llm_client_manager._get_client_for_model(model_name)
         except Exception as e:
-            print_info(f"Warning: Could not get client for {model_name}: {e}")
+            print_md(f"Warning: Could not get client for {model_name}: {e}")
             # Fall back to original OpenAI client
             self.client = self._original_openai_client
 
@@ -256,7 +256,7 @@ class ConversationManager:
             for chunk in stream:
                 # Check for 'q + enter' interrupt before processing each chunk
                 if self._check_for_interrupt():
-                    print_info("Response interrupted by user")
+                    print_md("Response interrupted by user")
                     interrupted = True
                     break
 
@@ -274,7 +274,7 @@ class ConversationManager:
                             # Normal processing for non-markdown mode
                             self._process_and_print_chunk(ai_response_chunk)
         except Exception as e:
-            print_info(f"Error processing response stream: {e}")
+            print_md(f"Error processing response stream: {e}")
 
         # Close streamdown process if it was used
         if markdown_enabled and streamdown_process and streamdown_process.stdin:
@@ -366,7 +366,7 @@ class ConversationManager:
                     break
 
             if not last_user_message:
-                print_info("No user message found for search")
+                print_md("No user message found for search")
                 return
 
 
@@ -442,7 +442,7 @@ class ConversationManager:
             # Perform searches
             search_client = create_tavily_search()
             if not search_client:
-                print_info("Failed to initialize Tavily search client. Continuing without search")
+                print_md("Failed to initialize Tavily search client. Continuing without search")
                 return
 
             all_search_results = []
@@ -529,7 +529,7 @@ class ConversationManager:
                 print_md("No search results found. Continuing without search data")
 
         except Exception as e:
-            print_info(f"Search workflow error: {e}. Continuing without search")
+            print_md(f"Search workflow error: {e}. Continuing without search")
             return
 
     def _extract_key_topics_from_context(self, context_text: str) -> list:
@@ -581,7 +581,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
             return topics[:5]  # Limit to top 5 topics
 
         except Exception as e:
-            print_info(f"Topic extraction failed: {e}")
+            print_md(f"Topic extraction failed: {e}")
             return []
 
 
@@ -605,7 +605,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
             tts_service.generate_and_play_speech(text)
 
         except Exception as e:
-            print_info(f"TTS error: {e}")
+            print_md(f"TTS error: {e}")
 
     def _check_for_interrupt(self) -> bool:
         """Check for 'q' + Enter. Returns True if 'q' was entered."""
@@ -635,13 +635,13 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
 
     def apply_instructions(self, file_name: Optional[str], old_file_name: Optional[str] = None) -> None:
         if file_name is None:
-            print_info("Please specify the instructions file to use")
+            print_md("Please specify the instructions file to use")
             return
 
         new_file_path = self.settings_manager.setting_get("working_dir") + "/instructions/" + file_name
 
         if not os.path.exists(new_file_path):
-            print_info(f"{new_file_path} does not exist")
+            print_md(f"{new_file_path} does not exist")
         else:
             if old_file_name:
                 # Remove old instructions from conversation_history
@@ -663,7 +663,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
             # Inform user
             notice = f"Instructions {file_name}"
             if old_file_name:
-                print_info(notice)
+                print_md(notice)
 
 
     @staticmethod
@@ -727,7 +727,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
                     self._rename_log_files_with_title(descriptive_title, interrupted)
                     self.log_renamed = True
             except Exception as e:
-                print_info(f"Could not generate descriptive log title: {e}")
+                print_md(f"Could not generate descriptive log title: {e}")
                 # Continue without renaming - not critical functionality
 
     def _create_title_generation_prompt(self, context: str) -> str:
@@ -822,7 +822,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 return title
 
         except Exception as e:
-            print_info(f"Error generating title: {e}")
+            print_md(f"Error generating title: {e}")
 
         # Fallback to generic name if all else fails
         return "general-conversation"
@@ -867,14 +867,14 @@ Generate only the filename focusing on content substance:""".format(context[:100
             self.settings_manager.setting_set("log_file_name", new_filename)
 
             # Adjust spacing based on whether response was interrupted
-            print_info(f"Log renamed to: {new_filename}")
+            print_md(f"Log renamed to: {new_filename}")
 
             # Add spacing after log rename in markdown mode
             if self.settings_manager.setting_get("markdown"):
                 print()
 
         except Exception as e:
-            print_info(f"Error renaming log files: {e}")
+            print_md(f"Error renaming log files: {e}")
 
     def generate_ai_suggested_title(self) -> str:
         """Generate AI-suggested title using full conversation context (for --logmv command)"""
@@ -897,7 +897,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return title if title else "general-conversation"
 
         except Exception as e:
-            print_info(f"Error generating AI suggested title: {e}")
+            print_md(f"Error generating AI suggested title: {e}")
             return "general-conversation"
 
     def manual_log_rename(self, title: str) -> str:
@@ -956,7 +956,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return new_filename
 
         except Exception as e:
-            print_info(f"Error renaming log files: {e}")
+            print_md(f"Error renaming log files: {e}")
             # Fallback to simple filename if rename fails
             fallback_name = f"{title}.md"
             self.settings_manager.setting_set("log_file_name", fallback_name)
@@ -994,7 +994,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return True
 
         except Exception as e:
-            print_info(f"Error deleting log: {e}")
+            print_md(f"Error deleting log: {e}")
             return False
 
     def log_resume(self) -> None:
@@ -1020,10 +1020,10 @@ Generate only the filename focusing on content substance:""".format(context[:100
             # Display the conversation history to the user
             self._display_conversation_history()
 
-            print_info("Conversation history replaced with " + self.settings_manager.setting_get('log_file_name'))
-            print_info("Now logging to " + self.settings_manager.setting_get('log_file_name'))
+            print_md("Conversation history replaced with " + self.settings_manager.setting_get('log_file_name'))
+            print_md("Now logging to " + self.settings_manager.setting_get('log_file_name'))
         else:
-            print_info("Log file not found")
+            print_md("Log file not found")
 
     def start_new_conversation_log(self) -> None:
         """
@@ -1051,17 +1051,17 @@ Generate only the filename focusing on content substance:""".format(context[:100
     def _display_conversation_history(self) -> None:
         """Display the loaded conversation history, applying markdown if enabled."""
         if not self.conversation_history:
-            print_info("No conversation history to display")
+            print_md("No conversation history to display")
             return
 
         # Filter out system messages for display
         display_messages = [msg for msg in self.conversation_history if msg.get('role') != 'system']
 
         if not display_messages:
-            print_info("No user conversation to display (only system messages found)")
+            print_md("No user conversation to display (only system messages found)")
             return
 
-        print_info("Resuming conversation history:")
+        print_md("Resuming conversation history:")
         print_lines()
 
         user_name = self.settings_manager.setting_get('name_user') or "User"
@@ -1071,7 +1071,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
         # Show summary for long conversations
         total_messages = len(display_messages)
         if total_messages > 0:
-            print_info(f"Conversation Summary: {total_messages} messages")
+            print_md(f"Conversation Summary: {total_messages} messages")
             print_lines()
 
         if markdown_enabled:

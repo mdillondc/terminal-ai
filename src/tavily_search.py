@@ -8,7 +8,7 @@ allowing the AI to access current information from the internet.
 import os
 from typing import List, Dict, Optional, Any
 from tavily import TavilyClient
-from print_helper import print_info
+from print_helper import print_md
 
 
 class TavilySearchError(Exception):
@@ -201,8 +201,8 @@ class TavilySearch:
 
             except Exception as e:
                 # Log warning for debugging but continue processing other sources
-                from print_helper import print_info
-                print_info(f"Warning: Skipping problematic source: {e}")
+                from print_helper import print_md
+                print_md(f"Warning: Skipping problematic source: {e}")
                 continue
 
         return metadata
@@ -257,10 +257,10 @@ def create_tavily_search() -> Optional[TavilySearch]:
     try:
         return TavilySearch()
     except TavilySearchError as e:
-        print_info(f"Tavily search error: {e}")
+        print_md(f"Tavily search error: {e}")
         return None
     except Exception as e:
-        print_info(f"Unexpected error initializing Tavily search: {e}")
+        print_md(f"Unexpected error initializing Tavily search: {e}")
         return None
 
 

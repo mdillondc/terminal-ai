@@ -7,7 +7,7 @@ from document_processor import DocumentProcessor
 from rag_embedding_service import EmbeddingService
 from vector_store import VectorStore
 from settings_manager import SettingsManager
-from print_helper import print_info
+from print_helper import print_md
 
 class RAGEngine:
     def __init__(self, client: OpenAI):
@@ -64,12 +64,12 @@ class RAGEngine:
             True if successful, False otherwise
         """
         if not self.collection_exists(collection_name):
-            print_info(f"Collection '{collection_name}' not found")
+            print_md(f"Collection '{collection_name}' not found")
             return False
 
         # Check if rebuild is needed
         if not force_rebuild and self.vector_store.is_collection_cache_valid(collection_name):
-            print_info(f"Collection '{collection_name}' index is up to date")
+            print_md(f"Collection '{collection_name}' index is up to date")
             return True
 
         # Choose rebuild strategy
@@ -88,7 +88,7 @@ class RAGEngine:
         Returns:
             True if successful, False otherwise
         """
-        print_info(f"Full rebuild of collection '{collection_name}'...")
+        print_md(f"Full rebuild of collection '{collection_name}'...")
 
         try:
             # Get collection path
@@ -96,21 +96,21 @@ class RAGEngine:
             collection_path = os.path.join(collections_path, collection_name)
 
             # Process documents into chunks
-            print_info("Processing documents...")
+            print_md("Processing documents...")
             chunks = self.document_processor.process_collection(collection_path)
 
             if not chunks:
-                print_info("No processable documents found in collection")
+                print_md("No processable documents found in collection")
                 return False
 
             # Generate embeddings
-            print_info(f"Generating embeddings for {len(chunks)} chunks...")
+            print_md(f"Generating embeddings for {len(chunks)} chunks...")
             chunk_texts = [chunk["content"] for chunk in chunks]
 
             embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
 
             if len(embeddings) != len(chunks):
-                print_info("Mismatch between chunks and embeddings")
+                print_md("Mismatch between chunks and embeddings")
                 return False
 
             # Add embeddings to chunks
@@ -119,11 +119,11 @@ class RAGEngine:
                 chunks[i]["created_at"] = time.time()
 
             # Save to vector store
-            print_info("Saving index...")
+            print_md("Saving index...")
             success = self.vector_store.save_collection_index(collection_name, chunks)
 
             if success:
-                print_info(f"Successfully built collection '{collection_name}'")
+                print_md(f"Successfully built collection '{collection_name}'")
 
                 # If this is the active collection, reload it
                 if self.active_collection == collection_name:
@@ -131,11 +131,11 @@ class RAGEngine:
 
                 return True
             else:
-                print_info(f"Failed to save collection '{collection_name}'")
+                print_md(f"Failed to save collection '{collection_name}'")
                 return False
 
         except Exception as e:
-            print_info(f"Error building collection '{collection_name}': {e}")
+            print_md(f"Error building collection '{collection_name}': {e}")
             return False
 
     def _build_collection_smart(self, collection_name: str) -> bool:
@@ -148,7 +148,7 @@ class RAGEngine:
         Returns:
             True if successful, False otherwise
         """
-        print_info(f"Smart rebuild of collection '{collection_name}'...")
+        print_md(f"Smart rebuild of collection '{collection_name}'...")
 
         try:
             # Get collection path
@@ -158,23 +158,23 @@ class RAGEngine:
             # Get file changes
             changed_files, unchanged_files, deleted_files = self.vector_store.get_file_changes(collection_name)
 
-            print_info(f"Found {len(changed_files)} changed files, {len(unchanged_files)} unchanged files, {len(deleted_files)} deleted files")
+            print_md(f"Found {len(changed_files)} changed files, {len(unchanged_files)} unchanged files, {len(deleted_files)} deleted files")
 
             # If no existing index or all files changed, do full rebuild
             if not unchanged_files and not os.path.exists(self.vector_store._get_index_file_path(collection_name)):
-                print_info("No existing index found, performing full rebuild...")
+                print_md("No existing index found, performing full rebuild...")
                 return self._build_collection_full(collection_name)
 
             # Load existing chunks for unchanged files
             existing_chunks = []
             if unchanged_files:
-                print_info(f"Loading existing chunks for {len(unchanged_files)} unchanged files...")
+                print_md(f"Loading existing chunks for {len(unchanged_files)} unchanged files...")
                 existing_chunks = self.vector_store.load_chunks_for_files(collection_name, unchanged_files)
 
             # Process changed files
             new_chunks = []
             if changed_files:
-                print_info(f"Processing {len(changed_files)} changed files...")
+                print_md(f"Processing {len(changed_files)} changed files...")
                 for file_path in changed_files:
                     full_file_path = os.path.join(collection_path, file_path)
                     if os.path.exists(full_file_path):
@@ -182,17 +182,17 @@ class RAGEngine:
                             file_chunks = self.document_processor.process_file(full_file_path, collection_name, collection_path)
                             new_chunks.extend(file_chunks)
                         except Exception as e:
-                            print_info(f"Error processing {file_path}: {e}")
+                            print_md(f"Error processing {file_path}: {e}")
                             continue
 
             # Generate embeddings for new chunks only
             if new_chunks:
-                print_info(f"Generating embeddings for {len(new_chunks)} new chunks...")
+                print_md(f"Generating embeddings for {len(new_chunks)} new chunks...")
                 chunk_texts = [chunk["content"] for chunk in new_chunks]
                 embeddings = self.embedding_service.generate_embeddings_batch(chunk_texts)
 
                 if len(embeddings) != len(new_chunks):
-                    print_info("Mismatch between new chunks and embeddings")
+                    print_md("Mismatch between new chunks and embeddings")
                     return False
 
                 # Add embeddings to new chunks
@@ -204,18 +204,18 @@ class RAGEngine:
             all_chunks = existing_chunks + new_chunks
 
             if not all_chunks:
-                print_info("No processable documents found in collection")
+                print_md("No processable documents found in collection")
                 return False
 
             # Save to vector store
-            print_info("Saving index...")
+            print_md("Saving index...")
             success = self.vector_store.save_collection_index(collection_name, all_chunks)
 
             if success:
                 total_chunks = len(all_chunks)
                 new_chunk_count = len(new_chunks)
                 reused_chunk_count = len(existing_chunks)
-                print_info(f"Successfully built collection '{collection_name}' ({total_chunks} chunks: {new_chunk_count} new, {reused_chunk_count} reused)")
+                print_md(f"Successfully built collection '{collection_name}' ({total_chunks} chunks: {new_chunk_count} new, {reused_chunk_count} reused)")
 
                 # If this is the active collection, reload it
                 if self.active_collection == collection_name:
@@ -223,13 +223,13 @@ class RAGEngine:
 
                 return True
             else:
-                print_info(f"Failed to save collection '{collection_name}'")
+                print_md(f"Failed to save collection '{collection_name}'")
                 return False
 
         except Exception as e:
-            print_info(f"Error smart building collection '{collection_name}': {e}")
+            print_md(f"Error smart building collection '{collection_name}': {e}")
             # On error, fall back to full rebuild
-            print_info("Falling back to full rebuild...")
+            print_md("Falling back to full rebuild...")
             return self._build_collection_full(collection_name)
 
     def activate_collection(self, collection_name: str, verbose: bool = True) -> bool:
@@ -245,7 +245,7 @@ class RAGEngine:
         """
         if not self.collection_exists(collection_name):
             if verbose:
-                print_info(f"Collection '{collection_name}' not found")
+                print_md(f"Collection '{collection_name}' not found")
             return False
 
         # Check if index exists
@@ -254,33 +254,33 @@ class RAGEngine:
 
         if not index_exists:
             if verbose:
-                print_info(f"Collection '{collection_name}' has no index")
-                print_info(f"Auto-building collection...")
+                print_md(f"Collection '{collection_name}' has no index")
+                print_md(f"Auto-building collection...")
 
             # Auto-build the collection
             success = self.build_collection(collection_name, force_rebuild=True, force_full=False)
             if not success:
                 if verbose:
-                    print_info(f"Failed to build collection '{collection_name}'")
+                    print_md(f"Failed to build collection '{collection_name}'")
                 return False
 
         if not cache_valid:
             if verbose:
-                print_info(f"Collection '{collection_name}' files have changed since last build")
-                print_info(f"Auto-rebuilding collection...")
+                print_md(f"Collection '{collection_name}' files have changed since last build")
+                print_md(f"Auto-rebuilding collection...")
 
             # Auto-rebuild the collection
             success = self.build_collection(collection_name, force_rebuild=True, force_full=False)
             if not success:
                 if verbose:
-                    print_info(f"Failed to rebuild collection '{collection_name}'")
+                    print_md(f"Failed to rebuild collection '{collection_name}'")
                 return False
 
         # Load collection index
         chunks = self.vector_store.load_collection_index(collection_name)
         if chunks is None:
             if verbose:
-                print_info(f"Failed to load collection '{collection_name}'")
+                print_md(f"Failed to load collection '{collection_name}'")
             return False
 
         # Activate collection
@@ -291,14 +291,14 @@ class RAGEngine:
         self.settings_manager.setting_set("rag_active_collection", collection_name)
 
         if verbose:
-            print_info(f"Activated collection '{collection_name}' ({len(chunks)} chunks)")
+            print_md(f"Activated collection '{collection_name}' ({len(chunks)} chunks)")
 
         return True
 
     def deactivate_collection(self) -> None:
         """Deactivate the current collection"""
         if self.active_collection:
-            print_info(f"Deactivated collection '{self.active_collection}'")
+            print_md(f"Deactivated collection '{self.active_collection}'")
 
         self.active_collection = None
         self.active_collection_chunks = None
@@ -336,7 +336,7 @@ class RAGEngine:
             return results
 
         except Exception as e:
-            print_info(f"Error querying collection: {e}")
+            print_md(f"Error querying collection: {e}")
             return []
 
     def get_context_for_query(self, query_text: str) -> Tuple[str, List[Dict[str, Any]]]:

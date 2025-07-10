@@ -4,7 +4,7 @@ import time
 import datetime
 from typing import Optional, Any, ClassVar, Dict, List
 from command_registry import CommandRegistry
-from print_helper import print_info
+from print_helper import print_md
 
 
 class SettingsManager:
@@ -101,7 +101,7 @@ class SettingsManager:
         self.log_file_name = self.generate_new_log_filename()
 
         # Display Settings
-        self.markdown = False  # Enable markdown parsing and rendering
+        self.markdown = True  # Enable markdown parsing and rendering
         self.log_file_location = None  # Do not change
 
         # Command Registry - centralized command management
@@ -179,23 +179,23 @@ class SettingsManager:
             if provider == "ollama":
                 ollama_url = self.setting_get("ollama_base_url")
                 if llm_client_manager and llm_client_manager._is_ollama_available():
-                    print_info(f"Model: {model}")
-                    print_info(f"Running locally via Ollama at {ollama_url}")
+                    print_md(f"Model: {model}")
+                    print_md(f"Running locally via Ollama at {ollama_url}")
                 else:
-                    print_info(f"Warning: Selected Ollama model '{model}' but Ollama not available")
-                    print_info(f"Make sure Ollama is running at {ollama_url}")
+                    print_md(f"Warning: Selected Ollama model '{model}' but Ollama not available")
+                    print_md(f"Make sure Ollama is running at {ollama_url}")
             elif provider == "google":
-                print_info(f"Model: {model}")
-                print_info(f"https://ai.google.dev/gemini-api/docs/models")
+                print_md(f"Model: {model}")
+                print_md(f"https://ai.google.dev/gemini-api/docs/models")
             elif provider == "anthropic":
-                print_info(f"Model: {model}")
-                print_info(f"https://docs.anthropic.com/en/docs/about-claude/models")
+                print_md(f"Model: {model}")
+                print_md(f"https://docs.anthropic.com/en/docs/about-claude/models")
             else:
-                print_info(f"Model: {model}")
-                print_info(f"https://platform.openai.com/docs/models")
+                print_md(f"Model: {model}")
+                print_md(f"https://platform.openai.com/docs/models")
         else:
             # Simplified messaging for startup/config
-            print_info(f"Model: {model}")
+            print_md(f"Model: {model}")
 
     def get_config_path(self) -> str:
         """Get the path to the config file"""
@@ -232,7 +232,7 @@ class SettingsManager:
             # Config file doesn't exist - that's fine, use defaults
             pass
         except Exception as e:
-            print_info(f"Error reading config file: {e}")
+            print_md(f"Error reading config file: {e}")
 
         return config_data
 
@@ -293,7 +293,7 @@ class SettingsManager:
         if not config_data:
             return  # No config to process
 
-        # print_info(f"Apply settings from: {config_path}:")
+        # print_md(f"Apply settings from: {config_path}:")
 
         valid_settings = self.get_valid_settings()
         invalid_settings = []
@@ -308,12 +308,12 @@ class SettingsManager:
                 # Show what's being overridden with source attribution
                 config_source = "~/.config/terminal-ai/config"
                 if setting_name == "model":
-                    print_info(f"Model: {converted_value} ({config_source})")
+                    print_md(f"Model: {converted_value} ({config_source})")
                 elif setting_name == "instructions":
                     instruction_name = converted_value.rsplit('.', 1)[0] if converted_value else converted_value
-                    print_info(f"Instructions: {instruction_name} ({config_source})")
+                    print_md(f"Instructions: {instruction_name} ({config_source})")
                 else:
-                    print_info(f"Set {setting_name}: {converted_value} ({config_source})")
+                    print_md(f"Set {setting_name}: {converted_value} ({config_source})")
             else:
                 # Invalid setting - track for warning
                 invalid_settings.append(setting_name)
@@ -321,7 +321,7 @@ class SettingsManager:
         # Warn about invalid settings
         if invalid_settings:
             invalid_list = ', '.join(invalid_settings)
-            print_info(f"Config contains invalid setting(s): {invalid_list}")
+            print_md(f"Config contains invalid setting(s): {invalid_list}")
 
 
 

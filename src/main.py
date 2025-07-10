@@ -10,7 +10,7 @@ from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
 from command_manager import CommandManager
 from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
-from print_helper import print_info, print_lines
+from print_helper import print_md, print_lines
 from api_key_check import check
 from scroll import ScrollManager
 
@@ -66,12 +66,12 @@ def main() -> None:
 
     # Display model info using centralized method with source attribution
     current_model = settings_manager.setting_get("model")
-    print_info(f"Model: {current_model} (settings_manager.py)")
+    print_md(f"Model: {current_model} (settings_manager.py)")
 
     current_instructions = settings_manager.setting_get("instructions")
     if current_instructions:
         instruction_name = current_instructions.rsplit('.', 1)[0]
-        print_info(f"Instructions: {instruction_name} (settings_manager.py)")
+        print_md(f"Instructions: {instruction_name} (settings_manager.py)")
 
     # Load config file overrides after displaying defaults
     settings_manager.load_config()
@@ -107,7 +107,7 @@ def main() -> None:
         else:
             # Enable scroll and immediately enter scroll mode
             if settings_manager.setting_get("incognito"):
-                print_info("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
+                print_md("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
             else:
                 settings_manager.setting_set("scroll", True)
                 scroll_manager._enter_scroll_mode()
@@ -179,7 +179,7 @@ def main() -> None:
                 # Check if user wants to interrupt TTS playback
                 if user_input.lower().strip() == "q" and is_tts_playing():
                     interrupt_tts()
-                    print_info("Audio playback stopped")
+                    print_md("Audio playback stopped")
                     continue
 
                 exit_commands = ("q", "quit", ":q", ":wq")

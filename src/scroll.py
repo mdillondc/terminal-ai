@@ -2,7 +2,7 @@ import os
 import sys
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.filters import Condition
-from print_helper import print_info
+from print_helper import print_md
 
 
 class ScrollManager:
