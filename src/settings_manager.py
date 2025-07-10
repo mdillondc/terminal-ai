@@ -45,6 +45,7 @@ class SettingsManager:
 
         # Search Settings
         self.search = False
+        self.search_max_results = 3  # Maximum number of search results per query
 
         # RAG Settings
         self.embedding_provider = "ollama"  # "openai" or "ollama"

@@ -21,6 +21,8 @@ class TavilySearch:
     Wrapper class for Tavily API search functionality.
 
     Provides methods to search the web and format results for AI consumption.
+    Supports both manual parameter configuration and Tavily's intelligent
+    auto_parameters feature for optimal search optimization.
     """
 
     def __init__(self):
@@ -41,7 +43,8 @@ class TavilySearch:
 
     def search(self, query: str, max_results: int = 5, include_domains: Optional[List[str]] = None,
                exclude_domains: Optional[List[str]] = None, search_depth: str = "advanced",
-               days: Optional[int] = None, topic: Optional[str] = None) -> Dict[str, Any]:
+               days: Optional[int] = None, topic: Optional[str] = None,
+               auto_parameters: bool = False) -> Dict[str, Any]:
         """
         Perform a web search using Tavily API.
 
@@ -50,12 +53,18 @@ class TavilySearch:
             max_results: Maximum number of results to return (default: 5)
             include_domains: List of domains to include in search
             exclude_domains: List of domains to exclude from search
-            search_depth: "basic" or "advanced" search depth
-            days: Number of days for freshness filtering (optional)
-            topic: Topic category ("news", "finance", "sports", "general")
+            search_depth: "basic" or "advanced" search depth (ignored if auto_parameters=True)
+            days: Number of days for freshness filtering (optional, ignored if auto_parameters=True)
+            topic: Topic category ("news", "finance", "sports", "general", ignored if auto_parameters=True)
+            auto_parameters: Enable Tavily's intelligent automatic parameter optimization.
+                When True, Tavily analyzes the query content and intent to automatically
+                configure optimal search parameters (search_depth, topic, etc.).
+                Manual parameter settings will override automatic ones.
+                Note: May automatically set search_depth to "advanced" (2 API credits vs 1 for basic).
 
         Returns:
-            Dictionary containing search results and metadata
+            Dictionary containing search results and metadata. When auto_parameters=True,
+            response includes an 'auto_parameters' field showing what Tavily selected.
 
         Raises:
             TavilySearchError: If search fails
@@ -67,7 +76,8 @@ class TavilySearch:
                 "max_results": max_results,
                 "search_depth": search_depth,
                 "include_answer": True,      # Include AI-generated answer
-                "include_raw_content": False  # Don't include raw HTML content
+                "include_raw_content": False,  # Don't include raw HTML content
+                "auto_parameters": auto_parameters
             }
 
             # Add domain filters if provided
@@ -211,7 +221,8 @@ class TavilySearch:
                          include_domains: Optional[List[str]] = None,
                          exclude_domains: Optional[List[str]] = None,
                          search_depth: str = "advanced", days: Optional[int] = None,
-                         topic: Optional[str] = None, return_metadata: bool = False):
+                         topic: Optional[str] = None, return_metadata: bool = False,
+                         auto_parameters: bool = False):
         """
         Convenience method that searches and formats results in one call.
 
@@ -220,10 +231,15 @@ class TavilySearch:
             max_results: Maximum number of results to return
             include_domains: List of domains to include in search
             exclude_domains: List of domains to exclude from search
-            search_depth: "basic" or "advanced" search depth
-            days: Number of days for freshness filtering (optional)
-            topic: Topic category ("news", "finance", "sports", "general")
+            search_depth: "basic" or "advanced" search depth (ignored if auto_parameters=True)
+            days: Number of days for freshness filtering (optional, ignored if auto_parameters=True)
+            topic: Topic category ("news", "finance", "sports", "general", ignored if auto_parameters=True)
             return_metadata: Whether to return metadata along with formatted results
+            auto_parameters: Enable Tavily's intelligent automatic parameter optimization.
+                When True, Tavily analyzes the query content and intent to automatically
+                configure optimal search parameters for better results.
+                Manual parameter settings will override automatic ones.
+                Note: May automatically set search_depth to "advanced" (2 API credits vs 1 for basic).
 
         Returns:
             Formatted search results string, or tuple of (formatted_results, source_metadata) if return_metadata=True
@@ -233,7 +249,7 @@ class TavilySearch:
         """
         try:
             results = self.search(query, max_results, include_domains, exclude_domains,
-                                search_depth, days, topic)
+                                search_depth, days, topic, auto_parameters)
             formatted_results = self.format_results_for_ai(results, query)
 
             if return_metadata:

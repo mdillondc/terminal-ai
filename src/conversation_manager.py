@@ -10,7 +10,6 @@ from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
 from print_helper import print_md
-from search_intent_analyzer import SearchIntentAnalyzer
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines
 from rich.console import Console
@@ -34,9 +33,6 @@ class ConversationManager:
 
         # Initialize LLM client manager for multi-provider support
         self.llm_client_manager = LLMClientManager(self._original_openai_client)
-
-        # Initialize search intent analyzer
-        self.search_intent_analyzer = SearchIntentAnalyzer(self.llm_client_manager, self.model)
 
         # Initialize RAG engine - import here to avoid circular imports
         try:
@@ -406,9 +402,6 @@ class ConversationManager:
 
             context_text = "\n".join(context_parts) if context_parts else "No prior context."
 
-            # Analyze search intent
-            intent_analysis = self.search_intent_analyzer.analyze_query(last_user_message, context_text)
-
             # Extract key topics/entities from conversation context for better search queries
             key_topics = self._extract_key_topics_from_context(context_text)
             topics_text = f"Key topics from conversation: {', '.join(key_topics)}" if key_topics else ""
@@ -421,7 +414,7 @@ class ConversationManager:
             search_query_conversation = [
                 {
                     "role": "system",
-                    "content": f"You are a search query optimizer. Today's date is {current_date} (year {current_year}). Given a user's question or statement and the conversation context, rewrite it as 1-3 optimal search queries that would find the most relevant and current information to answer their question. Consider the conversation context to understand what the user is really asking about. When generating queries about recent events, use the correct current year ({current_year}). Respond with only the search queries, one per line, no explanations."
+                    "content": f"You are a search query optimizer. Today's date is {current_date} (year {current_year}). Given a user's question or statement and the conversation context, rewrite it as 1-3 optimal search queries that would find the most relevant and current information to answer their question. If the question is very basic, such as a persons age, simple arithmetic, or you otherwise think the question can be answered with only one query, do not generate more than one query. Consider the conversation context to understand what the user is really asking about. When generating queries about recent events, use the correct current year ({current_year}). Respond with only the search queries, one per line, no explanations."
                 },
                 {
                     "role": "user",
@@ -455,19 +448,14 @@ class ConversationManager:
             if query_content:
                 print_md(query_content.rstrip())
 
-            # Get search parameters from intent analysis
+            # Use Tavily's auto-parameters for intelligent search optimization
             search_params = {
-                'max_results': intent_analysis.get('max_results', 3),
-                'search_depth': intent_analysis.get('search_depth', 'basic'),
-                'days': intent_analysis.get('freshness_days'),
-                'topic': intent_analysis.get('topic_category')
+                'auto_parameters': True,
+                'max_results': self.settings_manager.search_max_results  # Must be set manually per Tavily docs
             }
 
-            # Inform user about search mode and intent
-            search_mode = search_params['search_depth'].capitalize()
-            search_intent = intent_analysis.get('intent_type', 'general').replace('_', ' ').title()
-            print_md(f"Search mode: {search_mode}")
-            print_md(f"Search intent: {search_intent}")
+            # Inform user about search configuration
+            print_md(f"Search mode: Auto-optimized")
 
             all_source_metadata = []
             seen_urls = set()
@@ -477,7 +465,13 @@ class ConversationManager:
                 search_section = f"Searching ({i}/{min(len(search_queries), max_queries)}): {query}\n"
 
                 try:
-                    results, source_metadata = search_client.search_and_format(query, return_metadata=True, **search_params)
+                    # Get search results using auto-parameters
+                    raw_results = search_client.search(query, **search_params)
+
+                    # Format results for display
+                    results = search_client.format_results_for_ai(raw_results, query)
+                    source_metadata = search_client.get_source_metadata(raw_results)
+
                     if results:
                         all_search_results.append(results)
                         # Add sources, avoiding duplicates by URL
