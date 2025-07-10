@@ -58,6 +58,9 @@ class SettingsManager:
         self.rag_active_collection = None
 
         # Hybrid Search Settings
+
+        # Markdown streamdown settings
+        self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
         self.rag_enable_hybrid_search = True
         self.rag_semantic_weight = 0.6  # Weight for semantic similarity (0.0-1.0)
         self.rag_temporal_weight = 0.3  # Weight for temporal recency (0.0-1.0)

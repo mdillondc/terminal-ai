@@ -161,7 +161,8 @@ class ConversationManager:
 
     def _start_streamdown_process(self):
         """Starts and returns a streamdown subprocess for markdown rendering."""
-        streamdown_cmd = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
+        from settings_manager import SettingsManager
+        streamdown_cmd = SettingsManager.getInstance().markdown_settings
         return subprocess.Popen(
             streamdown_cmd,
             stdin=subprocess.PIPE,

@@ -82,7 +82,8 @@ def print_md(markdown_content: str):
     formatted_content = '\n'.join(formatted_lines)
 
     try:
-        streamdown_cmd = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
+        from settings_manager import SettingsManager
+        streamdown_cmd = SettingsManager.getInstance().markdown_settings
         process = subprocess.Popen(
             streamdown_cmd,
             stdin=subprocess.PIPE,
