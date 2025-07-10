@@ -464,23 +464,30 @@ class ConversationManager:
             }
 
             all_source_metadata = []
+            seen_urls = set()
+            display_seen_urls = set()
             for i, query in enumerate(search_queries[:max_queries], 1):  # Limit queries to avoid overwhelming
                 markdown_content += f"- Searching ({i}/{min(len(search_queries), max_queries)}): {query}\n"
                 try:
                     results, source_metadata = search_client.search_and_format(query, return_metadata=True, **search_params)
                     if results:
                         all_search_results.append(results)
-                        all_source_metadata.extend(source_metadata)
+                        # Add sources, avoiding duplicates by URL
+                        for source in source_metadata:
+                            if source.get('url') and source['url'] not in seen_urls:
+                                all_source_metadata.append(source)
+                                seen_urls.add(source['url'])
 
-                        # Add sources to markdown
+                        # Add sources to markdown, avoiding duplicates
                         if source_metadata:
                             for source in source_metadata:
                                 title = source.get('title', 'Unknown Source')
                                 url = source.get('url', '')
 
-                                if url:
+                                if url and url not in display_seen_urls:
                                     markdown_content += f"    - [{title}]({url})\n"
-                                else:
+                                    display_seen_urls.add(url)
+                                elif not url:
                                     markdown_content += f"    - {title}\n"
                         else:
                             markdown_content += "    - No sources found\n"
@@ -502,8 +509,8 @@ class ConversationManager:
 
                 # Insert search context before the last user message
                 self.conversation_history.insert(-1, search_context)
-                total_sources = len(all_source_metadata)
-                markdown_content += f"- Synthesizing {total_sources} sources...\n"
+                unique_sources = len(all_source_metadata)
+                markdown_content += f"- Synthesizing {unique_sources} sources...\n"
 
                 # Print the complete markdown content
                 print_md(markdown_content)
