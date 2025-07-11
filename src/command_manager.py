@@ -70,6 +70,9 @@ class CommandManager:
             tuple: (list of command dictionaries, remaining text)
                    Each command dict contains: {'command': str, 'argument': str|None}
         """
+        # Known command flags that should not be sent to AI
+        known_flags = ["--force-full"]
+
         valid_commands = self.command_registry.get_available_commands()
         extracted_commands = []
         remaining_text = user_input
@@ -111,6 +114,10 @@ class CommandManager:
 
                 # Remove the extracted command (and its argument if any) from remaining text
                 remaining_text = remaining_text[:start_pos] + remaining_text[end_pos:]
+
+        # Strip known command flags from remaining text
+        for flag in known_flags:
+            remaining_text = remaining_text.replace(flag, "")
 
         # Clean up remaining text (remove extra spaces)
         remaining_text = ' '.join(remaining_text.split())
