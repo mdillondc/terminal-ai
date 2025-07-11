@@ -218,7 +218,6 @@ Intelligent web search using Tavily with LLM query optimization, generation, con
 | `--log <filename>` | Resume previous conversation |
 | `--logmv [title]` | Rename current conversation |
 | `--logrm` | Delete current conversation |
-| `--pdf` | Generate PDF export of current conversation |
 | `--incognito` | Toggle private mode (no logging) |
 
 ### Text-to-Speech
@@ -231,13 +230,6 @@ Intelligent web search using Tavily with LLM query optimization, generation, con
 | `--tts-save-as-mp3` | Save responses as MP3 files |
 
 ## Advanced Features
-
-### PDF Export
-Generate formatted PDF documents of your conversations with the `--pdf` command. PDFs are saved to the `pdf/` directory using your current conversation's log name. All conversation elements are preserved including:
-- System messages and instructions (formatted in light gray)
-- User messages and AI responses with proper formatting
-- Generation timestamp and metadata
-- Automatic file overwriting for updated exports
 
 ### URL Content Extraction
 Automatic paywall/access block bypass using multiple methods:

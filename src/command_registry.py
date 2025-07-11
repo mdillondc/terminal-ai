@@ -299,15 +299,7 @@ class CommandRegistry:
 
         # Utility commands
 
-        # PDF Export command
-        self.register_command(CommandInfo(
-            name="--pdf",
-            description="Generate a PDF export of the current conversation and save it to pdf/ directory. Uses the current log name for the PDF filename.",
-            usage="--pdf",
-            execution_order=1,
-            completion_rules=CompletionRules(CompletionType.NONE),
-            requires_argument=False
-        ))
+
 
         # RAG (Retrieval-Augmented Generation) commands
         self.register_command(CommandInfo(
