@@ -10,6 +10,7 @@ from typing import Optional, Any
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
+from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines
@@ -205,6 +206,8 @@ class ConversationManager:
         # Check if search is enabled and handle search workflow
         if self.settings_manager.setting_get("search") and self.conversation_history:
             self._handle_search_workflow()
+        elif self.settings_manager.setting_get("search_deep") and self.conversation_history:
+            self._handle_deep_search_workflow()
 
         # Check if RAG is active and inject context
         rag_sources = []
@@ -542,6 +545,68 @@ class ConversationManager:
 
         except Exception as e:
             print_md(f"Search workflow error: {e}. Continuing without search")
+            return
+
+    def _handle_deep_search_workflow(self) -> None:
+        """
+        Handle the deep search workflow when deep search mode is enabled.
+        Uses autonomous research agent to intelligently gather comprehensive information.
+        """
+        try:
+            # Get the last user message
+            last_user_message = ""
+            for message in reversed(self.conversation_history):
+                if message.get("role") == "user":
+                    last_user_message = message.get("content", "")
+                    break
+
+            if not last_user_message:
+                return
+
+            # Build context from recent conversation
+            context_parts = []
+            recent_messages = self.conversation_history[-self.settings_manager.search_context_window:]
+
+            for message in recent_messages:
+                if message.get("role") in ["user", "assistant"]:
+                    content = message.get("content", "")
+                    if len(content) > self.settings_manager.search_context_char_limit:
+                        content = content[:self.settings_manager.search_context_char_limit] + "..."
+                    context_parts.append(f"{message['role']}: {content}")
+
+            context_text = "\n".join(context_parts) if context_parts else ""
+
+            # Create and execute deep search
+            deep_search_agent = create_deep_search_agent(self.llm_client_manager, self.settings_manager)
+            if not deep_search_agent:
+                print_md("Failed to initialize Deep Search Agent. Continuing without search")
+                return
+
+            # Execute autonomous deep search
+            search_results, source_metadata = deep_search_agent.conduct_deep_search(
+                query=last_user_message,
+                context=context_text,
+                model=self.model
+            )
+
+            if search_results:
+                # Combine all search results
+                combined_results = "\n\n" + "="*80 + "\n".join(search_results) + "\n" + "="*80 + "\n"
+
+                # Add search results as a system message to provide context
+                search_context = {
+                    "role": "system",
+                    "content": f"COMPREHENSIVE RESEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this extensive research to provide a thorough, well-sourced answer to the user's question. MANDATORY: You MUST always conclude your response with a 'Sources:' section that includes:\n\n1. A numbered list of the sources used in your answer\n2. Each source must include the full URL as a clickable link in markdown format: [Title](URL)\n3. Prioritize the most authoritative and recent sources\n4. Always include this sources section even if you only reference one source\n\nExample format:\n\n## Sources:\n1. [Article Title](https://example.com/article)\n2. [Another Source](https://example.com/source2)"
+                }
+
+                # Insert search context before the last user message
+                self.conversation_history.insert(-1, search_context)
+                print_md(f"**Research synthesis complete** - generating comprehensive response...\n")
+            else:
+                print_md("No search results found. Continuing without search data")
+
+        except Exception as e:
+            print_md(f"Deep search workflow error: {e}. Continuing without search")
             return
 
     def _extract_key_topics_from_context(self, context_text: str) -> list:

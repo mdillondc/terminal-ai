@@ -47,6 +47,11 @@ class SettingsManager:
         self.search = False
         self.search_max_results = 3  # Maximum number of search results per query
 
+        # Deep Search Settings
+        self.search_deep = False
+        self.search_deep_max_queries = 15  # Maximum number of search queries for deep search (safety net)
+        self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search (safety net)
+
         # RAG Settings
         self.embedding_provider = "ollama"  # "openai" or "ollama"
         self.openai_embedding_model = "text-embedding-3-small"
@@ -149,6 +154,8 @@ class SettingsManager:
             enabled_toggles.append("stt")
         if self.search:
             enabled_toggles.append("search")
+        if self.search_deep:
+            enabled_toggles.append("search-deep")
         if self.nothink:
             enabled_toggles.append("nothink")
         if self.incognito:

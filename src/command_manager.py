@@ -276,6 +276,14 @@ class CommandManager:
                         self.settings_manager.setting_set("search", True)
                         print_md("Web search enabled")
                     command_executed = True
+                elif command_name == "--search-deep":
+                    if self.settings_manager.setting_get("search_deep"):
+                        self.settings_manager.setting_set("search_deep", False)
+                        print_md("Deep search disabled")
+                    else:
+                        self.settings_manager.setting_set("search_deep", True)
+                        print_md("Deep search enabled - AI will autonomously determine research completeness")
+                    command_executed = True
                 elif command_name == "--scroll":
                     print_md("Press F8 to toggle scroll mode")
                     if self.settings_manager.setting_get("scroll"):
