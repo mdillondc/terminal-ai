@@ -260,10 +260,102 @@ Find instruction inspiration at [fabric/patterns](https://github.com/danielmiess
 | Command | Description |
 |---------|-------------|
 | `--search` | Toggle web search mode |
+| `--search-deep` | Toggle autonomous deep search mode |
 | `--markdown` | Toggle markdown rendering setting |
 | `--scroll` | Toggle scroll navigation (hotkey F8). Use j/k to scroll, gg for top, G for bottom |
 | `--nothink` | Disable thinking on Ollama models |
 | `--incognito` | Toggle private mode (no logs) |
+
+## Deep Search Mode
+
+The `--search-deep` command enables autonomous, intelligent web research that dynamically determines when sufficient information has been gathered to comprehensively answer complex queries.
+
+### How Deep Search Works
+
+Unlike basic search which performs a fixed number of searches, deep search uses an AI research agent that:
+
+1. **Dynamic Initial Research**: AI determines how many initial search queries are needed based on query complexity
+2. **Autonomous Evaluation**: Analyzes gathered information and scores completeness (1-10 scale)
+3. **Gap Analysis**: Identifies specific missing information or perspectives
+4. **User Choice**: When below 10/10, offers user choice to continue or stop research
+5. **Targeted Follow-up**: Generates precise searches to fill identified gaps
+6. **Smart Termination**: Detects diminishing returns and prevents infinite loops
+
+### Example Deep Search Session
+
+```bash
+> --search-deep
+> Write a comprehensive report on the benefits and risks of TMS for OCD treatment
+
+Deep Search Mode Activated
+AI will autonomously determine when sufficient information has been gathered...
+
+Initial Research Strategy:
+    1. TMS benefits OCD treatment clinical studies 2025
+    2. TMS risks side effects OCD therapy mechanisms
+    3. TMS vs traditional OCD treatments comparison
+    4. Patient selection criteria TMS OCD guidelines
+    5. Long-term outcomes TMS OCD treatment
+
+Search 1: TMS benefits OCD treatment clinical studies 2025
+    Transcranial Magnetic Stimulation for OCD: Latest Clinical Evidence
+    TMS Efficacy in Treatment-Resistant OCD Patients
+    2024 Meta-Analysis: TMS Response Rates in OCD
+
+Search 2: TMS risks side effects OCD therapy mechanisms
+    TMS Safety Profile and Contraindications
+    Long-term Effects of TMS Treatment
+
+Research Evaluation (after 5 searches):
+    Completeness: 8/10
+    Assessment: Good coverage of efficacy and safety, missing detailed mechanistic pathways and patient selection nuances
+    Decision: Research quality is good (8/10). Continue searching for higher completeness?
+    Gaps identified: mechanistic explanations, patient selection criteria, cost-effectiveness
+
+[C]ontinue deep search  [S]top and generate response
+Choice: C
+
+Continuing research for higher completeness...
+
+Next Research Phase:
+    1. TMS neurobiological mechanisms OCD neural circuits
+    2. TMS patient selection criteria contraindications OCD
+    3. TMS cost effectiveness healthcare economics OCD
+
+Search 6: TMS neurobiological mechanisms OCD neural circuits
+    Neural Circuit Mechanisms of TMS in OCD Treatment
+
+Research Evaluation (after 8 searches):
+    Completeness: 9/10
+    Assessment: Comprehensive coverage achieved with detailed mechanisms and selection criteria
+    Decision: Research complete
+
+Deep Search Complete: 8 searches executed, 35 unique sources analyzed
+Research synthesis complete - generating comprehensive response...
+```
+
+### Deep Search vs Regular Search
+
+| Feature | Regular Search | Deep Search |
+|---------|---------------|-------------|
+| **Search Strategy** | Fixed queries | Dynamic queries |
+| **Evaluation** | None | AI evaluates completeness |
+| **User Control** | None | Choice to continue/stop |
+| **Termination** | After initial searches | When 10/10 or user stops |
+| **Deduplication** | Basic | Advanced content deduplication |
+| **Best For** | Quick facts | Complex research |
+| **Time** | 5-10 seconds | 30-180 seconds |
+| **Sources** | 3-6 sources | many more sources |
+
+### Deep Search Settings
+
+Configure in `src/settings_manager.py`:
+
+```python
+# Deep Search Settings
+self.search_deep_max_queries = 35  # Maximum searches (safety net)
+self.search_deep_max_results_per_query = 5  # Results per search
+```
 
 ## Configuration
 

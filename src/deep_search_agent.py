@@ -57,6 +57,10 @@ class DeepSearchAgent:
         search_iteration = 0
         max_searches = self.settings_manager.search_deep_max_queries
 
+        # Track evaluation progress to detect diminishing returns
+        previous_completeness_scores = []
+        max_user_choice_iterations = 3
+
         # Generate initial search queries
         initial_queries = self._generate_initial_search_queries(query, context, model)
         strategy_text = "**Initial Research Strategy:**\n"
@@ -66,15 +70,23 @@ class DeepSearchAgent:
 
         # Execute initial searches
         current_queries = initial_queries
+        user_choice_iterations = 0
 
-        while search_iteration < max_searches:
+        while search_iteration < max_searches and user_choice_iterations < max_user_choice_iterations:
             # Execute current batch of searches
             batch_results, batch_metadata = self._execute_search_batch(
                 current_queries, seen_urls, search_iteration + 1
             )
 
             if batch_results:
-                all_search_results.extend(batch_results)
+                # Only add search results that contain unique sources
+                unique_batch_results = []
+                for i, result in enumerate(batch_results):
+                    # Check if this search result corresponds to unique sources
+                    if i < len(batch_metadata) and batch_metadata:
+                        unique_batch_results.append(result)
+
+                all_search_results.extend(unique_batch_results)
                 all_source_metadata.extend(batch_metadata)
                 search_iteration += len(current_queries)
             else:
@@ -97,9 +109,31 @@ class DeepSearchAgent:
                 print_md("    Decision: Research complete")
                 break
             else:
-                continue_text = f"    Decision: Continue research\n"
+                # Check for diminishing returns
+                current_score = evaluation['completeness_score']
+                previous_completeness_scores.append(current_score)
+
+                # If we've had multiple evaluations and no improvement, detect diminishing returns
+                if len(previous_completeness_scores) >= 2:
+                    recent_scores = previous_completeness_scores[-2:]
+                    if all(score == recent_scores[0] for score in recent_scores):
+                        print_md(f"    Diminishing returns detected: Completeness remains at {current_score}/10 despite additional searches.")
+                        print_md("    This suggests the missing information may not be available in current literature.")
+                        print_md("    Concluding research with available information...")
+                        break
+
+                continue_text = f"    Decision: Research quality is good ({evaluation['completeness_score']}/10). Continue searching for higher completeness?\n"
                 continue_text += f"    Gaps identified: {', '.join(evaluation['gaps'])}"
                 print_md(continue_text)
+
+                # Ask user if they want to continue
+                user_choice = self._get_user_continue_choice(evaluation['completeness_score'])
+
+                if not user_choice:
+                    print_md("    User chose to stop research. Generating response with current information...")
+                    break
+
+                user_choice_iterations += 1
 
                 # Generate targeted follow-up queries
                 follow_up_queries = self._generate_follow_up_queries(
@@ -116,6 +150,11 @@ class DeepSearchAgent:
                 print_md(phase_text.rstrip())
 
                 current_queries = follow_up_queries
+
+        # Check if we hit the user choice iteration limit
+        if user_choice_iterations >= max_user_choice_iterations:
+            print_md(f"    Research iteration limit reached ({max_user_choice_iterations} user choice cycles).")
+            print_md("    Concluding research to prevent excessive searches...")
 
         # Final summary
         unique_sources = len(all_source_metadata)
@@ -180,7 +219,7 @@ Respond with only the search queries, one per line, no explanations or numbering
             start_index: Starting index for display numbering
 
         Returns:
-            Tuple of (search_results, source_metadata)
+            Tuple of (search_results, source_metadata) - only unique results
         """
         batch_results = []
         batch_metadata = []
@@ -196,34 +235,34 @@ Respond with only the search queries, one per line, no explanations or numbering
                     auto_parameters=True
                 )
 
-                # Format results
+                # Format results and get source metadata
                 formatted_results = self.search_client.format_results_for_ai(raw_results, query)
                 source_metadata = self.search_client.get_source_metadata(raw_results)
 
-                if formatted_results:
+                # Filter for unique sources only
+                unique_sources = []
+                for source in source_metadata:
+                    if source.get('url') and source['url'] not in seen_urls:
+                        unique_sources.append(source)
+                        batch_metadata.append(source)
+                        seen_urls.add(source['url'])
+
+                # Only add search results to batch if they contain unique sources
+                if unique_sources and formatted_results:
                     batch_results.append(formatted_results)
 
-                    # Add unique sources
-                    unique_sources = []
-                    for source in source_metadata:
-                        if source.get('url') and source['url'] not in seen_urls:
-                            unique_sources.append(source)
-                            batch_metadata.append(source)
-                            seen_urls.add(source['url'])
-
                     # Display results
-                    if unique_sources:
-                        search_text = f"**Search {search_number}:** {query}\n"
-                        for source in unique_sources:
-                            title = source.get('title', 'Unknown Source')
-                            url = source.get('url', '')
-                            if url:
-                                # Remove square brackets from title for markdown links
-                                clean_title = title.replace('[', '').replace(']', '')
-                                search_text += f"    [{clean_title}]({url})\n"
-                            else:
-                                search_text += f"    {title}\n"
-                        print_md(search_text.rstrip())
+                    search_text = f"**Search {search_number}:** {query}\n"
+                    for source in unique_sources:
+                        title = source.get('title', 'Unknown Source')
+                        url = source.get('url', '')
+                        if url:
+                            # Remove square brackets from title for markdown links
+                            clean_title = title.replace('[', '').replace(']', '')
+                            search_text += f"    [{clean_title}]({url})\n"
+                        else:
+                            search_text += f"    {title}\n"
+                    print_md(search_text.rstrip())
 
             except Exception as e:
                 error_text = f"**Search {search_number}:** {query}\n"
@@ -270,7 +309,7 @@ Respond with a JSON object containing:
     "confidence": (integer 1-10, confidence in this evaluation)
 }}
 
-Be thorough but practical - don't demand perfection if the information is reasonably comprehensive."""
+Only mark as sufficient (is_sufficient: true) if the completeness score is 10/10. For all other scores, mark as insufficient (is_sufficient: false) to allow user choice on whether to continue research."""
 
         try:
             response = self.llm_client_manager.create_chat_completion(
@@ -367,6 +406,41 @@ Respond with only the search queries, one per line, no explanations or numbering
         except Exception as e:
             print_md(f"Warning: Error generating follow-up queries: {e}")
             return []
+
+    def _get_user_continue_choice(self, completeness_score: int) -> bool:
+        """
+        Get user choice on whether to continue research when completeness is below 10/10.
+
+        Args:
+            completeness_score: Current completeness score (1-10)
+
+        Returns:
+            True if user wants to continue, False if they want to stop
+        """
+        try:
+            import sys
+
+            print_md("    [C]ontinue deep search  [S]top and generate response")
+            print("    Choice: ", end="", flush=True)
+
+            while True:
+                choice = input().strip().lower()
+
+                if choice in ['c', 'continue']:
+                    print_md("    Continuing research for higher completeness...")
+                    return True
+                elif choice in ['s', 'stop']:
+                    return False
+                else:
+                    print("    Please enter 'c' to continue or 's' to stop: ", end="", flush=True)
+
+        except (KeyboardInterrupt, EOFError):
+            # Handle Ctrl+C or EOF gracefully
+            print_md("    Research interrupted by user. Generating response with current information...")
+            return False
+        except Exception as e:
+            print_md(f"    Error getting user input: {e}. Continuing research...")
+            return True
 
 
 def create_deep_search_agent(llm_client_manager, settings_manager) -> Optional[DeepSearchAgent]:
