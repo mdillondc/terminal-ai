@@ -504,20 +504,22 @@ class ConversationManager:
                                         display_seen_urls.add(url)
                                     elif not url:
                                         source_lines.append(f"    {title}")
-                            else:
-                                source_lines.append("    No sources found")
 
-                            # Add sources to the complete section
+                            # Only display search section if it contributed unique sources
                             if source_lines:
                                 search_section += "\n".join(source_lines)
+                                # Print the complete section
+                                print_md(search_section)
+                            # If no unique sources found, skip displaying this search section entirely
 
                     except TavilySearchError as e:
                         search_section += f"    Search failed: {e}"
+                        # Always print error sections
+                        print_md(search_section)
                     except Exception as e:
                         search_section += f"    Search failed: {e}"
-
-                    # Print the complete section
-                    print_md(search_section)
+                        # Always print error sections
+                        print_md(search_section)
 
 
 
