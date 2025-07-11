@@ -80,7 +80,7 @@ class ConversationManager:
         if current_log_location and os.path.exists(current_log_location):
             try:
                 with open(current_log_location, 'a') as file:
-                    file.write(f"{message}\n\n")
+                    file.write(f"{message}\n")
             except Exception:
                 # Silently ignore file write errors to avoid breaking functionality
                 pass
@@ -800,14 +800,22 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
         conversation_history_as_markdown = ""
 
         # Process chronological log to maintain proper order
+        prev_entry_type = None
         for entry_type, entry_content in self._chronological_log:
             if entry_type == "conversation":
+                # Add spacing before conversation if previous was verbose
+                if prev_entry_type == "verbose":
+                    conversation_history_as_markdown += "\n"
                 # Format conversation piece
                 formatted_piece = f"**{entry_content['role']}:**  \n{entry_content['content']}\n\n"
                 conversation_history_as_markdown += formatted_piece
             elif entry_type == "verbose":
+                # Add spacing before verbose if previous was conversation
+                if prev_entry_type == "conversation":
+                    pass  # conversation already adds spacing after itself
                 # Format verbose message
-                conversation_history_as_markdown += f"{entry_content}\n\n"
+                conversation_history_as_markdown += f"{entry_content}\n"
+            prev_entry_type = entry_type
 
         # Save as markdown for user (includes both conversation + verbose output)
         with open(log_file_location, 'w') as file:
@@ -1165,62 +1173,51 @@ Generate only the filename focusing on content substance:""".format(context[:100
         self.settings_manager.setting_set("log_file_location", None)
 
     def _display_conversation_history(self) -> None:
-        """Display the loaded conversation history, applying markdown if enabled."""
-        if not self.conversation_history:
-            print_md("No conversation history to display")
+        """Display the full .md file content including chronological verbose output."""
+        # Get the .md file path
+        current_log_location = self.settings_manager.setting_get("log_file_location")
+        if not current_log_location:
+            print_md("No log file location available")
             return
 
-        # Filter out system messages for display
-        display_messages = [msg for msg in self.conversation_history if msg.get('role') != 'system']
-
-        if not display_messages:
-            print_md("No user conversation to display (only system messages found)")
+        md_file_path = current_log_location
+        if not os.path.exists(md_file_path):
+            print_md("Log file not found")
             return
 
-        print_md("Resuming conversation history:")
-        print_lines()
+        try:
+            # Read the full .md file content
+            with open(md_file_path, 'r') as file:
+                md_content = file.read()
 
-        user_name = self.settings_manager.setting_get('name_user') or "User"
-        ai_name = self.settings_manager.get_ai_name_with_instructions() or "Assistant"
-        markdown_enabled = self.settings_manager.setting_get("markdown")
+            if not md_content.strip():
+                print_md("Log file is empty")
+                return
 
-        # Show summary for long conversations
-        total_messages = len(display_messages)
-        if total_messages > 0:
-            print_md(f"Conversation Summary: {total_messages} messages")
+            print_md("Resuming conversation history:")
             print_lines()
 
-        if markdown_enabled:
-            # Pipe the conversation through streamdown for rendering
-            streamdown_process = self._start_streamdown_process()
-            if streamdown_process.stdin:
-                for i, entry in enumerate(display_messages, 1):
-                    role = entry.get('role', 'unknown')
-                    content = entry.get('content', '')
+            # Count messages for summary
+            message_count = md_content.count('**user:**') + md_content.count('**assistant:**')
+            if message_count > 0:
+                print_md(f"Conversation Summary: {message_count} messages")
+                print_lines()
 
-                    if role == 'user':
-                        output = f"**[{i}] {user_name}{self.settings_manager.get_enabled_toggles()}:**\n\n{content}\n\n"
-                        streamdown_process.stdin.write(output)
-                    elif role == 'assistant':
-                        adjusted_content = self._adjust_markdown_headers_for_streamdown(content)
-                        output = f"**[{i}] {ai_name}:**\n\n{adjusted_content}\n\n"
-                        streamdown_process.stdin.write(output)
+            # Display the full chronological content
+            if self.settings_manager.setting_get("markdown"):
+                # Use streamdown for markdown rendering
+                streamdown_process = self._start_streamdown_process()
+                if streamdown_process.stdin:
+                    streamdown_process.stdin.write(md_content)
+                    streamdown_process.stdin.close()
+                streamdown_process.wait()
+            else:
+                # Plain text fallback
+                print(md_content)
 
-                streamdown_process.stdin.close()
-            streamdown_process.wait()
-        else:
-            # Original plain text display
-            for i, entry in enumerate(display_messages, 1):
-                role = entry.get('role', 'unknown')
-                content = entry.get('content', '')
+            print_lines()
 
-                if role == 'user':
-                    print(f"\n[{i}] {user_name}{self.settings_manager.get_enabled_toggles()}:")
-                    print(content)
-                elif role == 'assistant':
-                    print(f"\n[{i}] {ai_name}:")
-                    print(content)
-
-        print_lines()
+        except Exception as e:
+            print_md(f"Error reading log file: {e}")
 
 
