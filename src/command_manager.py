@@ -273,6 +273,10 @@ class CommandManager:
                         self.settings_manager.setting_set("search", False)
                         print_md("Web search disabled")
                     else:
+                        # Disable search-deep if it's currently enabled
+                        if self.settings_manager.setting_get("search_deep"):
+                            self.settings_manager.setting_set("search_deep", False)
+                            print_md("Deep search disabled")
                         self.settings_manager.setting_set("search", True)
                         print_md("Web search enabled")
                     command_executed = True
@@ -281,6 +285,10 @@ class CommandManager:
                         self.settings_manager.setting_set("search_deep", False)
                         print_md("Deep search disabled")
                     else:
+                        # Disable regular search if it's currently enabled
+                        if self.settings_manager.setting_get("search"):
+                            self.settings_manager.setting_set("search", False)
+                            print_md("Web search disabled")
                         self.settings_manager.setting_set("search_deep", True)
                         print_md("Deep search enabled - AI will autonomously determine research completeness")
                     command_executed = True
