@@ -11,7 +11,7 @@ from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
 from command_manager import CommandManager
 from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
-from print_helper import print_md, print_lines
+from print_helper import print_md, print_lines, set_conversation_manager
 from api_key_check import check
 from scroll import ScrollManager
 
@@ -59,6 +59,9 @@ def main() -> None:
         client,
         model=settings_manager.setting_get("model"),
     )
+
+    # Initialize print_helper with conversation_manager for automatic .md logging
+    set_conversation_manager(conversation_manager)
 
     command_manager = CommandManager(conversation_manager)
 
@@ -155,9 +158,7 @@ def main() -> None:
                                 final_user_input = "/nothink " + input_text
 
                             # Add to conversation and generate response
-                            conversation_manager.conversation_history.append(
-                                {"role": "user", "content": final_user_input}
-                            )
+                            conversation_manager.log_context(final_user_input, "user")
 
                             conversation_manager.generate_response()
 
@@ -226,9 +227,7 @@ def main() -> None:
                 if settings_manager.setting_get("nothink"):
                     final_user_input = "/nothink " + user_input
 
-                conversation_manager.conversation_history.append(
-                    {"role": "user", "content": final_user_input}
-                )
+                conversation_manager.log_context(final_user_input, "user")
 
                 conversation_manager.generate_response()
         except KeyboardInterrupt:

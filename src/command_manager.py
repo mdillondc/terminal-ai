@@ -41,23 +41,22 @@ class CommandManager:
 
     def _log_command_with_output(self, command: str, captured_output: list) -> None:
         """
-        Log a command and its captured print_info output to conversation history.
+        Log a command to LLM context and its verbose output to .md only.
 
         Args:
-            command: The command that was executed
-            captured_output: List of captured print_info messages
+            command: The command that was executed (goes to LLM context)
+            captured_output: List of captured print_info messages (goes to .md only)
         """
         if self.settings_manager.setting_get("incognito"):
             return
 
-        if captured_output:
-            command_with_output = f"{command}\n" + "\n".join(captured_output)
-        else:
-            command_with_output = command
+        # Log the command itself to LLM context (clean, no noise)
+        self.conversation_manager.log_context(command, "user")
 
-        self.conversation_manager.conversation_history.append(
-            {"role": "user", "content": command_with_output}
-        )
+        # Log verbose output to .md only (not for LLM)
+        if captured_output:
+            verbose_output = "\n".join(captured_output)
+            self.conversation_manager.log_md(f"Command output:\n{verbose_output}")
 
     def _extract_valid_commands(self, user_input: str) -> Tuple[List[Dict[str, Any]], str]:
         """
@@ -204,9 +203,7 @@ class CommandManager:
                     # Log rename output to NEW log file
                     rename_output = stop_capturing_print_info()
                     if rename_output and not self.settings_manager.setting_get("incognito"):
-                        self.conversation_manager.conversation_history.append(
-                            {"role": "user", "content": "\n".join(rename_output)}
-                        )
+                        self.conversation_manager.log_md("\n".join(rename_output))
                     command_processed = True
                     continue  # Skip the normal logging flow
                 elif command_name == "--logrm":
@@ -244,9 +241,7 @@ class CommandManager:
                     clipboard_content = clipboard.paste()
                     if clipboard_content:
                         print_md("Clipboard content added to conversation context")
-                        self.conversation_manager.conversation_history.append(
-                            {"role": "user", "content": clipboard_content}
-                        )
+                        self.conversation_manager.log_context(clipboard_content, "user")
                     else:
                         print_md("Clipboard is empty. Please type your input")
                     command_executed = True
@@ -436,9 +431,7 @@ class CommandManager:
                 final_user_input = "/nothink " + final_user_input
 
             # Add remaining text to conversation and generate response
-            self.conversation_manager.conversation_history.append(
-                {"role": "user", "content": final_user_input}
-            )
+            self.conversation_manager.log_context(final_user_input, "user")
 
             self.conversation_manager.generate_response()
 
@@ -1015,9 +1008,7 @@ class CommandManager:
                                                 language_note +
                                                 "\nVideo transcript: " + transcript_text
                                             )
-                                            self.conversation_manager.conversation_history.append(
-                                                {"role": "user", "content": user_input}
-                                            )
+                                            self.conversation_manager.log_context(user_input, "user")
                                             print_md("YouTube content added to conversation context")
                                         else:
                                             raise Exception("Transcript text was empty after parsing")
@@ -1043,9 +1034,7 @@ class CommandManager:
                         "\nVideo title: " + video_title +
                         "\nNote: No transcript could be extracted for this video."
                     )
-                    self.conversation_manager.conversation_history.append(
-                        {"role": "user", "content": user_input}
-                    )
+                    self.conversation_manager.log_context(user_input, "user")
                     print_md("YouTube content added to conversation context")
 
             except Exception as e:
@@ -1100,9 +1089,7 @@ class CommandManager:
         formatted_content = f"Website: {title}\n\nSource: {url}\n\n{result['content']}"
 
         # Add to conversation history
-        self.conversation_manager.conversation_history.append(
-            {"role": "user", "content": formatted_content}
-        )
+        self.conversation_manager.log_context(formatted_content, "user")
 
         # Only show success messages if bypass didn't fail
         # (WebContentExtractor already explained bypass failure to user)
@@ -1164,9 +1151,7 @@ class CommandManager:
             formatted_content = f"File: {filename}\n\nPath: {file_path}\n\n{content}"
 
             # Add to conversation history
-            self.conversation_manager.conversation_history.append(
-                {"role": "user", "content": formatted_content}
-            )
+            self.conversation_manager.log_context(formatted_content, "user")
 
             print_md("File content added to conversation context")
             print_md("You can now ask questions about this content")

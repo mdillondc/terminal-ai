@@ -7,8 +7,16 @@ import threading
 import subprocess
 from typing import List, Optional
 
+# Global conversation manager instance for automatic .md logging
+_conversation_manager = None
+
 # Thread-local storage for capturing print_info messages during command execution
 _local = threading.local()
+
+def set_conversation_manager(conversation_manager):
+    """Set the global conversation manager instance for automatic .md logging."""
+    global _conversation_manager
+    _conversation_manager = conversation_manager
 
 def _get_capture_buffer() -> Optional[List[str]]:
     """Get the current capture buffer if it exists."""
@@ -45,6 +53,12 @@ def print_info(message: str, newline_before: bool = False, prefix: str = "- ") -
         if newline_before:
             capture_buffer.append("")
         capture_buffer.append(formatted_message)
+
+    # Also log to .md file if not in incognito mode
+    if _conversation_manager and not _conversation_manager.settings_manager.setting_get("incognito"):
+        if newline_before:
+            _conversation_manager.log_md("")
+        _conversation_manager.log_md(formatted_message)
 
 def print_lines():
     """
@@ -97,3 +111,7 @@ def print_md(markdown_content: str):
     except Exception:
         # Fallback to plain text if streamdown fails
         print(formatted_content)
+
+    # Also log to .md file if not in incognito mode
+    if _conversation_manager and not _conversation_manager.settings_manager.setting_get("incognito"):
+        _conversation_manager.log_md(formatted_content)

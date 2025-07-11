@@ -41,6 +41,50 @@ class ConversationManager:
             print_md(f"Warning: Could not initialize RAG engine: {e}")
             self.rag_engine = None
 
+        # Initialize chronological log for proper ordering of conversation and verbose output
+        self._chronological_log = []
+
+    def log_context(self, content: str, role: str = "user") -> None:
+        """Add content that LLM needs to see - goes to both .json and .md logs"""
+        # Skip if incognito mode is enabled
+        if self.settings_manager.setting_get("incognito"):
+            return
+
+        # Add to conversation history for LLM/JSON
+        self.conversation_history.append({"role": role, "content": content})
+        # Add to chronological log for .md file
+        self._chronological_log.append(("conversation", {"role": role, "content": content}))
+
+        # If .md file already exists, append immediately for real-time logging
+        current_log_location = self.settings_manager.setting_get("log_file_location")
+        if current_log_location and os.path.exists(current_log_location):
+            try:
+                formatted_piece = f"**{role}:**  \n{content}\n\n"
+                with open(current_log_location, 'a') as file:
+                    file.write(formatted_piece)
+            except Exception:
+                # Silently ignore file write errors to avoid breaking functionality
+                pass
+
+    def log_md(self, message: str) -> None:
+        """Add message to .md log only - NOT for LLM context"""
+        # Skip if incognito mode is enabled
+        if self.settings_manager.setting_get("incognito"):
+            return
+
+        # Add to chronological log for proper ordering
+        self._chronological_log.append(("verbose", message))
+
+        # If .md file already exists, append immediately for real-time logging
+        current_log_location = self.settings_manager.setting_get("log_file_location")
+        if current_log_location and os.path.exists(current_log_location):
+            try:
+                with open(current_log_location, 'a') as file:
+                    file.write(f"{message}\n\n")
+            except Exception:
+                # Silently ignore file write errors to avoid breaking functionality
+                pass
+
     def _process_and_print_chunk(self, chunk: str) -> None:
         """
         Process a response chunk, applying thinking text coloring while maintaining streaming.
@@ -217,10 +261,7 @@ class ConversationManager:
 
                 if rag_context:
                     # Insert RAG context as a system message before the AI response
-                    self.conversation_history.append({
-                        "role": "system",
-                        "content": rag_context
-                    })
+                    self.log_context(rag_context, "system")
 
 
 
@@ -324,7 +365,7 @@ class ConversationManager:
         # Only save if we got a response
         if complete_response:
             # Append complete_response to the conversation_history array
-            self.conversation_history.append({"role": "assistant", "content": complete_response})
+            self.log_context(complete_response, "assistant")
 
             # Add newline after AI response for proper spacing
             print()
@@ -528,13 +569,10 @@ class ConversationManager:
                 combined_results = "\n\n" + "="*80 + "\n".join(all_search_results) + "\n" + "="*80 + "\n"
 
                 # Add search results as a system message to provide context
-                search_context = {
-                    "role": "system",
-                    "content": f"SEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this information to provide a comprehensive and current answer to the user's question. MANDATORY: You MUST always conclude your response with a 'Sources:' section that includes:\n\n1. A numbered list of the sources used in your answer\n2. Each source must include the full URL as a clickable link in markdown format: [Title](URL)\n3. Prefer recent, authoritative sources over older or less credible ones\n4. Always include this sources section even if you only reference one source\n\nExample format:\n\n## Sources:\n1. [Article Title](https://example.com/article)\n2. [Another Source](https://example.com/source2)"
-                }
+                search_content = f"SEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this information to provide a comprehensive and current answer to the user's question. MANDATORY: You MUST always conclude your response with a 'Sources:' section that includes:\n\n1. A numbered list of the sources used in your answer\n2. Each source must include the full URL as a clickable link in markdown format: [Title](URL)\n3. Prefer recent, authoritative sources over older or less credible ones\n4. Always include this sources section even if you only reference one source\n\nExample format:\n\n## Sources:\n1. [Article Title](https://example.com/article)\n2. [Another Source](https://example.com/source2)"
 
-                # Insert search context before the last user message
-                self.conversation_history.insert(-1, search_context)
+                # Add search context to conversation
+                self.log_context(search_content, "system")
                 unique_sources = len(all_source_metadata)
                 print_md(f"Synthesizing {unique_sources} sources...")
             else:
@@ -591,13 +629,10 @@ class ConversationManager:
                 combined_results = "\n\n" + "="*80 + "\n".join(search_results) + "\n" + "="*80 + "\n"
 
                 # Add search results as a system message to provide context
-                search_context = {
-                    "role": "system",
-                    "content": f"COMPREHENSIVE RESEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this extensive research to provide a thorough, well-sourced answer to the user's question. MANDATORY: You MUST always conclude your response with a 'Sources:' section that includes:\n\n1. A numbered list of the sources used in your answer\n2. Each source must include the full URL as a clickable link in markdown format: [Title](URL)\n3. Prioritize the most authoritative and recent sources\n4. Always include this sources section even if you only reference one source\n\nExample format:\n\n## Sources:\n1. [Article Title](https://example.com/article)\n2. [Another Source](https://example.com/source2)"
-                }
+                search_content = f"COMPREHENSIVE RESEARCH RESULTS FOR USER'S QUERY:\n{combined_results}\n\nUse this extensive research to provide a thorough, well-sourced answer to the user's question. MANDATORY: You MUST always conclude your response with a 'Sources:' section that includes:\n\n1. A numbered list of the sources used in your answer\n2. Each source must include the full URL as a clickable link in markdown format: [Title](URL)\n3. Prioritize the most authoritative and recent sources\n4. Always include this sources section even if you only reference one source\n\nExample format:\n\n## Sources:\n1. [Article Title](https://example.com/article)\n2. [Another Source](https://example.com/source2)"
 
-                # Insert search context before the last user message
-                self.conversation_history.insert(-1, search_context)
+                # Add search context to conversation
+                self.log_context(search_content, "system")
                 print_md(f"**Research synthesis complete** - generating comprehensive response...\n")
             else:
                 print_md("No search results found. Continuing without search data")
@@ -730,9 +765,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
 
             # Append new instructions to conversation_history
             # TODO: Consider if it'd be better to prepend instead of append (evaluate GPT response performance over time)
-            self.conversation_history.append(
-                {"role": "system", "content": f"instructions:{file_name}\n" + instructions + today}
-            )
+            self.log_context(f"instructions:{file_name}\n" + instructions + today, "system")
 
             # Inform user
             notice = f"Instructions {file_name}"
@@ -763,16 +796,25 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
         if not os.path.exists(log_file_path):
             os.makedirs(log_file_path)
 
+        # Build markdown content in chronological order
         conversation_history_as_markdown = ""
-        for conversation in self.conversation_history:
-            # Format each conversation piece
-            formatted_piece = f"**{conversation['role']}:**  \n{conversation['content']}\n\n"
-            conversation_history_as_markdown += formatted_piece
 
-        # Save as markdown for user
+        # Process chronological log to maintain proper order
+        for entry_type, entry_content in self._chronological_log:
+            if entry_type == "conversation":
+                # Format conversation piece
+                formatted_piece = f"**{entry_content['role']}:**  \n{entry_content['content']}\n\n"
+                conversation_history_as_markdown += formatted_piece
+            elif entry_type == "verbose":
+                # Format verbose message
+                conversation_history_as_markdown += f"{entry_content}\n\n"
+
+        # Save as markdown for user (includes both conversation + verbose output)
         with open(log_file_location, 'w') as file:
             file.write(conversation_history_as_markdown)
             self.settings_manager.setting_set("log_file_location", log_file_location)
+
+        # Note: We don't clear _chronological_log here to preserve order for future saves
 
         # Save as JSON in case user wants to resume conversation later
         conversation_history = json.dumps(self.conversation_history, indent=4)
