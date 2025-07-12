@@ -316,25 +316,30 @@ class SettingsManager:
         valid_settings = self.get_valid_settings()
         invalid_settings = []
 
-        # Process each config setting
+        # Process each config setting and collect output
+        config_outputs = []
         for setting_name, config_value in config_data.items():
             if setting_name in valid_settings:
                 # Valid setting - convert and apply
                 converted_value = self.convert_config_value(setting_name, config_value)
                 setattr(self, setting_name, converted_value)
 
-                # Show what's being overridden with source attribution
+                # Collect what's being overridden with source attribution
                 config_source = "~/.config/terminal-ai/config"
                 if setting_name == "model":
-                    print_md(f"Model: {converted_value} ({config_source})")
+                    config_outputs.append(f"Model: {converted_value} ({config_source})")
                 elif setting_name == "instructions":
                     instruction_name = converted_value.rsplit('.', 1)[0] if converted_value else converted_value
-                    print_md(f"Instructions: {instruction_name} ({config_source})")
+                    config_outputs.append(f"Instructions: {instruction_name} ({config_source})")
                 else:
-                    print_md(f"Set {setting_name}: {converted_value} ({config_source})")
+                    config_outputs.append(f"Set {setting_name}: {converted_value} ({config_source})")
             else:
                 # Invalid setting - track for warning
                 invalid_settings.append(setting_name)
+
+        # Print all config settings at once for faster output
+        if config_outputs:
+            print_md('\n'.join(config_outputs))
 
         # Warn about invalid settings
         if invalid_settings:
