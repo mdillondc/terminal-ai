@@ -10,6 +10,7 @@ from typing import Optional, Any
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
+from searxng_search import create_searxng_search, SearXNGSearchError
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
 from llm_client_manager import LLMClientManager
@@ -475,11 +476,19 @@ class ConversationManager:
             search_queries = query_response.choices[0].message.content.strip().split('\n')
             search_queries = [q.strip() for q in search_queries if q.strip()]
 
-            # Perform searches
-            search_client = create_tavily_search()
-            if not search_client:
-                print_md("Failed to initialize Tavily search client. Continuing without search")
-                return
+            # Perform searches - route to appropriate search engine
+            search_engine = self.settings_manager.search_engine
+            if search_engine == "searxng":
+                search_client = create_searxng_search(self.settings_manager.searxng_base_url)
+                if not search_client:
+                    print_md("Failed to initialize SearXNG search client. Continuing without search")
+                    return
+            else:
+                # Default to Tavily
+                search_client = create_tavily_search()
+                if not search_client:
+                    print_md("Failed to initialize Tavily search client. Continuing without search")
+                    return
 
             all_search_results = []
             max_queries = self.settings_manager.search_max_queries
@@ -491,14 +500,22 @@ class ConversationManager:
             if query_content:
                 print_md(query_content.rstrip())
 
-            # Use Tavily's auto-parameters for intelligent search optimization
-            search_params = {
-                'auto_parameters': True,
-                'max_results': self.settings_manager.search_max_results  # Must be set manually per Tavily docs
-            }
+            # Set search parameters based on search engine
+            if search_engine == "searxng":
+                # SearXNG doesn't support auto_parameters
+                search_params = {
+                    'max_results': self.settings_manager.search_max_results
+                }
+            else:
+                # Use Tavily's auto-parameters for intelligent search optimization
+                search_params = {
+                    'auto_parameters': True,
+                    'max_results': self.settings_manager.search_max_results  # Must be set manually per Tavily docs
+                }
 
             # Inform user about search configuration
-            print_md(f"Search mode: Auto-optimized")
+            search_engine_name = "Tavily" if search_engine == "tavily" else "SearXNG"
+            print_md(f"Search engine: {search_engine_name}")
 
             all_source_metadata = []
             seen_urls = set()
@@ -553,7 +570,7 @@ class ConversationManager:
                                 print_md(search_section)
                             # If no unique sources found, skip displaying this search section entirely
 
-                    except TavilySearchError as e:
+                    except (TavilySearchError, SearXNGSearchError) as e:
                         search_section += f"    Search failed: {e}"
                         # Always print error sections
                         print_md(search_section)

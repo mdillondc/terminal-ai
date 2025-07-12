@@ -287,6 +287,9 @@ class CommandManager:
                         self.settings_manager.setting_set("search_deep", True)
                         print_md("Deep search enabled - AI will autonomously determine research completeness")
                     command_executed = True
+                elif command_name == "--search-engine":
+                    self.set_search_engine(arg)
+                    command_executed = True
                 elif command_name == "--scroll":
                     print_md("Press F8 to toggle scroll mode")
                     if self.settings_manager.setting_get("scroll"):
@@ -794,6 +797,42 @@ class CommandManager:
 
         # Show appropriate message using centralized method
         self.settings_manager.display_model_info("switch", provider, self.conversation_manager.llm_client_manager)
+
+    def set_search_engine(self, arg: Optional[str]) -> None:
+        """
+        Set the active search engine for current session.
+
+        Args:
+            arg: Search engine name to set ('tavily' or 'searxng').
+                 If None, displays current engine and available options.
+        """
+        if arg is None:
+            current_engine = self.settings_manager.search_engine
+            print_md(f"Current search engine: {current_engine}")
+            print_md("Available search engines:")
+            print_md("  tavily   - Tavily API (commercial search with AI-powered results)")
+            print_md("  searxng  - SearXNG (privacy-focused open-source metasearch)")
+            print_md("Usage: --search-engine tavily")
+            return
+
+        search_engine = arg.lower()
+
+        # Validate search engine
+        valid_engines = ["tavily", "searxng"]
+        if search_engine not in valid_engines:
+            print_md(f"Invalid search engine: {search_engine}")
+            print_md(f"Valid options: {', '.join(valid_engines)}")
+            return
+
+        # Set the search engine
+        self.settings_manager.setting_set("search_engine", search_engine)
+
+        # Show confirmation with additional info
+        if search_engine == "tavily":
+            print_md("Search engine: Tavily (commercial API with AI-powered results)")
+        else:  # searxng
+            searxng_url = self.settings_manager.searxng_base_url
+            print_md(f"Search engine: SearXNG (privacy-focused, using {searxng_url})")
 
     def extract_youtube_content(self, arg: str) -> None:
         """

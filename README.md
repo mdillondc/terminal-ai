@@ -27,7 +27,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 
 ### Core Capabilities
 - **Multi-Provider AI**: OpenAI, Google Gemini, Anthropic, and Ollama (local models)
-- **Intelligent Web Search**: Real-time information via Tavily API with dynamic intent analysis (temporal, factual, controversial, etc.)
+- **Intelligent Web Search**: Real-time information via Tavily API or SearXNG with dynamic intent analysis (temporal, factual, controversial, etc.)
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
 - **Content Extraction**: YouTube transcripts, website content with paywall bypass
 
@@ -183,7 +183,23 @@ Use `--rag-rebuild collection --force-full` to force a complete rebuild when tro
 
 ### Web Search
 
-Intelligent web search using Tavily with LLM query optimization, generation, context awareness, and parallel processing for faster results.
+Intelligent web search with configurable search engines (Tavily or SearXNG) featuring LLM query optimization, generation, context awareness, and parallel processing for faster results.
+
+**Search Engine Options:**
+- **Tavily**: Commercial API with AI-powered results and advanced features
+- **SearXNG**: Privacy-focused open-source metasearch engine (requires local instance)
+
+**Switch Search Engines:**
+```bash
+# Switch to SearXNG for current session
+> --search-engine searxng
+
+# Switch to Tavily for current session  
+> --search-engine tavily
+
+# Show current engine and options
+> --search-engine
+```
 
 ```bash
 # Enable web search
@@ -193,7 +209,7 @@ Intelligent web search using Tavily with LLM query optimization, generation, con
  • Generating search queries...
    • Dharma Initiative true purpose and secrets explained
    • Real secret behind the Dharma Initiative in Lost TV show
- • Search mode: Auto-optimized
+ • Search engine: Tavily
  • Searching (1/2): Dharma Initiative true purpose and secrets explained
    • 20 Years Later, the DHARMA Initiative Secret Finally Explained
    • DHARMA Initiative | Lostpedia - Fandom
@@ -210,6 +226,26 @@ Intelligent web search using Tavily with LLM query optimization, generation, con
 - Current date awareness in queries
 - Parallel query execution to significantly reduce search response times
 - Multi-query strategy (1-3 optimized searches per request)
+
+**SearXNG Configuration:**
+
+To use SearXNG, you need a running SearXNG instance with JSON output enabled. Configure your instance URL in `~/.config/terminal-ai/config`:
+
+```bash
+search_engine=searxng
+searxng_base_url=http://your-searxng-instance:8080
+```
+
+**Important:** Your SearXNG instance must have JSON format enabled in its settings. Add this to your SearXNG `settings.yml`:
+
+```yaml
+search:
+  formats:
+    - html
+    - json
+```
+
+Without JSON support, SearXNG integration will not work. The application will automatically test the connection when switching to SearXNG.
 
 ### Conversation Management
 
@@ -253,6 +289,7 @@ Find instruction inspiration at [fabric/patterns](https://github.com/danielmiess
 |---------|-------------|
 | `--search` | Toggle web search mode |
 | `--search-deep` | Toggle autonomous deep search mode |
+| `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session |
 | `--markdown` | Toggle markdown rendering setting |
 | `--scroll` | Toggle scroll navigation (hotkey F8). Use j/k to scroll, gg for top, G for bottom |
 | `--nothink` | Disable thinking on Ollama models |

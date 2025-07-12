@@ -23,6 +23,7 @@ class CompletionType(Enum):
     TTS_VOICE = "tts_voice"  # TTS voice suggestions
     RAG_COLLECTION = "rag_collection"  # RAG collection name suggestions
     RAG_COLLECTION_FILE = "rag_collection_file"  # Files in active RAG collection
+    SEARCH_ENGINE = "search_engine"  # Search engine suggestions
     NONE = "none"  # No additional completion after command name
 
 
@@ -133,7 +134,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--search",
-            description="Toggles web search mode on or off. When enabled, user prompts are automatically enhanced with Tavily web search results.",
+            description="Toggles web search mode on or off. When enabled, user prompts are automatically enhanced with web search results. Search engine (Tavily or SearXNG) can be configured via settings.",
             usage="--search",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
@@ -142,11 +143,23 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--search-deep",
-            description="Toggles autonomous deep search mode. AI intelligently evaluates research completeness and continues searching until comprehensive coverage is achieved.",
+            description="Toggles autonomous deep search mode. AI intelligently evaluates research completeness and continues searching until comprehensive coverage is achieved. Search engine (Tavily or SearXNG) can be configured via settings.",
             usage="--search-deep",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
+        ))
+
+        self.register_command(CommandInfo(
+            name="--search-engine",
+            description="Switch search engine for current session. Changes take effect immediately for --search and --search-deep commands.",
+            usage="--search-engine tavily",
+            execution_order=1,
+            completion_rules=CompletionRules(
+                CompletionType.SEARCH_ENGINE,
+                custom_suggestions=["tavily", "searxng"]
+            ),
+            requires_argument=True
         ))
 
         self.register_command(CommandInfo(

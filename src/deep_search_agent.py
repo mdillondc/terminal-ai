@@ -9,9 +9,10 @@ a thorough answer.
 """
 
 import json
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional, Any, Tuple, Union
 from datetime import datetime
-from tavily_search import TavilySearch, TavilySearchError, create_tavily_search
+from tavily_search import TavilySearch, create_tavily_search
+from searxng_search import SearXNGSearch, create_searxng_search
 from print_helper import print_md
 
 
@@ -31,10 +32,20 @@ class DeepSearchAgent:
         """
         self.llm_client_manager = llm_client_manager
         self.settings_manager = settings_manager
-        self.search_client = create_tavily_search()
 
-        if not self.search_client:
-            raise Exception("Failed to initialize Tavily search client")
+        # Initialize search client based on configured search engine
+        search_engine = settings_manager.search_engine
+        if search_engine == "searxng":
+            search_client = create_searxng_search(settings_manager.searxng_base_url)
+            if not search_client:
+                raise Exception("Failed to initialize SearXNG search client")
+            self.search_client: Union[TavilySearch, SearXNGSearch] = search_client
+        else:
+            # Default to Tavily
+            search_client = create_tavily_search()
+            if not search_client:
+                raise Exception("Failed to initialize Tavily search client")
+            self.search_client: Union[TavilySearch, SearXNGSearch] = search_client
 
     def conduct_deep_search(self, query: str, context: str = "", model: str = "gpt-4o-mini") -> Tuple[List[str], List[Dict[str, str]]]:
         """
@@ -48,7 +59,9 @@ class DeepSearchAgent:
         Returns:
             Tuple of (formatted_search_results, all_source_metadata)
         """
-        print_md("**Deep Search Mode Activated**")
+        search_engine_name = "Tavily" if self.settings_manager.search_engine == "tavily" else "SearXNG"
+        print_md(f"**Deep Search Mode Activated**")
+        print_md(f"Search engine: {search_engine_name}")
         print_md("AI will autonomously determine when sufficient information has been gathered...")
 
         all_search_results = []
@@ -418,7 +431,7 @@ Respond with only the search queries, one per line, no explanations or numbering
             True if user wants to continue, False if they want to stop
         """
         try:
-            import sys
+
 
             print_md("    [C]ontinue deep search  [S]top and generate response")
             print("    Choice: ", end="", flush=True)

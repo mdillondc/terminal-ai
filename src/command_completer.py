@@ -253,6 +253,8 @@ class CommandCompleter(Completer):
             yield from self._complete_rag_collections(argument_part, completion_rules)
         elif completion_type == CompletionType.RAG_COLLECTION_FILE:
             yield from self._complete_rag_collection_files(argument_part, completion_rules)
+        elif completion_type == CompletionType.SEARCH_ENGINE:
+            yield from self._complete_search_engines(argument_part, completion_rules)
         elif completion_type == CompletionType.SIMPLE:
             yield from self._complete_simple_suggestions(argument_part, completion_rules)
 
@@ -453,6 +455,29 @@ class CommandCompleter(Completer):
         for score, model_name, description in matches:
             yield Completion(
                 text=model_name,
+                start_position=-len(partial_name),
+                display_meta=description
+            )
+
+    def _complete_search_engines(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
+        """Complete search engine names with fuzzy matching"""
+        search_engines = [
+            ("tavily", "Tavily API - Commercial search with AI-powered results"),
+            ("searxng", "SearXNG - Privacy-focused open-source metasearch")
+        ]
+
+        matches = []
+        for engine_name, description in search_engines:
+            is_match, score = self._fuzzy_match(partial_name, engine_name)
+            if is_match:
+                matches.append((score, engine_name, description))
+
+        # Sort by score (higher is better), then alphabetically
+        matches.sort(key=lambda x: (-x[0], x[1]))
+
+        for score, engine_name, description in matches:
+            yield Completion(
+                text=engine_name,
                 start_position=-len(partial_name),
                 display_meta=description
             )

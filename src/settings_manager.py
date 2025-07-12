@@ -39,17 +39,19 @@ class SettingsManager:
         self.tts = False
         self.tts_model = "gpt-4o-mini-tts"
         self.tts_voice = "echo"
-        self.tts_save_mp3 = False  # Experimental
+        self.tts_save_mp3 = False
         self.stt = False
         self.stt_waiting_msg = True  # Do not change
 
         # Search Settings
         self.search = False
         self.search_max_results = 3  # Maximum number of search results per query
+        self.search_engine = "tavily"  # "tavily" or "searxng"
+        self.searxng_base_url = "http://10.13.0.200:8095"  # URL for SearXNG instance
 
         # Deep Search Settings
         self.search_deep = False
-        self.search_deep_max_queries = 15  # Maximum number of search queries for deep search (safety net)
+        self.search_deep_max_queries = 35  # Maximum number of search queries for deep search (safety net)
         self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search (safety net)
 
         # RAG Settings
