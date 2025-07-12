@@ -317,7 +317,7 @@ class CommandRegistry:
         # RAG (Retrieval-Augmented Generation) commands
         self.register_command(CommandInfo(
             name="--rag",
-            description="Toggle RAG on/off or activate a specific collection. When called without arguments, toggles RAG state (deactivates if active, shows available collections if inactive).",
+            description="Activate a specific RAG collection.",
             usage="--rag [collection_name]",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.RAG_COLLECTION),
