@@ -238,11 +238,12 @@ class LLMClientManager:
             response = client.responses.create(**params)
         except BadRequestError as e:
             if "organization must be verified" in str(e).lower():
-                print_md(f"Organization verification required for {model} model streaming.")
-                print_md("To enable streaming with o3 models:")
-                print_md("1. Go to https://platform.openai.com/settings/organization/general")
-                print_md("2. Click 'Verify Organization'")
-                print_md("3. Wait up to 15 minutes for access to propagate")
+                org_text = f"Organization verification required for {model} model streaming.\n"
+                org_text += "To enable streaming with o3 models:\n"
+                org_text += "    1. Go to https://platform.openai.com/settings/organization/general\n"
+                org_text += "    2. Click 'Verify Organization'\n"
+                org_text += "    3. Wait up to 15 minutes for access to propagate"
+                print_md(org_text)
 
                 # Return a mock response indicating the error
                 class MockErrorResponse:

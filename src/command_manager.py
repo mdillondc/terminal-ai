@@ -329,8 +329,9 @@ class CommandManager:
                     command_executed = True
                 elif command_name == "--clear":
                     self.conversation_manager.start_new_conversation_log()
-                    print_md("Conversation history cleared - will create new log file after first AI response")
-                    print_md("AI instructions preserved")
+                    clear_text = "Conversation history cleared - will create new log file after first AI response\n"
+                    clear_text += "    AI instructions preserved"
+                    print_md(clear_text)
                     command_executed = True
                 elif command_name == "--usage":
                     self.display_token_usage()
@@ -371,8 +372,9 @@ class CommandManager:
                         # Check for privacy: don't enable TTS when using Ollama models
                         current_model = self.settings_manager.setting_get("model")
                         if current_model and self.conversation_manager.llm_client_manager.get_provider_for_model(current_model) == "ollama":
-                            print_md("TTS not available when using Ollama models")
-                            print_md("TTS would send your text to OpenAI, breaking local privacy")
+                            tts_privacy_text = "TTS not available when using Ollama models\n"
+                            tts_privacy_text += "    TTS would send your text to OpenAI, breaking local privacy"
+                            print_md(tts_privacy_text)
                         else:
                             self.settings_manager.setting_set("tts", True)
                             print_md("TTS enabled")
@@ -461,8 +463,9 @@ class CommandManager:
 
         collections = self.rag_engine.list_collections()
         if not collections:
-            print_md("No RAG collections found in rag/ directory")
-            print_md("Create collections by making directories in rag/collection_name/")
+            no_collections_text = "No RAG collections found in rag/ directory\n"
+            no_collections_text += "    Create collections by making directories in rag/collection_name/"
+            print_md(no_collections_text)
             return
         for i, collection in enumerate(collections, 1):
             status_info = []
@@ -565,11 +568,12 @@ class CommandManager:
             return
 
         status = self.rag_engine.get_status()
-        print_md("RAG Status:")
-        print_md(f"Active: {status['active']}")
+        status_text = "RAG Status:\n"
+        status_text += f"    Active: {status['active']}\n"
         if status['active']:
-            print_md(f"Collection: {status['active_collection']}")
-            print_md(f"Chunks loaded: {status['chunk_count']}")
+            status_text += f"    Collection: {status['active_collection']}\n"
+            status_text += f"    Chunks loaded: {status['chunk_count']}"
+        print_md(status_text)
 
         print_md(f"Available collections: {status['available_collections']}")
 
@@ -584,8 +588,9 @@ class CommandManager:
             elif provider == "ollama":
                 model = self.settings_manager.setting_get("ollama_embedding_model")
                 ollama_url = self.settings_manager.setting_get("ollama_base_url")
-                print_md(f"Ollama model: {model}")
-                print_md(f"Ollama URL: {ollama_url}")
+                ollama_text = f"    Ollama model: {model}\n"
+                ollama_text += f"    Ollama URL: {ollama_url}"
+                print_md(ollama_text)
         except Exception as e:
             print_md(f"Provider info: Error getting provider details")
 
@@ -613,14 +618,15 @@ class CommandManager:
             success = self.rag_engine.embedding_service.test_connection()
 
             if success:
-                print_md(f"Connection to {provider} successful!")
+                success_text = f"Connection to {provider} successful!\n"
 
                 # Show additional info
                 model_info = self.rag_engine.embedding_service.get_embedding_model_info()
                 model = model_info.get("model", "unknown")
                 dimensions = self.rag_engine.embedding_service.get_embedding_dimensions()
-                print_md(f"Model: {model}")
-                print_md(f"Dimensions: {dimensions}")
+                success_text += f"    Model: {model}\n"
+                success_text += f"    Dimensions: {dimensions}"
+                print_md(success_text)
 
                 if provider == "ollama":
                     info = model_info.get("info", {})
@@ -659,11 +665,12 @@ class CommandManager:
             model = model_info.get("model", "unknown")
             info = model_info.get("info", {})
 
-            print_md("Embedding Model Information:")
-            print_md(f"Provider: {provider}")
-            print_md(f"Model: {model}")
-            print_md(f"Dimensions: {info.get('dimensions', 'unknown')}")
-            print_md(f"Max tokens: {info.get('max_tokens', 'unknown')}")
+            model_text = "Embedding Model Information:\n"
+            model_text += f"    Provider: {provider}\n"
+            model_text += f"    Model: {model}\n"
+            model_text += f"    Dimensions: {info.get('dimensions', 'unknown')}\n"
+            model_text += f"    Max tokens: {info.get('max_tokens', 'unknown')}"
+            print_md(model_text)
 
             if provider == "openai":
                 cost = info.get('cost_per_1k_tokens', 0)
@@ -677,10 +684,11 @@ class CommandManager:
                         print_md(f"Languages: {languages}")
 
             # Show current settings
-            print_md("Current RAG Settings:")
-            print_md(f"Chunk size: {self.settings_manager.setting_get('rag_chunk_size')} tokens")
-            print_md(f"Chunk overlap: {self.settings_manager.setting_get('rag_chunk_overlap')} tokens")
-            print_md(f"Top K results: {self.settings_manager.setting_get('rag_top_k')}")
+            settings_text = "Current RAG Settings:\n"
+            settings_text += f"    Chunk size: {self.settings_manager.setting_get('rag_chunk_size')} tokens\n"
+            settings_text += f"    Chunk overlap: {self.settings_manager.setting_get('rag_chunk_overlap')} tokens\n"
+            settings_text += f"    Top K results: {self.settings_manager.setting_get('rag_top_k')}"
+            print_md(settings_text)
 
         except Exception as e:
             print_md(f"Error getting model info: {e}")
@@ -734,19 +742,22 @@ class CommandManager:
         """
         if arg == None:
             ollama_url = self.settings_manager.setting_get("ollama_base_url")
-            print_md("Please specify the model to use")
-            print_md("Available sources: OpenAI (https://platform.openai.com/docs/models)")
-            print_md(f"Ollama ({ollama_url} if running)")
-            print_md("Google (https://ai.google.dev/gemini-api/docs/models)")
-            print_md("Anthropic (https://docs.anthropic.com/en/docs/about-claude/models)")
+            model_help_text = "Please specify the model to use\n"
+            model_help_text += "Available sources:\n"
+            model_help_text += "    OpenAI (https://platform.openai.com/docs/models)\n"
+            model_help_text += f"    Ollama ({ollama_url} if running)\n"
+            model_help_text += "    Google (https://ai.google.dev/gemini-api/docs/models)\n"
+            model_help_text += "    Anthropic (https://docs.anthropic.com/en/docs/about-claude/models)"
+            print_md(model_help_text)
             return
 
         model = arg
 
         # Validate the model before setting it
         if not self._validate_model(model):
-            print_md(f"Invalid model: {model}")
-            print_md("Model not found in OpenAI, Google, or Ollama APIs")
+            invalid_model_text = f"Invalid model: {model}\n"
+            invalid_model_text += "    Model not found in OpenAI, Google, or Ollama APIs"
+            print_md(invalid_model_text)
 
             # Show available models
             try:
@@ -809,10 +820,11 @@ class CommandManager:
         if arg is None:
             current_engine = self.settings_manager.search_engine
             print_md(f"Current search engine: {current_engine}")
-            print_md("Available search engines:")
-            print_md("  tavily   - Tavily API (commercial search with AI-powered results)")
-            print_md("  searxng  - SearXNG (privacy-focused open-source metasearch)")
-            print_md("Usage: --search-engine tavily")
+            engine_help_text = "Available search engines:\n"
+            engine_help_text += "    tavily   - Tavily API (commercial search with AI-powered results)\n"
+            engine_help_text += "    searxng  - SearXNG (privacy-focused open-source metasearch)\n"
+            engine_help_text += "Usage: --search-engine tavily"
+            print_md(engine_help_text)
             return
 
         search_engine = arg.lower()
@@ -820,8 +832,9 @@ class CommandManager:
         # Validate search engine
         valid_engines = ["tavily", "searxng"]
         if search_engine not in valid_engines:
-            print_md(f"Invalid search engine: {search_engine}")
-            print_md(f"Valid options: {', '.join(valid_engines)}")
+            invalid_engine_text = f"Invalid search engine: {search_engine}\n"
+            invalid_engine_text += f"    Valid options: {', '.join(valid_engines)}"
+            print_md(invalid_engine_text)
             return
 
         # Set the search engine
@@ -956,9 +969,10 @@ class CommandManager:
                         if not subtitle_data:
                             available_langs = list(subtitles.keys()) + list(automatic_captions.keys())
                             if available_langs:
-                                print_md(f"Available subtitle languages: {', '.join(set(available_langs))}")
-                                print_md("No English subtitles found")
-                                print_md("Attempting to use other available subtitle languages...")
+                                subtitle_fallback_text = f"Available subtitle languages: {', '.join(set(available_langs))}\n"
+                                subtitle_fallback_text += "    No English subtitles found\n"
+                                subtitle_fallback_text += "    Attempting to use other available subtitle languages..."
+                                print_md(subtitle_fallback_text)
 
                                 # Try manual subtitles first (any language)
                                 for lang in subtitles.keys():
@@ -1032,8 +1046,9 @@ class CommandManager:
 
 
                                         if transcript_text:
-                                            print_md(f"Successfully extracted transcript from {subtitle_source}")
-                                            print_md(f"Processing {len(transcript_text)} characters as input...")
+                                            transcript_success_text = f"Successfully extracted transcript from {subtitle_source}\n"
+                                            transcript_success_text += f"    Processing {len(transcript_text)} characters as input..."
+                                            print_md(transcript_success_text)
 
                                             # Add language note if not English
                                             language_note = ""
@@ -1065,8 +1080,9 @@ class CommandManager:
                             raise Exception("No subtitles available")
 
                 except Exception as e:
-                    print_md(f"Could not extract transcript: {str(e)}")
-                    print_md("Continuing with video info only...")
+                    transcript_error_text = f"Could not extract transcript: {str(e)}\n"
+                    transcript_error_text += "    Continuing with video info only..."
+                    print_md(transcript_error_text)
                     # Still provide video info even without transcript
                     user_input = (
                         "Channel title: " + channel_title +
@@ -1133,8 +1149,9 @@ class CommandManager:
         # Only show success messages if bypass didn't fail
         # (WebContentExtractor already explained bypass failure to user)
         if not result.get('bypass_failed'):
-            print_md("Content added to conversation context")
-            print_md("You can now ask questions about this content")
+            url_success_text = "Content added to conversation context\n"
+            url_success_text += "    You can now ask questions about this content"
+            print_md(url_success_text)
 
     def extract_file_content(self, file_path: str) -> None:
         """
@@ -1192,8 +1209,9 @@ class CommandManager:
             # Add to conversation history
             self.conversation_manager.log_context(formatted_content, "user")
 
-            print_md("File content added to conversation context")
-            print_md("You can now ask questions about this content")
+            file_success_text = "File content added to conversation context\n"
+            file_success_text += "    You can now ask questions about this content"
+            print_md(file_success_text)
 
         except Exception as e:
             print_md(f"Error loading file: {e}")

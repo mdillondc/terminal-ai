@@ -72,8 +72,9 @@ class TTSService:
         # Check for privacy: disable TTS when using Ollama (local) models
         current_model = self.settings_manager.setting_get("model")
         if current_model and self._is_ollama_provider(current_model):
-            print_md("TTS disabled for privacy when using Ollama models")
-            print_md("Text-to-speech would send your text to OpenAI, breaking local privacy")
+            privacy_text = "TTS disabled for privacy when using Ollama models\n"
+            privacy_text += "    Text-to-speech would send your text to OpenAI, breaking local privacy"
+            print_md(privacy_text)
             return False
 
         try:
@@ -285,8 +286,9 @@ class TTSService:
         # Check for privacy: disable TTS when using Ollama (local) models
         current_model = self.settings_manager.setting_get("model")
         if current_model and self._is_ollama_provider(current_model):
-            print_md("TTS test disabled for privacy when using Ollama models")
-            print_md("Text-to-speech would send your text to OpenAI, breaking local privacy")
+            test_privacy_text = "TTS test disabled for privacy when using Ollama models\n"
+            test_privacy_text += "    Text-to-speech would send your text to OpenAI, breaking local privacy"
+            print_md(test_privacy_text)
             return False
 
         test_text = "Hello, this is a test of the text-to-speech system."

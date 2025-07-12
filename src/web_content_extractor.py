@@ -87,8 +87,9 @@ class WebContentExtractor:
                         return bypass_result
                     else:
                         content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
-                        print_md("All bypass methods failed - content appears blocked")
-                        print_md(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
+                        bypass_error_text = "All bypass methods failed - content appears blocked\n"
+                        bypass_error_text += f"    Limited content ({content_length} words) added to context - may not be sufficient for analysis"
+                        print_md(bypass_error_text)
                         normal_result['warning'] = "Content may be incomplete due to access restrictions"
                         normal_result['bypass_failed'] = True
                         return normal_result
@@ -99,8 +100,9 @@ class WebContentExtractor:
                     return bypass_result
                 else:
                     content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
-                    print_md("All bypass methods failed - content appears blocked")
-                    print_md(f"Limited content ({content_length} words) added to context - may not be sufficient for analysis")
+                    bypass_error_text = "All bypass methods failed - content appears blocked\n"
+                    bypass_error_text += f"    Limited content ({content_length} words) added to context - may not be sufficient for analysis"
+                    print_md(bypass_error_text)
                     normal_result['warning'] = "Content may be incomplete due to access restrictions"
                     normal_result['bypass_failed'] = True
                     return normal_result
@@ -392,8 +394,9 @@ Respond in JSON format only:
                 else:
                     return None  # Content is complete
             except json.JSONDecodeError:
-                print_md(f"ERROR: LLM returned invalid JSON for content evaluation: {response_text}")
-                print_md("Cannot proceed with content evaluation - LLM must return valid JSON")
+                json_error_text = f"ERROR: LLM returned invalid JSON for content evaluation: {response_text}\n"
+                json_error_text += "    Cannot proceed with content evaluation - LLM must return valid JSON"
+                print_md(json_error_text)
                 return None
 
         except Exception as e:
@@ -448,8 +451,9 @@ Respond in JSON format only:
                     return False
                 return not result.get("blocked", True)  # If not blocked, bypass was successful
             except json.JSONDecodeError:
-                print_md(f"ERROR: LLM returned invalid JSON for bypass evaluation: {response_text}")
-                print_md("Cannot proceed with bypass evaluation - LLM must return valid JSON")
+                bypass_json_error_text = f"ERROR: LLM returned invalid JSON for bypass evaluation: {response_text}\n"
+                bypass_json_error_text += "    Cannot proceed with bypass evaluation - LLM must return valid JSON"
+                print_md(bypass_json_error_text)
                 return False
 
         except Exception as e:

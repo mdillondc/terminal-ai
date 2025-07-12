@@ -192,20 +192,25 @@ class SettingsManager:
             if provider == "ollama":
                 ollama_url = self.setting_get("ollama_base_url")
                 if llm_client_manager and llm_client_manager._is_ollama_available():
-                    print_md(f"Model: {model}")
-                    print_md(f"Running locally via Ollama at {ollama_url}")
+                    ollama_text = f"Model: {model}\n"
+                    ollama_text += f"    Running locally via Ollama at {ollama_url}"
+                    print_md(ollama_text)
                 else:
-                    print_md(f"Warning: Selected Ollama model '{model}' but Ollama not available")
-                    print_md(f"Make sure Ollama is running at {ollama_url}")
+                    warning_text = f"Warning: Selected Ollama model '{model}' but Ollama not available\n"
+                    warning_text += f"    Make sure Ollama is running at {ollama_url}"
+                    print_md(warning_text)
             elif provider == "google":
-                print_md(f"Model: {model}")
-                print_md(f"https://ai.google.dev/gemini-api/docs/models")
+                google_text = f"Model: {model}\n"
+                google_text += "    https://ai.google.dev/gemini-api/docs/models"
+                print_md(google_text)
             elif provider == "anthropic":
-                print_md(f"Model: {model}")
-                print_md(f"https://docs.anthropic.com/en/docs/about-claude/models")
+                anthropic_text = f"Model: {model}\n"
+                anthropic_text += "    https://docs.anthropic.com/en/docs/about-claude/models"
+                print_md(anthropic_text)
             else:
-                print_md(f"Model: {model}")
-                print_md(f"https://platform.openai.com/docs/models")
+                openai_text = f"Model: {model}\n"
+                openai_text += "    https://platform.openai.com/docs/models"
+                print_md(openai_text)
         else:
             # Simplified messaging for startup/config
             print_md(f"Model: {model}")

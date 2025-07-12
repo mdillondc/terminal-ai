@@ -60,9 +60,10 @@ class DeepSearchAgent:
             Tuple of (formatted_search_results, all_source_metadata)
         """
         search_engine_name = "Tavily" if self.settings_manager.search_engine == "tavily" else "SearXNG"
-        print_md(f"**Deep Search Mode Activated**")
-        print_md(f"Search engine: {search_engine_name}")
-        print_md("AI will autonomously determine when sufficient information has been gathered...")
+        activation_text = f"**Deep Search Mode Activated**\n"
+        activation_text += f"Search engine: {search_engine_name}\n"
+        activation_text += "AI will autonomously determine when sufficient information has been gathered..."
+        print_md(activation_text)
 
         all_search_results = []
         all_source_metadata = []
@@ -130,9 +131,10 @@ class DeepSearchAgent:
                 if len(previous_completeness_scores) >= 2:
                     recent_scores = previous_completeness_scores[-2:]
                     if all(score == recent_scores[0] for score in recent_scores):
-                        print_md(f"**Diminishing returns detected:** Completeness remains at {current_score}/10 despite additional searches.")
-                        print_md("This suggests the missing information may not be available in current literature.")
-                        print_md("Concluding research with available information...")
+                        diminishing_text = f"**Diminishing returns detected:** Completeness remains at {current_score}/10 despite additional searches.\n"
+                        diminishing_text += "    This suggests the missing information may not be available in current literature.\n"
+                        diminishing_text += "    Concluding research with available information..."
+                        print_md(diminishing_text)
                         break
 
                 # Check for auto-stop on high quality scores
@@ -181,8 +183,9 @@ class DeepSearchAgent:
 
         # Check if we hit the user choice iteration limit
         if user_choice_iterations >= max_user_choice_iterations:
-            print_md(f"Research iteration limit reached ({max_user_choice_iterations} user choice cycles).")
-            print_md("Concluding research to prevent excessive searches...")
+            limit_text = f"**Research iteration limit reached ({max_user_choice_iterations} user choice cycles).**\n"
+            limit_text += "    Concluding research to prevent excessive searches..."
+            print_md(limit_text)
 
         # Final summary
         unique_sources = len(all_source_metadata)

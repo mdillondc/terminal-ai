@@ -75,8 +75,49 @@ def print_md(markdown_content: str):
     Print markdown content using streamdown.
     Automatically adds bullet points based on indentation.
 
+    CRITICAL INDENTATION RULE:
+    Multiple separate print_md() calls break markdown indentation because each call
+    is processed independently by streamdown. For proper bullet point hierarchy,
+    combine related content into a single print_md() call.
+
     Args:
         markdown_content: The markdown content to render
+
+    Examples:
+        ❌ WRONG - Breaks indentation (separate calls):
+            print_md("**Main Point**")
+            print_md("    Detail 1")
+            print_md("    Detail 2")
+
+            Result: All items appear as separate top-level bullets
+
+        ✅ CORRECT - Proper indentation (single call):
+            content = "**Main Point**\n"
+            content += "    Detail 1\n"
+            content += "    Detail 2"
+            print_md(content)
+
+            Result: Details properly indented under main point
+
+        ✅ CORRECT - Status with details:
+            status_text = "RAG Status:\n"
+            status_text += f"    Active: {active}\n"
+            status_text += f"    Collection: {collection}"
+            print_md(status_text)
+
+        ✅ CORRECT - Instructions with steps:
+            help_text = "Setup Instructions:\n"
+            help_text += "    1. Go to settings\n"
+            help_text += "    2. Enable feature\n"
+            help_text += "    3. Restart application"
+            print_md(help_text)
+
+    Guidelines:
+        - Use single print_md() call for hierarchical content
+        - Use "    " (4 spaces) for indentation levels
+        - Separate print_md() calls are fine for unrelated content
+        - Build multi-line strings with \n for proper formatting
+        - Consider user experience - don't delay important info unnecessarily
     """
     # Split into lines and add bullet points
     lines = markdown_content.split('\n')

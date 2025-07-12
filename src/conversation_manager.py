@@ -1161,8 +1161,9 @@ Generate only the filename focusing on content substance:""".format(context[:100
             # Display the conversation history to the user
             self._display_conversation_history()
 
-            print_md("Conversation history replaced with " + self.settings_manager.setting_get('log_file_name'))
-            print_md("Now logging to " + self.settings_manager.setting_get('log_file_name'))
+            log_resume_text = "Conversation history replaced with " + self.settings_manager.setting_get('log_file_name') + "\n"
+            log_resume_text += "    Now logging to " + self.settings_manager.setting_get('log_file_name')
+            print_md(log_resume_text)
         else:
             print_md("Log file not found")
 
