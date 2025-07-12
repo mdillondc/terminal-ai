@@ -119,7 +119,7 @@ class DeepSearchAgent:
             print_md(evaluation_text)
 
             if evaluation['is_sufficient']:
-                print_md("    Decision: Research complete")
+                print_md("    **Decision:** Research complete")
                 break
             else:
                 # Check for diminishing returns
@@ -130,20 +130,35 @@ class DeepSearchAgent:
                 if len(previous_completeness_scores) >= 2:
                     recent_scores = previous_completeness_scores[-2:]
                     if all(score == recent_scores[0] for score in recent_scores):
-                        print_md(f"    Diminishing returns detected: Completeness remains at {current_score}/10 despite additional searches.")
-                        print_md("    This suggests the missing information may not be available in current literature.")
-                        print_md("    Concluding research with available information...")
+                        print_md(f"**Diminishing returns detected:** Completeness remains at {current_score}/10 despite additional searches.")
+                        print_md("This suggests the missing information may not be available in current literature.")
+                        print_md("Concluding research with available information...")
                         break
 
-                continue_text = f"    Decision: Research quality is good ({evaluation['completeness_score']}/10). Continue searching for higher completeness?\n"
-                continue_text += f"    Gaps identified: {', '.join(evaluation['gaps'])}"
+                # Check for auto-stop on high quality scores
+                current_score = evaluation['completeness_score']
+                if current_score >= 9:
+                    quality_desc, _ = self._get_quality_description(current_score)
+                    print_md(f"**Decision:** Research quality is {quality_desc} ({current_score}/10). Auto-stopping with comprehensive coverage.")
+                    break
+
+                # Check for auto-continue on very poor scores
+                if current_score <= 2:
+                    quality_desc, _ = self._get_quality_description(current_score)
+                    print_md(f"**Decision:** Research quality is {quality_desc} ({current_score}/10). Auto-continuing to gather more information...")
+                    continue
+
+                # Get quality assessment for user prompt
+                quality_desc, recommendation = self._get_quality_description(current_score)
+                continue_text = f"**Decision:** Research quality is {quality_desc} ({current_score}/10). {recommendation}\n"
+                continue_text += f"**Gaps identified:** {', '.join(evaluation['gaps'])}"
                 print_md(continue_text)
 
                 # Ask user if they want to continue
                 user_choice = self._get_user_continue_choice(evaluation['completeness_score'])
 
                 if not user_choice:
-                    print_md("    User chose to stop research. Generating response with current information...")
+                    print_md("**User chose to stop research.** Generating response with current information...")
                     break
 
                 user_choice_iterations += 1
@@ -154,7 +169,7 @@ class DeepSearchAgent:
                 )
 
                 if not follow_up_queries:
-                    print_md("    No additional search strategies identified. Concluding research.")
+                    print_md("No additional search strategies identified. Concluding research.")
                     break
 
                 phase_text = "**Next Research Phase:**\n"
@@ -166,8 +181,8 @@ class DeepSearchAgent:
 
         # Check if we hit the user choice iteration limit
         if user_choice_iterations >= max_user_choice_iterations:
-            print_md(f"    Research iteration limit reached ({max_user_choice_iterations} user choice cycles).")
-            print_md("    Concluding research to prevent excessive searches...")
+            print_md(f"Research iteration limit reached ({max_user_choice_iterations} user choice cycles).")
+            print_md("Concluding research to prevent excessive searches...")
 
         # Final summary
         unique_sources = len(all_source_metadata)
@@ -420,9 +435,30 @@ Respond with only the search queries, one per line, no explanations or numbering
             print_md(f"Warning: Error generating follow-up queries: {e}")
             return []
 
+    def _get_quality_description(self, score: int) -> tuple[str, str]:
+        """
+        Return quality description and recommendation based on score.
+
+        Args:
+            score: Completeness score (1-10)
+
+        Returns:
+            Tuple of (quality_description, recommendation)
+        """
+        if score <= 3:
+            return ("poor", "Continue searching to gather more comprehensive information?")
+        elif score <= 5:
+            return ("fair", "Continue searching to improve coverage?")
+        elif score <= 7:
+            return ("good", "Continue searching for higher completeness?")
+        elif score <= 9:
+            return ("very good", "Research is quite comprehensive. Continue for completeness?")
+        else:
+            return ("excellent", "Research complete - comprehensive coverage achieved")
+
     def _get_user_continue_choice(self, completeness_score: int) -> bool:
         """
-        Get user choice on whether to continue research when completeness is below 10/10.
+        Get user choice on whether to continue deep search.
 
         Args:
             completeness_score: Current completeness score (1-10)
@@ -433,7 +469,7 @@ Respond with only the search queries, one per line, no explanations or numbering
         try:
 
 
-            print_md("    [C]ontinue deep search  [S]top and generate response")
+            print_md("**[C]ontinue deep search or [S]top and generate response**")
             print("    Choice: ", end="", flush=True)
 
             while True:

@@ -19,7 +19,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
   - [Web Search](#web-search)
   - [Conversation Management](#conversation-management)
   - [Text-to-Speech](#text-to-speech)
-- [Advanced Features](#advanced-features)
+- [Advanced Features (deep research, etc.)](#advanced-features)
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
 
@@ -245,7 +245,7 @@ search:
     - json
 ```
 
-Without JSON support, SearXNG integration will not work. The application will automatically test the connection when switching to SearXNG.
+Without JSON support, SearXNG integration will not work.
 
 ### Conversation Management
 
@@ -443,7 +443,7 @@ youtube() {
 **RAG not working:**
 ```bash
 > --rag-test
-> --rag-rebuild collection-name
+> --rag-rebuild collection-name --force-full
 ```
 
 **Ollama connection:**
