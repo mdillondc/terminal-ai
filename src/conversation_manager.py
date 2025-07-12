@@ -558,7 +558,9 @@ class ConversationManager:
                                     url = source.get('url', '')
 
                                     if url and url not in display_seen_urls:
-                                        source_lines.append(f"    [{title}]({url})")
+                                        # Remove square brackets from title for markdown links
+                                        clean_title = title.replace('[', '').replace(']', '')
+                                        source_lines.append(f"    [{clean_title}]({url})")
                                         display_seen_urls.add(url)
                                     elif not url:
                                         source_lines.append(f"    {title}")
