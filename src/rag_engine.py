@@ -358,27 +358,15 @@ class RAGEngine:
         if not relevant_chunks:
             return "", []
 
-        # Calculate context management settings
-        context_strategy = self.settings_manager.setting_get("context_management_strategy")
-        max_context_tokens = self._get_context_budget(context_strategy)
-
         # Format context
         context_parts = []
-        current_tokens = 0
         used_chunks = []
 
         context_header = f"You have access to relevant information from the user's document collection '{self.active_collection}':\n\nCONTEXT:\n---\n"
-        current_tokens += self.embedding_service.count_tokens(context_header)
 
         for chunk in relevant_chunks:
             chunk_text = f"[From {chunk['filename']}]\n{chunk['content']}\n\n"
-            chunk_tokens = self.embedding_service.count_tokens(chunk_text)
-
-            if current_tokens + chunk_tokens > max_context_tokens:
-                break
-
             context_parts.append(chunk_text)
-            current_tokens += chunk_tokens
             used_chunks.append(chunk)
 
         if not context_parts:
@@ -390,14 +378,6 @@ class RAGEngine:
 
         return full_context, used_chunks
 
-    def _get_context_budget(self, strategy: str) -> int:
-        """Get context token budget based on strategy"""
-        budgets = {
-            "generous": 10000,
-            "balanced": 5000,
-            "strict": 2000
-        }
-        return budgets.get(strategy, 5000)
 
     def _check_collection_needs_rebuild(self, collection_name: str) -> bool:
         """Check if a collection needs rebuilding due to file changes"""
@@ -528,8 +508,7 @@ class RAGEngine:
                 "embedding_model": self.settings_manager.setting_get("openai_embedding_model"),
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap"),
-                "top_k": self.settings_manager.setting_get("rag_top_k"),
-                "context_strategy": self.settings_manager.setting_get("context_management_strategy")
+                "top_k": self.settings_manager.setting_get("rag_top_k")
             }
         }
 

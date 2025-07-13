@@ -31,10 +31,6 @@ class SettingsManager:
         self.model = "gpt-4.1-mini"  # Default model (provider detected automatically)
         self.ollama_base_url = "http://localhost:11434"
 
-        # Cache Settings
-        self.openai_models_cache_hours = 168  # 7 days
-        self.google_models_cache_hours = 72   # 3 days
-
         # Voice Settings
         self.tts = False
         self.tts_model = "gpt-4o-mini-tts"
@@ -53,6 +49,11 @@ class SettingsManager:
         self.search_deep = False
         self.search_deep_max_queries = 35  # Maximum number of search queries for deep search (safety net)
         self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search (safety net)
+    
+        # Markdown streamdown settings
+        self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
+        self.rag_enable_hybrid_search = True
+        self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
 
         # RAG Settings
         self.embedding_provider = "ollama"  # "openai" or "ollama"
@@ -63,24 +64,9 @@ class SettingsManager:
         self.rag_batch_size = 16
         self.rag_top_k = 8
         self.rag_active_collection = None
-
-        # Hybrid Search Settings
-
-        # Markdown streamdown settings
-        self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
-        self.rag_enable_hybrid_search = True
-        self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
-
-        # Context Management Settings
-        self.rag_max_context_tokens = 10000
-        self.rag_enable_context_management = True
-        self.conversation_history_limit = 50000
-        self.context_management_strategy = "generous"  # "strict", "balanced", or "generous"
-
-        # RAG Essential Settings
         self.rag_enable_search_transparency = True  # Show search process information
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
-        self.rag_max_chunks_per_source = 2  # Maximum chunks to return from same source document
+        self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
 
         # Search Context Settings
         self.search_context_window = 6  # Number of recent messages to include in search context

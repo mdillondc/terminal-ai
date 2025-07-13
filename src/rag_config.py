@@ -127,16 +127,6 @@ def is_text_file_by_mime(file_path: str) -> bool:
             ]
         return False
 
-def get_supported_extensions() -> Set[str]:
-    """
-    Get the set of binary file extensions that require special processing.
-    Note: Text files are detected dynamically via MIME types.
-
-    Returns:
-        Set of binary file extensions (including the dot, e.g., '.pdf')
-    """
-    return BINARY_FILE_EXTENSIONS.copy()
-
 def is_supported_file(file_path: str) -> bool:
     """
     Check if a file is supported by the RAG system.

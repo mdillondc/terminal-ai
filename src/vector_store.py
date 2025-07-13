@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional
 from settings_manager import SettingsManager
-from rag_config import get_supported_extensions, is_supported_file
+from rag_config import is_supported_file
 from print_helper import print_md
 
 

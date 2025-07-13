@@ -5,7 +5,7 @@ Simple semantic search with optional recent boost and result diversity.
 """
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 from settings_manager import SettingsManager
 from print_helper import print_md
