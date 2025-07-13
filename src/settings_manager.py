@@ -70,7 +70,7 @@ class SettingsManager:
 
         # Search Context Settings
         self.search_context_window = 6  # Number of recent messages to include in search context
-        self.search_context_char_limit = 1000  # Character limit for truncating long messages in search context
+        self.search_context_char_limit = 2000  # Character limit for truncating long messages in search context
         self.search_max_queries = 2  # Maximum number of search queries to generate and execute
 
         # Thinking Settings

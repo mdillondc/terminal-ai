@@ -373,7 +373,7 @@ class ConversationManager:
 
             # Display RAG sources if any were used
             if rag_sources and self.rag_engine:
-                print(f"{self.rag_engine.format_sources(rag_sources)}")
+                print_md(self.rag_engine.format_sources(rag_sources))
 
             self.log_save()
 

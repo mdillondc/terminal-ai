@@ -432,9 +432,9 @@ class RAGEngine:
                 if chunk.get("start_line") and chunk.get("end_line"):
                     line_info = f" (lines {chunk['start_line']}-{chunk['end_line']})"
 
-                sources.append(f"- {chunk['filename']}{line_info}, relevance: {score_pct}%")
+                sources.append(f"    {chunk['filename']}{line_info}, relevance: {score_pct}%")
 
-            sources.append("Use `--rag-show <filename>` to view relevant chunks")
+            sources.append("Use `--rag-show <filename>` to view relevant chunks\n")
             return "\n".join(sources)
 
     def show_chunk_in_file(self, filename: str) -> str:
