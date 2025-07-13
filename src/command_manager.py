@@ -1390,7 +1390,7 @@ class CommandManager:
 
             if cost_info:
                 # Build complete cost section
-                cost_section = f"\nEstimated Cost (OpenAI):\n"
+                cost_section = f"\nEstimated Cost:\n"
                 cost_section += f"    Input tokens ({input_tokens:,}): ${cost_info['input_cost']:.4f}\n"
                 cost_section += f"    Output tokens ({output_tokens:,}): ${cost_info['output_cost']:.4f}\n"
                 cost_section += f"    Total conversation cost: ${cost_info['total_cost']:.4f}\n"

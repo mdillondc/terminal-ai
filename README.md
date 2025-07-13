@@ -11,29 +11,26 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-  - [Configurations](#configuration)
-- [Usage](#usage)
-  - [Core Commands](#core-commands)
-  - [Content Processing](#content-processing)
-  - [RAG (Document Analysis)](#rag-document-analysis)
-  - [Web Search](#web-search)
-  - [Conversation Management](#conversation-management)
-  - [Text-to-Speech](#text-to-speech)
-- [Advanced Features (deep research, etc.)](#advanced-features)
+- [Core Commands](#core-commands)
+- [Content Input](#content-input)
+- [Search & Research](#search--research)
+- [Document Analysis (RAG)](#document-analysis-rag)
+- [AI Customization](#ai-customization)
+- [Conversation Management](#conversation-management)
+- [Text-to-Speech](#text-to-speech)
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
+- [Troubleshooting](#troubleshooting)
 
 ## Features
 
-### Core Capabilities
 - **Multi-Provider AI**: OpenAI, Google Gemini, Anthropic, and Ollama (local models)
-- **Intelligent Web Search**: Real-time information via Tavily API or SearXNG with dynamic intent analysis (temporal, factual, controversial, etc.)
+- **Intelligent Web Search**: Real-time information via Tavily API or SearXNG with dynamic intent analysis
+- **Deep Search Mode**: Autonomous research agent with intelligent termination
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
-- **Content Extraction**: YouTube transcripts, website content with paywall bypass
-
-### Advanced Features  
+- **Content Extraction**: YouTube transcripts, website content
 - **Conversation Management**: Save, resume, and organize conversations
-- **Text-to-Speech**: Natural speech synthesis with multiple voices
+- **Text-to-Speech**: Natural speech synthesis (OpenAI)
 - **Instruction Templates**: Custom AI behaviors and skills
 - **Clipboard Integration**: Use clipboard content as input
 - **Privacy-First**: Local processing with Ollama for sensitive documents
@@ -106,22 +103,7 @@ python src/main.py
 > quit
 ```
 
-### Configuration
-
-You can override any setting from `settings_manager.py` by creating `~/.config/terminal-ai/config`. See `config/config.example`.
-
-Settings follow a three-tier priority system: `--input` commands override config file settings, which override defaults from `settings_manager.py`.
-
-**Features:**
-- Simple `setting = value` format
-- Comments supported with `#`
-- Automatic type conversion (booleans, numbers, strings)
-- Graceful fallback to defaults for missing settings
-- Invalid setting warnings
-
-## Usage
-
-### Core Commands
+## Core Commands
 
 | Command | Description |
 |---------|-------------|
@@ -131,76 +113,54 @@ Settings follow a three-tier priority system: `--input` commands override config
 | `--clear` | Clear conversation history |
 | `--usage` | Show token usage and costs |
 
-### Content Processing
+## Content Input
+
+### File Processing
 
 | Command | Description |
 |---------|-------------|
-| `--file <path>` | Load file contents (text, PDF, images, etc.) |
-| `--url <url>` | Extract website content with paywall bypass |
-| `--youtube <url>` | Extract video transcript |
+| `--file <path>` | Load file contents (text, PDF, etc.) |
 | `--cb` | Use clipboard contents |
 | `--cbl` | Copy latest AI reply to clipboard |
-| `--instructions <file>` | Apply instruction template |
 
-### RAG (Document Analysis)
+### URL Content Extraction
 
-RAG allows you to query your own documents with intelligent retrieval.
+Extract content from websites with automatic paywall/access block bypass using multiple methods:
 
-**Setup:**
-```bash
-# Create document collection
-mkdir -p rag/my-docs
-# Add your documents to the directory
-
-# Activate collection (builds automatically)
-> --rag my-docs
-> Detail my latest visit to the doctor
-```
-
-**Commands:**
 | Command | Description |
 |---------|-------------|
-| `--rag [collection]` | Activate specific collection |
-| `--rag-rebuild <collection>` | Rebuild embeddings index (smart rebuild by default) |
-| `--rag-rebuild <collection> --force-full` | Force complete rebuild from scratch |
-| `--rag-show <filename>` | View relevant chunks from file |
-| `--rag-status` | Show RAG configuration |
-| `--rag-test` | Test embedding provider connection |
-| `--rag-deactivate` | Deactivate RAG |
+| `--url <url>` | Extract website content |
 
-**Smart Rebuild:**
-RAG collections now use smart rebuild by default, which only processes changed files instead of rebuilding everything from scratch. This provides significant performance improvements:
-- **7-12x faster** for typical use cases
-- Only processes new/modified files
-- Preserves embeddings for unchanged documents
-- Automatic fallback to full rebuild if needed (e.g. if index is corrupted)
+**Bypass Methods:**
+- Search engine bot headers
+- Print versions
+- AMP versions
+- Archive.org (Wayback Machine)
 
-Use `--rag-rebuild collection --force-full` to force a complete rebuild when troubleshooting or after changing embedding settings.
+### YouTube Integration
 
-**Embedding Providers:**
-- **OpenAI**: High quality, cloud-based (requires API key)
-- **Ollama**: Local, private, free (install: `ollama pull snowflake-arctic-embed2:latest`)
+| Command | Description |
+|---------|-------------|
+| `--youtube <url>` | Extract video transcript |
+
+## Search & Research
 
 ### Web Search
 
 Intelligent web search with configurable search engines (Tavily or SearXNG) featuring LLM query optimization, generation, context awareness, and parallel processing for faster results.
 
+**Basic Commands:**
+| Command | Description |
+|---------|-------------|
+| `--search` | Toggle web search mode |
+| `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session |
+| `--search-engine` | Show current engine and options |
+
 **Search Engine Options:**
 - **Tavily**: Commercial API with AI-powered results and advanced features
-- **SearXNG**: Privacy-focused open-source metasearch engine (requires local instance)
+- **SearXNG**: Privacy-focused open-source metasearch engine (requires instance with JSON output enabled)
 
-**Switch Search Engines:**
-```bash
-# Switch to SearXNG for current session
-> --search-engine searxng
-
-# Switch to Tavily for current session  
-> --search-engine tavily
-
-# Show current engine and options
-> --search-engine
-```
-
+**Example Usage:**
 ```bash
 # Enable web search
 > --search
@@ -247,59 +207,15 @@ search:
 
 Without JSON support, SearXNG integration will not work.
 
-### Conversation Management
-
-| Command | Description |
-|---------|-------------|
-| `--log <filename>` | Resume previous conversation |
-| `--logmv [title]` | Rename current conversation |
-| `--logrm` | Delete current conversation |
-| `--incognito` | Toggle private mode (no logging) |
-
-### Text-to-Speech
-
-| Command | Description |
-|---------|-------------|
-| `--tts` | Toggle text-to-speech |
-| `--tts-model <model>` | Change TTS model |
-| `--tts-voice <voice>` | Select voice |
-| `--tts-save-as-mp3` | Save responses as MP3 files |
-
-## Advanced Features
-
-### URL Content Extraction
-Automatic paywall/access block bypass using multiple methods:
-- Search engine bot headers
-- Print versions
-- AMP versions
-- Archive.org (Wayback Machine)
-
-### Instruction Templates
-Create custom AI behaviors/prompts in `instructions/`:
-```bash
-> --instructions summary.md
-> --youtube https://youtube.com/watch?v=example
-> Summarize this video
-```
-
-Find instruction inspiration at [fabric/patterns](https://github.com/danielmiessler/fabric/tree/main/patterns).
-
-### Mode Toggles
-| Command | Description |
-|---------|-------------|
-| `--search` | Toggle web search mode |
-| `--search-deep` | Toggle autonomous deep search mode |
-| `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session |
-| `--markdown` | Toggle markdown rendering setting |
-| `--scroll` | Toggle scroll navigation (hotkey F8). Use j/k to scroll, gg for top, G for bottom |
-| `--nothink` | Disable thinking on Ollama models |
-| `--incognito` | Toggle private mode (no logs) |
-
-## Deep Search Mode
+### Deep Search Mode
 
 The `--search-deep` command enables autonomous, intelligent web research that dynamically determines when sufficient information has been gathered to comprehensively answer complex queries.
 
-### How Deep Search Works
+| Command | Description |
+|---------|-------------|
+| `--search-deep` | Toggle autonomous deep search mode |
+
+#### How Deep Search Works
 
 Unlike basic search which performs a fixed number of searches, deep search uses an AI research agent that:
 
@@ -310,7 +226,7 @@ Unlike basic search which performs a fixed number of searches, deep search uses 
 5. **Targeted Follow-up**: Generates precise searches to fill identified gaps
 6. **Smart Termination**: Detects diminishing returns and prevents infinite loops
 
-### Example Deep Search Session
+#### Example Deep Search Session
 
 ```bash
 > --search-deep
@@ -320,20 +236,16 @@ Deep Search Mode Activated
 AI will autonomously determine when sufficient information has been gathered...
 
 Initial Research Strategy:
-    1. TMS benefits OCD treatment clinical studies 2025
+    1. TMS benefits OCD treatment clinical studies
     2. TMS risks side effects OCD therapy mechanisms
     3. TMS vs traditional OCD treatments comparison
     4. Patient selection criteria TMS OCD guidelines
     5. Long-term outcomes TMS OCD treatment
 
-Search 1: TMS benefits OCD treatment clinical studies 2025
+Search 1: TMS benefits OCD treatment clinical studies
     Transcranial Magnetic Stimulation for OCD: Latest Clinical Evidence
     TMS Efficacy in Treatment-Resistant OCD Patients
-    2024 Meta-Analysis: TMS Response Rates in OCD
-
-Search 2: TMS risks side effects OCD therapy mechanisms
-    TMS Safety Profile and Contraindications
-    Long-term Effects of TMS Treatment
+    Meta-Analysis: TMS Response Rates in OCD
 
 Research Evaluation (after 5 searches):
     Completeness: 8/10
@@ -346,14 +258,6 @@ Choice: C
 
 Continuing research for higher completeness...
 
-Next Research Phase:
-    1. TMS neurobiological mechanisms OCD neural circuits
-    2. TMS patient selection criteria contraindications OCD
-    3. TMS cost effectiveness healthcare economics OCD
-
-Search 6: TMS neurobiological mechanisms OCD neural circuits
-    Neural Circuit Mechanisms of TMS in OCD Treatment
-
 Research Evaluation (after 8 searches):
     Completeness: 9/10
     Assessment: Comprehensive coverage achieved with detailed mechanisms and selection criteria
@@ -363,7 +267,7 @@ Deep Search Complete: 8 searches executed, 35 unique sources analyzed
 Research synthesis complete - generating comprehensive response...
 ```
 
-### Deep Search vs Regular Search
+#### Deep Search vs Regular Search
 
 | Feature | Regular Search | Deep Search |
 |---------|---------------|-------------|
@@ -373,20 +277,109 @@ Research synthesis complete - generating comprehensive response...
 | **Termination** | After initial searches | When 10/10 or user stops |
 | **Deduplication** | Basic | Advanced content deduplication |
 | **Best For** | Quick facts | Complex research |
-| **Time** | 5-10 seconds | 30-180 seconds |
 | **Sources** | 3-6 sources | many more sources |
 
-### Deep Search Settings
+## Document Analysis (RAG)
 
-Configure in `src/settings_manager.py`:
+RAG allows you to query your own documents with intelligent, temporal retrieval.
 
-```python
-# Deep Search Settings
-self.search_deep_max_queries = 35  # Maximum searches (safety net)
-self.search_deep_max_results_per_query = 5  # Results per search
+### Setup
+
+```bash
+# Create document collection
+mkdir -p rag/my-docs
+# Add your documents to the directory
+
+# Activate collection (builds automatically)
+> --rag my-docs
+> Detail my latest visit to the doctor
 ```
 
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `--rag [collection]` | Activate specific collection |
+| `--rag-rebuild <collection>` | Rebuild embeddings index (smart rebuild by default) |
+| `--rag-rebuild <collection> --force-full` | Force complete rebuild from scratch |
+| `--rag-show <filename>` | View relevant chunks from file |
+| `--rag-status` | Show RAG configuration |
+| `--rag-test` | Test embedding provider connection |
+| `--rag-deactivate` | Deactivate RAG |
+
+### Smart Rebuild
+
+RAG collections now use smart rebuild by default, which only processes changed files instead of rebuilding everything from scratch. This provides significant performance improvements:
+- **7-12x faster** for typical use cases
+- Only processes new/modified files
+- Preserves embeddings for unchanged documents
+- Automatic fallback to full rebuild if needed (e.g. if index is corrupted)
+
+Use `--rag-rebuild collection --force-full` to force a complete rebuild when troubleshooting or after changing embedding settings.
+
+### Embedding Providers
+
+- **OpenAI**: High quality, cloud-based (requires API key)
+- **Ollama**: Local, private, free (install: `ollama pull snowflake-arctic-embed2:latest`)
+
+## AI Customization
+
+### Instruction Templates
+
+Create custom AI behaviors/prompts in `instructions/`:
+
+| Command | Description |
+|---------|-------------|
+| `--instructions <file>` | Apply instruction template |
+
+**Example Usage:**
+```bash
+> --instructions summary.md
+> --youtube https://youtube.com/watch?v=example
+> Summarize this video
+```
+
+### Mode Toggles
+
+| Command | Description |
+|---------|-------------|
+| `--markdown` | Toggle markdown rendering |
+| `--scroll` | Toggle scroll navigation (hotkey F8). Use j/k to scroll, gg for top, G for bottom |
+| `--nothink` | Disable thinking on Ollama models |
+
+## Conversation Management
+
+| Command | Description |
+|---------|-------------|
+| `--log <filename>` | Resume previous conversation |
+| `--logmv [title]` | Rename current conversation |
+| `--logrm` | Delete current conversation |
+| `--incognito` | Toggle private mode (no logging) |
+
+## Text-to-Speech
+
+| Command | Description |
+|---------|-------------|
+| `--tts` | Toggle text-to-speech |
+| `--tts-model <model>` | Change TTS model |
+| `--tts-voice <voice>` | Select voice |
+| `--tts-save-as-mp3` | Save responses as MP3 files |
+
 ## Configuration
+
+You can override any setting from `settings_manager.py` by creating `~/.config/terminal-ai/config`. See `config/config.example`.
+
+Settings follow a three-tier priority system: `--input` commands override config file settings, which override defaults from `settings_manager.py`.
+
+### Configuration Features
+
+- Simple `setting = value` format
+- Comments supported with `#`
+- Automatic type conversion (booleans, numbers, strings)
+- Graceful fallback to defaults for missing settings
+- Invalid setting warnings
+
+### Key Settings
 
 Key settings in `src/settings_manager.py`:
 
@@ -399,6 +392,10 @@ self.openai_embedding_model = "text-embedding-3-small"
 self.chunk_size = 1000
 self.chunk_overlap = 200
 self.rag_batch_size = 16
+
+# Deep Search Settings
+self.search_deep_max_queries = 35  # Maximum searches (safety net)
+self.search_deep_max_results_per_query = 5  # Results per search
 # ...
 # see settings_manager.py for all settings (there are many more)
 ```
@@ -411,47 +408,13 @@ Create powerful AI workflows with shell aliases:
 # Basic alias
 alias ai='python ~/terminal-ai/src/main.py'
 
-# Article summarizer
+# Article / Youtube summarizer
+# --url command will automatically redirect to --youtube command when needed
 summarize() {
     python ~/terminal-ai/src/main.py \
         --input "--model gpt-4.1 --instructions summary.md --url $1" \
         --input "summarize this article"
 }
-
-# YouTube analyzer  
-youtube() {
-    python ~/terminal-ai/src/main.py \
-        --input "--model gpt-4.1 --instructions summary.md --youtube $1" \
-        --input "summarize this video"
-}
-
-# Usage examples:
-# summarize "https://example.com/article"
-# youtube "https://youtube.com/watch?v=example"
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Model not found:**
-```bash
-> --model-clear-cache
-> --model gpt-4.1
-```
-
-**RAG not working:**
-```bash
-> --rag-test
-> --rag-rebuild collection-name --force-full
-```
-
-**Ollama connection:**
-```bash
-# Check if Ollama is running
-ollama list
-# Start Ollama service if needed
-ollama serve
 ```
 
 ### Exit Methods
