@@ -69,23 +69,18 @@ class SettingsManager:
         # Markdown streamdown settings
         self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
         self.rag_enable_hybrid_search = True
-        self.rag_semantic_weight = 0.6  # Weight for semantic similarity (0.0-1.0)
-        self.rag_temporal_weight = 0.3  # Weight for temporal recency (0.0-1.0)
-        self.rag_keyword_weight = 0.1   # Weight for BM25 keyword search (0.0-1.0)
-        self.rag_temporal_boost_months = 6  # Boost chunks from last N months
-        self.rag_temporal_detection_threshold = 0.15  # Confidence threshold for temporal query detection
-
-        # LLM Query Analysis Settings (uses self.model)
-        self.rag_enable_llm_query_analysis = True  # Use LLM for intelligent query analysis
-        self.rag_query_analysis_temperature = 0.1  # Temperature for analysis (low for consistency)
-        self.rag_query_analysis_cache_duration = 300  # Cache duration in seconds (5 minutes)
-        self.rag_analysis_confidence_threshold = 0.7  # Minimum confidence for LLM analysis
+        self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
 
         # Context Management Settings
         self.rag_max_context_tokens = 10000
         self.rag_enable_context_management = True
         self.conversation_history_limit = 50000
         self.context_management_strategy = "generous"  # "strict", "balanced", or "generous"
+
+        # RAG Essential Settings
+        self.rag_enable_search_transparency = True  # Show search process information
+        self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
+        self.rag_max_chunks_per_source = 2  # Maximum chunks to return from same source document
 
         # Search Context Settings
         self.search_context_window = 6  # Number of recent messages to include in search context

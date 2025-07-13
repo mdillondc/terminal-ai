@@ -6,7 +6,7 @@ import json
 import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional, Any
+from typing import Optional, Any, List
 from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
@@ -660,7 +660,9 @@ class ConversationManager:
             print_md(f"Deep search workflow error: {e}. Continuing without search")
             return
 
-    def _extract_key_topics_from_context(self, context_text: str) -> list:
+
+
+    def _extract_key_topics_from_context(self, context_text: str) -> List[str]:
         """
         Extract key topics/entities from conversation context using LLM analysis.
 

@@ -325,12 +325,12 @@ class RAGEngine:
             # Generate query embedding
             query_embedding = self.embedding_service.generate_embedding(query_text)
 
-            # Find similar chunks
+            # Find similar chunks, passing original query for hybrid search
             results = self.embedding_service.find_most_similar(
                 query_embedding,
                 self.active_collection_chunks,
                 top_k,
-                query_text
+                query_text  # Pass original query for hybrid search analysis
             )
 
             return results
@@ -452,7 +452,7 @@ class RAGEngine:
                 if chunk.get("start_line") and chunk.get("end_line"):
                     line_info = f" (lines {chunk['start_line']}-{chunk['end_line']})"
 
-                sources.append(f"• {chunk['filename']}{line_info}, relevance: {score_pct}%")
+                sources.append(f"- {chunk['filename']}{line_info}, relevance: {score_pct}%")
 
             sources.append("Use `--rag-show <filename>` to view relevant chunks")
             return "\n".join(sources)

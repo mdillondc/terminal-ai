@@ -259,22 +259,66 @@ class EmbeddingService:
         if not valid_chunks:
             return []
 
-        # Use hybrid search if enabled and query text is provided
+        # Use simplified search if enabled and query text is provided
         if self.hybrid_search.enabled and query_text:
-            return self.hybrid_search.hybrid_search(
+            return self.hybrid_search.search(
                 query_text, valid_chunks, semantic_scores, top_k
             )
         else:
-            # Fall back to pure semantic search
+            # Fall back to pure semantic search with diversity
             results = []
             for i, chunk in enumerate(valid_chunks):
                 result = chunk.copy()
                 result['similarity_score'] = semantic_scores[i]
+                result['final_score'] = semantic_scores[i]
                 results.append(result)
 
-            # Sort by similarity (highest first) and return top_k
-            results.sort(key=lambda x: x['similarity_score'], reverse=True)
-            return results[:top_k]
+            # Sort by similarity (highest first)
+            results.sort(key=lambda x: x['final_score'], reverse=True)
+
+            # Apply result diversity if enabled
+            if self.settings_manager.setting_get("rag_enable_result_diversity"):
+                results = self._apply_semantic_result_diversity(results, top_k)
+            else:
+                results = results[:top_k]
+
+            return results
+
+    def _apply_semantic_result_diversity(self, results: List[Dict[str, Any]], top_k: int) -> List[Dict[str, Any]]:
+        """
+        Apply result diversity to semantic search results
+
+        Args:
+            results: Sorted list of semantic search results
+            top_k: Maximum number of results to return
+
+        Returns:
+            Diversified list of results
+        """
+        if not results:
+            return results
+
+        max_chunks_per_source = self.settings_manager.setting_get("rag_max_chunks_per_source")
+
+        # Group results by source filename
+        source_counts = {}
+        diversified_results = []
+
+        for result in results:
+            source_filename = result.get('filename', 'unknown')
+
+            # Count how many chunks we've already taken from this source
+            current_count = source_counts.get(source_filename, 0)
+
+            if current_count < max_chunks_per_source:
+                diversified_results.append(result)
+                source_counts[source_filename] = current_count + 1
+
+                # Stop if we've reached the desired number of results
+                if len(diversified_results) >= top_k:
+                    break
+
+        return diversified_results
 
     def get_embedding_dimensions(self) -> int:
         """Get the embedding dimensions for the current provider and model"""
