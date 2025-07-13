@@ -37,11 +37,11 @@ class SearXNGSearch:
         self.search_endpoint = urljoin(self.base_url + '/', 'search')
 
         # Test connection to SearXNG instance
-        try:
-            response = requests.get(self.base_url, timeout=5)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise SearXNGSearchError(f"Failed to connect to SearXNG instance at {base_url}: {e}")
+        # try:
+        #     response = requests.get(self.base_url, timeout=5)
+        #     response.raise_for_status()
+        # except requests.exceptions.RequestException as e:
+        #     raise SearXNGSearchError(f"Failed to connect to SearXNG instance at {base_url}: {e}")
 
     def search(self, query: str, max_results: int = 5, include_domains: Optional[List[str]] = None,
                exclude_domains: Optional[List[str]] = None, search_depth: str = "advanced",
