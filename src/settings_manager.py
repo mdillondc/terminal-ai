@@ -47,9 +47,8 @@ class SettingsManager:
 
         # Deep Search Settings
         self.search_deep = False
-        self.search_deep_max_queries = 35  # Maximum number of search queries for deep search (safety net)
-        self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search (safety net)
-    
+        self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search
+
         # Markdown streamdown settings
         self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
         self.rag_enable_hybrid_search = True

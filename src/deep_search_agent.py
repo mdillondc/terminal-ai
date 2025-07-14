@@ -69,7 +69,6 @@ class DeepSearchAgent:
         all_source_metadata = []
         seen_urls = set()
         search_iteration = 0
-        max_searches = self.settings_manager.search_deep_max_queries
 
         # Track evaluation progress to detect diminishing returns
         previous_completeness_scores = []
@@ -86,7 +85,7 @@ class DeepSearchAgent:
         current_queries = initial_queries
         user_choice_iterations = 0
 
-        while search_iteration < max_searches and user_choice_iterations < max_user_choice_iterations:
+        while user_choice_iterations < max_user_choice_iterations:
             # Execute current batch of searches
             batch_results, batch_metadata = self._execute_search_batch(
                 current_queries, seen_urls, search_iteration + 1
@@ -107,10 +106,6 @@ class DeepSearchAgent:
                 break
 
             # Evaluate completeness
-            if search_iteration >= max_searches:
-                print_md(f"**Reached maximum search limit ({max_searches}). Concluding research.**")
-                break
-
             combined_info = "\n".join(all_search_results)
             evaluation = self._evaluate_completeness(query, combined_info, context, model)
 

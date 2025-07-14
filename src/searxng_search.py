@@ -100,7 +100,7 @@ class SearXNGSearch:
                     params["categories"] = category_map[topic]
 
             # Perform the search
-            response = requests.get(self.search_endpoint, params=params, timeout=10)
+            response = requests.get(self.search_endpoint, params=params, timeout=20)
             response.raise_for_status()
 
             searxng_results = response.json()

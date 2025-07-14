@@ -393,10 +393,8 @@ self.chunk_size = 1000
 self.chunk_overlap = 200
 self.rag_batch_size = 16
 
-# Deep Search Settings
-self.search_deep_max_queries = 35  # Maximum searches (safety net)
-self.search_deep_max_results_per_query = 5  # Results per search
-# ...
+# MORE...
+# 
 # see settings_manager.py for all settings (there are many more)
 ```
 
