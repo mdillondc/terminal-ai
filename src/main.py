@@ -81,12 +81,8 @@ def main() -> None:
     settings_manager.load_config()
     print()  # Add blank line before user interactions
 
-
-
     # KeyBindings
     kb = KeyBindings()
-
-
 
     @kb.add('backspace')
     def custom_backspace(event):
@@ -210,7 +206,7 @@ def main() -> None:
                     continue
 
                 exit_commands = ("q", "quit", ":q", ":wq")
-                if any(command for command in exit_commands if user_input.lower().startswith(command)):
+                if user_input.lower().strip() in exit_commands:
                     if confirm_exit():
                         cleanup_tts()
                         break

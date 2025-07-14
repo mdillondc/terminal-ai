@@ -2,7 +2,7 @@
 
 ![Terminal AI Assistant Screenshot](screenshot.png)
 
-A powerful terminal-based AI assistant that combines the best of conversational AI with advanced features like RAG (Retrieval-Augmented Generation), web search, command execution, and multi-provider support.
+A powerful terminal-based AI assistant that combines the best of conversational AI with advanced features like web search, RAG, youtube/article extraction, markdown rendering, multi-provider support and more.
 
 Created from the desire to build a terminal alternative to [OpenWebUI](https://github.com/open-webui/open-webui).
 
