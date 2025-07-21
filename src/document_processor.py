@@ -465,8 +465,13 @@ class DocumentProcessor:
             end_line = start_line + lines_in_chunk
 
             return start_line, end_line
-        except:
-            return 1, 1  # Fallback on any error
+        except (ValueError, IndexError) as e:
+            # Expected errors from text parsing
+            print_md(f"Warning: Could not estimate line numbers: {e}")
+            return 1, 1
+        except Exception as e:
+            print_md(f"Unexpected error estimating line numbers: {e}")
+            return 1, 1
 
     def process_file(self, file_path: str, collection_name: str, collection_path: str = None) -> List[Dict[str, Any]]:
         """

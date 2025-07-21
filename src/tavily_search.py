@@ -187,8 +187,12 @@ class TavilySearch:
                         if not domain:
                             # Skip sources with malformed URLs
                             continue
-                    except:
-                        # Skip sources with malformed URLs
+                    except (ValueError, AttributeError) as e:
+                        # Malformed URL - skip this source
+                        print_md(f"Skipping malformed URL: {url} ({e})")
+                        continue
+                    except Exception as e:
+                        print_md(f"Unexpected error parsing URL {url}: {e}")
                         continue
 
                 # Get title with fallbacks

@@ -518,8 +518,12 @@ class VectorStore:
                     if os.path.isfile(file_path):
                         total_size += os.path.getsize(file_path)
                 stats["vectorstore_size_mb"] = round(total_size / (1024 * 1024), 2)
-            except:
-                pass
+            except (OSError, FileNotFoundError) as e:
+                # Directory doesn't exist or permission denied
+                stats["vectorstore_size_mb"] = 0
+            except Exception as e:
+                print_md(f"Warning: Could not calculate vectorstore size: {e}")
+                stats["vectorstore_size_mb"] = 0
 
             return stats
 

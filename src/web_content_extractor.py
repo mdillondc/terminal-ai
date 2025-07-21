@@ -118,7 +118,11 @@ class WebContentExtractor:
         try:
             parsed = urlparse(url)
             return bool(parsed.scheme and parsed.netloc)
-        except:
+        except (ValueError, AttributeError):
+            # Invalid URL format
+            return False
+        except Exception as e:
+            print_md(f"Unexpected error validating URL: {e}")
             return False
 
     def _extract_title(self, soup: BeautifulSoup) -> str:

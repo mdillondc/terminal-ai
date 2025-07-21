@@ -234,8 +234,14 @@ class TTSService:
                     print_md("Audio playback interrupted")
                     break
                 time.sleep(0.1)
-        except:
-            pass  # Ignore monitoring errors
+        except Exception as e:
+            print_md(f"TTS monitoring error: {e}")
+            # Still try to stop if interrupt was requested
+            if self.interrupt_requested:
+                try:
+                    self.audio_player.stop()
+                except:
+                    pass
 
     def interrupt_audio(self):
         """Interrupt any currently playing audio"""
@@ -324,8 +330,9 @@ class TTSService:
             self.interrupt_audio()
             if self.audio_player:
                 self.audio_player.cleanup()
-        except:
-            pass  # Ignore cleanup errors
+        except Exception as e:
+            print_md(f"TTS cleanup warning: {e}")
+            # Cleanup failed but continue shutdown
 
 
 # Global TTS service instance
