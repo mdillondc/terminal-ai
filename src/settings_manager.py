@@ -3,7 +3,7 @@ import os
 import time
 import datetime
 from typing import Optional, Any, ClassVar, Dict, List
-from command_registry import CommandRegistry
+
 from print_helper import print_md
 
 
@@ -29,40 +29,38 @@ class SettingsManager:
 
         # API Settings
         self.model = "gpt-4.1-mini"  # Default model (provider detected automatically)
-        self.ollama_base_url = "http://localhost:11434"
+        self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
 
         # Voice Settings
-        self.tts = False
-        self.tts_model = "gpt-4o-mini-tts"
-        self.tts_voice = "echo"
-        self.tts_save_mp3 = False
-        self.stt = False
-        self.stt_waiting_msg = True  # Do not change
+        self.tts = False  # Enable or disable text-to-speech by default
+        self.tts_model = "gpt-4o-mini-tts"  # Model for text-to-speech
+        self.tts_voice = "echo"  # Voice for text-to-speech
+        self.tts_save_mp3 = False  # Save text-to-speech output as MP3 file to audio_output directory
 
         # Search Settings
-        self.search = False
-        self.search_max_results = 3  # Maximum number of search results per query
+        self.search = False  # Enable or disable search by default
+        self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
         self.search_engine = "tavily"  # "tavily" or "searxng"
-        self.searxng_base_url = "http://10.13.0.200:8095"  # URL for SearXNG instance
+        self.searxng_base_url = "http://10.13.0.200:8095"  # URL for SearXNG instance. While this is a local instance, i don't know of any public ones where JSON output is available
 
         # Deep Search Settings
-        self.search_deep = False
+        self.search_deep = False  # Enable or disable deep search
         self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search
 
         # Markdown streamdown settings
-        self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']
-        self.rag_enable_hybrid_search = True
+        self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']  # Gruvbox theme for streamdown/markdown formatting
+        self.rag_enable_hybrid_search = True   # Combine semantic (embedding) and keyword (BM25) search for better document retrieval
         self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
 
         # RAG Settings
         self.embedding_provider = "ollama"  # "openai" or "ollama"
-        self.openai_embedding_model = "text-embedding-3-small"
-        self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
-        self.rag_chunk_size = 400
-        self.rag_chunk_overlap = 80
-        self.rag_batch_size = 16
-        self.rag_top_k = 8
-        self.rag_active_collection = None
+        self.openai_embedding_model = "text-embedding-3-small"  # Embedding model for OpenAI
+        self.ollama_embedding_model = "snowflake-arctic-embed2:latest"  # Embedding model for Ollama
+        self.rag_chunk_size = 400   # Number of tokens per document chunk - balance between context and precision
+        self.rag_chunk_overlap = 80  # Tokens shared between adjacent chunks to preserve context across boundaries
+        self.rag_batch_size = 16  # Number of text chunks to process simultaneously for embedding generation
+        self.rag_top_k = 8   # Maximum number of most relevant document chunks to return per query
+        self.rag_active_collection = None  # Currently active document collection name (None = no RAG active)
         self.rag_enable_search_transparency = True  # Show search process information
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
         self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
@@ -73,30 +71,24 @@ class SettingsManager:
         self.search_max_queries = 2  # Maximum number of search queries to generate and execute
 
         # Thinking Settings
-        self.nothink = False
+        self.nothink = False  # Disable thinking mode on Ollama models that support it
 
         # Privacy Settings
-        self.incognito = False
+        self.incognito = False  # Enable or disable conversation logging
 
         # Navigation Settings
-        self.scroll = False
-        self.scroll_lines = 1
+        self.scroll = False  # Determine when scrolling is enabled
+        self.scroll_lines = 1  # How many lines to scroll at once
 
         # General Settings
-        self.name_ai = "AI"
-        self.name_user = "User"
-        # self.default_input = "Hi"
-        self.instructions = "samantha.md"
-        # self.log_file_name = f"{int(time.time())}.md"
-        # self.log_file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.md")
-        self.log_file_name = self.generate_new_log_filename()
+        self.name_ai = "AI"  # Name of the AI, example: "Samantha"
+        self.name_user = "User"  # Name of the user, example: "John"
+        self.instructions = "samantha.md"  # Instructions file for the AI letting it know how to behave
+        self.log_file_name = self.generate_new_log_filename()  # Keep track of the log file name for the current session
 
         # Display Settings
         self.markdown = True  # Enable markdown parsing and rendering
-        self.log_file_location = None  # Do not change
-
-        # Command Registry - centralized command management
-        self.command_registry = CommandRegistry(self.working_dir)
+        self.log_file_location = None
 
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using date + timestamp format"""
@@ -115,9 +107,7 @@ class SettingsManager:
                 return self.read_file(value)
             else:
                 return value
-        elif key == "command_descriptions":
-            # Backward compatibility: return legacy format from command registry
-            return self.command_registry.get_legacy_command_descriptions()
+
         else:
             raise KeyError(f"Setting {key} not found in Settings")
 
@@ -132,8 +122,6 @@ class SettingsManager:
 
         if self.tts:
             enabled_toggles.append("tts")
-        if self.stt:
-            enabled_toggles.append("stt")
         if self.search:
             enabled_toggles.append("search")
         if self.search_deep:
@@ -242,7 +230,7 @@ class SettingsManager:
         for attr_name in dir(self):
             if not attr_name.startswith('_') and not callable(getattr(self, attr_name)):
                 # Exclude special attributes that shouldn't be configurable
-                if attr_name not in ['command_registry', 'working_dir', 'log_file_location']:
+                if attr_name not in ['working_dir', 'log_file_location']:
                     valid_settings.append(attr_name)
 
         return valid_settings

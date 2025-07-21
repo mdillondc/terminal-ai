@@ -8,6 +8,7 @@ import clipboard
 import tiktoken
 from settings_manager import SettingsManager
 from openai import OpenAI
+from command_registry import CommandRegistry
 from command_completer import CommandCompleter
 from tavily_search import create_tavily_search, TavilySearchError
 from web_content_extractor import WebContentExtractor
@@ -30,10 +31,10 @@ class CommandManager:
         """
         self.settings_manager = SettingsManager.getInstance()
         self.conversation_manager = conversation_manager
-        self.command_registry = self.settings_manager.command_registry
+        self.working_dir = self.settings_manager.setting_get("working_dir")
+        self.command_registry = CommandRegistry(self.working_dir)
         self.available_commands = self.command_registry.get_available_commands()
         self.completer = CommandCompleter(self.command_registry)
-        self.working_dir = self.settings_manager.setting_get("working_dir")
 
         # Use the RAG engine that was already created by conversation_manager
         # This ensures we don't create a duplicate RAG engine with a hardcoded OpenAI client
