@@ -13,6 +13,7 @@ from tavily_search import create_tavily_search, TavilySearchError
 from searxng_search import create_searxng_search, SearXNGSearchError
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
+from constants import ColorConstants, ConversationConstants
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines
 from rich.console import Console
@@ -91,9 +92,9 @@ class ConversationManager:
         Process a response chunk, applying thinking text coloring while maintaining streaming.
         Hides empty thinking blocks that contain only whitespace.
         """
-        # ANSI color codes
-        GRAY = '\033[38;2;204;204;204m'  # Light gray (#cccccc)
-        RESET = '\033[0m'
+        # ANSI color codes from constants
+        GRAY = ColorConstants.THINKING_GRAY  # Light gray for thinking text
+        RESET = ColorConstants.RESET
 
         # Initialize thinking state if needed
         if not hasattr(self, '_in_thinking_block'):
@@ -154,9 +155,9 @@ class ConversationManager:
             # Check for potential partial tags at the end that we should buffer
             remaining = text_to_process[i:]
             if i == len(text_to_process) - len(remaining):  # At the end
-                if (remaining.startswith('<think') and len(remaining) < 7) or \
-                   (remaining.startswith('</think') and len(remaining) < 8) or \
-                   (remaining == '<' or remaining.startswith('<') and len(remaining) < 10):
+                if (remaining.startswith('<think') and len(remaining) < ConversationConstants.THINKING_TAG_MIN_LENGTH) or \
+                   (remaining.startswith('</think') and len(remaining) < ConversationConstants.CLOSE_TAG_MIN_LENGTH) or \
+                   (remaining == '<' or remaining.startswith('<') and len(remaining) < ConversationConstants.PARTIAL_TAG_MAX_LENGTH):
                     # Keep potential partial tag in buffer
                     self._response_buffer = remaining
                     break
@@ -416,8 +417,8 @@ class ConversationManager:
             recent_messages = []
             earlier_messages = []
 
-            # Get recent messages (last 10) for immediate context
-            recent_window = min(10, len(self.conversation_history))
+            # Get recent messages for immediate context
+            recent_window = min(ConversationConstants.RECENT_MESSAGES_WINDOW, len(self.conversation_history))
             for message in self.conversation_history[-recent_window:]:
                 if message["role"] in ["user", "assistant"]:
                     content = message["content"]

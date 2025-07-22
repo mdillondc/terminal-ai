@@ -5,12 +5,13 @@ import urllib.request
 import urllib.error
 from typing import List, Dict, Optional
 from settings_manager import SettingsManager
+from constants import CacheConstants
 
 
 class ModelCache:
     """Simple cache for model data with TTL support"""
 
-    def __init__(self, ttl_seconds: int = 3600):  # 1 hour default TTL
+    def __init__(self, ttl_seconds: int = CacheConstants.MODEL_CACHE_TTL):
         self.ttl_seconds = ttl_seconds
         self._cache = {}
 

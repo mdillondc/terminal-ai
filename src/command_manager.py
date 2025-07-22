@@ -15,6 +15,7 @@ from web_content_extractor import WebContentExtractor
 from document_processor import DocumentProcessor
 from rag_config import is_supported_file, get_supported_extensions_display
 from print_helper import print_md, start_capturing_print_info, stop_capturing_print_info
+from constants import NetworkConstants, OpenAIPricingConstants
 
 
 class CommandManager:
@@ -1012,7 +1013,7 @@ class CommandManager:
                             if subtitle_url:
                                 # Download and parse the subtitle file
                                 try:
-                                    response = requests.get(subtitle_url, timeout=10)
+                                    response = requests.get(subtitle_url, timeout=NetworkConstants.SUBTITLE_FETCH_TIMEOUT)
                                     if response.status_code == 200:
                                         subtitle_content = response.text
 
@@ -1231,64 +1232,12 @@ class CommandManager:
 
         return len(encoding.encode(text))
 
-    def get_openai_pricing(self, model: str) -> dict:
+    def get_openai_pricing(self, model: str) -> Optional[Dict[str, float]]:
         """
         Get OpenAI pricing data for a model.
         Returns costs per 1M tokens for input and output.
         """
-        # OpenAI pricing (per 1M tokens) as of January 2025
-        pricing_data = {
-            # GPT-4o models
-            'gpt-4o': {'input': 5.00, 'output': 15.00},
-            'gpt-4o-2024-11-20': {'input': 2.50, 'output': 10.00},
-            'gpt-4o-2024-08-06': {'input': 2.50, 'output': 10.00},
-            'gpt-4o-2024-05-13': {'input': 5.00, 'output': 15.00},
-
-            # GPT-4o-mini models
-            'gpt-4o-mini': {'input': 0.15, 'output': 0.60},
-            'gpt-4o-mini-2024-07-18': {'input': 0.15, 'output': 0.60},
-
-            # GPT-4 models
-            'gpt-4': {'input': 30.00, 'output': 60.00},
-            'gpt-4-turbo': {'input': 10.00, 'output': 30.00},
-            'gpt-4-turbo-2024-04-09': {'input': 10.00, 'output': 30.00},
-            'gpt-4-0125-preview': {'input': 10.00, 'output': 30.00},
-            'gpt-4-1106-preview': {'input': 10.00, 'output': 30.00},
-
-            # GPT-3.5 models
-            'gpt-3.5-turbo': {'input': 3.00, 'output': 6.00},
-            'gpt-3.5-turbo-0125': {'input': 0.50, 'output': 1.50},
-
-            # New GPT-4.1 models
-            'gpt-4.1': {'input': 2.00, 'output': 8.00},
-            'gpt-4.1-mini': {'input': 0.40, 'output': 1.60},
-            'gpt-4.1-nano': {'input': 0.10, 'output': 0.40},
-
-            # GPT-4.1 model variations
-            'gpt-4.1-2024-12-05': {'input': 2.00, 'output': 8.00},
-            'gpt-4.1-preview': {'input': 2.00, 'output': 8.00},
-            'gpt-4.1-mini-2024-12-05': {'input': 0.40, 'output': 1.60},
-            'gpt-4.1-nano-2024-12-05': {'input': 0.10, 'output': 0.40},
-
-            # Reasoning models
-            'o3': {'input': 2.00, 'output': 8.00},
-            'o3-mini': {'input': 1.10, 'output': 4.40},
-            'o1': {'input': 15.00, 'output': 60.00},
-            'o1-mini': {'input': 3.00, 'output': 12.00},
-            'o1-preview': {'input': 15.00, 'output': 60.00},
-        }
-
-        # Try exact match first
-        if model in pricing_data:
-            return pricing_data[model]
-
-        # Try partial matching for model families
-        for known_model, prices in pricing_data.items():
-            if model.startswith(known_model):
-                return prices
-
-        # Return None if no pricing found
-        return None
+        return OpenAIPricingConstants.get_model_pricing(model)
 
     def calculate_cost(self, input_tokens: int, output_tokens: int, model: str) -> dict:
         """

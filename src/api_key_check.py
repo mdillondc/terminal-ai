@@ -4,6 +4,7 @@ import urllib.request
 from pydantic import annotated_handlers
 from settings_manager import SettingsManager
 from print_helper import print_md, print_lines
+from constants import NetworkConstants
 
 def _check_ollama():
     try:
@@ -11,7 +12,7 @@ def _check_ollama():
         base_url = settings_manager.setting_get("ollama_base_url")
         url = f"{base_url}/api/version"
         req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=2) as response:
+        with urllib.request.urlopen(req, timeout=NetworkConstants.OLLAMA_CHECK_TIMEOUT) as response:
             return response.status == 200
     except Exception:
         return False

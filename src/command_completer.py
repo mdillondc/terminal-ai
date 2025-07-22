@@ -18,13 +18,14 @@ from vector_store import VectorStore
 from command_registry import CommandRegistry, CompletionType, CompletionRules
 from settings_manager import SettingsManager
 from rag_config import get_file_type_info, is_supported_file
+from constants import CompletionScoringConstants as Scoring, CacheConstants, UIConstants
 from model_manager import ModelManager
 
 
 class CompletionCache:
     """Enhanced cache for completions with better state management"""
 
-    def __init__(self, cache_duration: float = 2.0):
+    def __init__(self, cache_duration: float = CacheConstants.COMPLETION_CACHE_SHORT):
         self.cache_duration = cache_duration
         self._cache: Dict[str, tuple[float, List[str]]] = {}
         self._last_completion_text: str = ""
@@ -70,7 +71,7 @@ class CommandCompleter(Completer):
     def __init__(self, command_registry: CommandRegistry):
         self.registry = command_registry
         self.settings_manager = SettingsManager.getInstance()
-        self.cache = CompletionCache(cache_duration=300.0)  # Cache API calls for 5 minutes
+        self.cache = CompletionCache(cache_duration=CacheConstants.COMPLETION_CACHE_DURATION)
 
         # Pre-compute available commands for faster access
         self.available_commands = self.registry.get_available_commands()
@@ -168,13 +169,13 @@ class CommandCompleter(Completer):
 
         # Strategy 1: Exact start match (highest score)
         if target_lower.startswith(partial_lower):
-            return True, 1000 + len(partial) * 2
+            return True, Scoring.EXACT_MATCH_BASE + len(partial) * Scoring.EXACT_MATCH_MULTIPLIER
 
         # Strategy 2: Word boundary match (after dash, underscore, space)
         import re
         word_boundary_pattern = r'[\-_\s]' + re.escape(partial_lower)
         if re.search(word_boundary_pattern, target_lower):
-            return True, 800 + len(partial)
+            return True, Scoring.WORD_BOUNDARY_BASE + len(partial)
 
         # Strategy 3: Subsequence match (e.g., "ragb" matches "rag-build")
         partial_idx = 0
@@ -186,19 +187,19 @@ class CommandCompleter(Completer):
 
         if partial_idx == len(partial_lower):
             # All characters found in order - bonus for consecutive matches
-            consecutive_bonus = 50 if last_match_pos - len(partial) >= 0 else 0
-            return True, 500 + consecutive_bonus + len(partial)
+            consecutive_bonus = Scoring.CONSECUTIVE_BONUS if last_match_pos - len(partial) >= 0 else 0
+            return True, Scoring.SUBSEQUENCE_BASE + consecutive_bonus + len(partial)
 
         # Strategy 4: Contains substring anywhere
         if partial_lower in target_lower:
-            return True, 300 + len(partial)
+            return True, Scoring.SUBSTRING_BASE + len(partial)
 
         # Strategy 5: Character overlap with minimum threshold
         matching_chars = sum(1 for c in partial_lower if c in target_lower)
         overlap_ratio = matching_chars / len(partial_lower) if partial_lower else 0
 
-        if overlap_ratio >= 0.6:  # Lowered threshold for better matching
-            return True, 100 + matching_chars
+        if overlap_ratio >= Scoring.FUZZY_THRESHOLD:  # Configurable threshold for better matching
+            return True, Scoring.FUZZY_BASE + matching_chars
 
         return False, 0
 
@@ -604,7 +605,7 @@ class CommandCompleter(Completer):
                 start_position=-len(partial_text)
             )
 
-    @lru_cache(maxsize=100)
+    @lru_cache(maxsize=UIConstants.MAX_COMPLETION_CACHE_ENTRIES)
     def _get_files_in_directory(self, directory: str, prefix: str, filter_supported: bool = False) -> List[str]:
         """Get files in directory with optional prefix and supported file filtering (cached)"""
         try:

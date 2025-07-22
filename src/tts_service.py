@@ -16,6 +16,7 @@ from settings_manager import SettingsManager
 from audio_utils import get_audio_player
 from llm_client_manager import LLMClientManager
 from print_helper import print_md
+from constants import AudioSystemConstants
 
 
 class TTSService:
@@ -233,7 +234,7 @@ class TTSService:
                     self.audio_player.stop()
                     print_md("Audio playback interrupted")
                     break
-                time.sleep(0.1)
+                time.sleep(AudioSystemConstants.PLAYBACK_POLL_INTERVAL)
         except Exception as e:
             print_md(f"TTS monitoring error: {e}")
             # Still try to stop if interrupt was requested

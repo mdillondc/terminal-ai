@@ -16,6 +16,7 @@ from io import BytesIO
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 from print_helper import print_md
+from constants import AudioSystemConstants
 
 
 class AudioPlayer:
@@ -37,7 +38,12 @@ class AudioPlayer:
 
         try:
             # Initialize pygame mixer
-            pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
+            pygame.mixer.pre_init(
+                frequency=AudioSystemConstants.SAMPLE_RATE,
+                size=AudioSystemConstants.SAMPLE_SIZE,
+                channels=AudioSystemConstants.CHANNELS,
+                buffer=AudioSystemConstants.BUFFER_SIZE
+            )
             pygame.mixer.init()
             self.initialized = True
             print_md("Audio playback initialized successfully!")
@@ -73,7 +79,7 @@ class AudioPlayer:
 
             # Clean up the temporary file after playback
             def cleanup():
-                time.sleep(0.5)  # Give time for audio to start
+                time.sleep(AudioSystemConstants.CLEANUP_DELAY)  # Give time for audio to start
                 try:
                     os.unlink(temp_path)
                 except (OSError, FileNotFoundError) as e:
@@ -132,7 +138,7 @@ class AudioPlayer:
         """Monitor playback status and update playing flag"""
         try:
             while pygame.mixer.music.get_busy():
-                time.sleep(0.1)
+                time.sleep(AudioSystemConstants.PLAYBACK_POLL_INTERVAL)
             self.playing = False
         except pygame.error as e:
             print_md(f"Audio playback monitoring error: {e}")
@@ -177,7 +183,7 @@ class AudioPlayer:
             return
 
         try:
-            volume = max(0.0, min(1.0, volume))  # Clamp to valid range
+            volume = max(0.0, min(AudioSystemConstants.DEFAULT_VOLUME, volume))  # Clamp to valid range
             pygame.mixer.music.set_volume(volume)
         except Exception as e:
             print_md(f"Error setting volume: {e}")
@@ -200,7 +206,7 @@ class AudioPlayer:
         while self.is_playing():
             if timeout and (time.time() - start_time) > timeout:
                 return False
-            time.sleep(0.1)
+            time.sleep(AudioSystemConstants.PLAYBACK_POLL_INTERVAL)
 
         return True
 
@@ -321,7 +327,7 @@ def test_audio_system():
 
     # Test basic functionality
     try:
-        player.set_volume(0.5)
+        player.set_volume(AudioSystemConstants.DEFAULT_VOLUME * 0.5)  # Test at half volume
         print_md("Volume control working")
     except Exception as e:
         print_md(f"Volume control error: {e}")
