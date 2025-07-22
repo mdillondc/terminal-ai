@@ -28,20 +28,33 @@ class SearXNGSearch:
 
     def __init__(self, base_url: str):
         """
-        Initialize SearXNG client.
+        Initialize SearXNG client with a comma-separated list of base URLs.
+        Tries to connect to each URL in order and uses the first one that succeeds.
 
         Args:
-            base_url: Base URL of the SearXNG instance (e.g., "http://localhost:8080")
+            base_url: Comma-separated string of SearXNG instance URLs
         """
-        self.base_url = base_url.rstrip('/')
-        self.search_endpoint = urljoin(self.base_url + '/', 'search')
+        urls = [url.strip() for url in base_url.split(',') if url.strip()]
+        self.base_url = None
+        self.search_endpoint = None
 
-        # Test connection to SearXNG instance
-        # try:
-        #     response = requests.get(self.base_url, timeout=5)
-        #     response.raise_for_status()
-        # except requests.exceptions.RequestException as e:
-        #     raise SearXNGSearchError(f"Failed to connect to SearXNG instance at {base_url}: {e}")
+        for url in urls:
+            current_url = url.rstrip('/')
+            try:
+                # Test connection to the SearXNG instance
+                response = requests.get(current_url, timeout=2)
+                response.raise_for_status()
+
+                # Connection successful
+                self.base_url = current_url
+                self.search_endpoint = urljoin(self.base_url + '/', 'search')
+                break  # Exit loop on first successful connection
+            except requests.exceptions.RequestException:
+                continue  # Try the next URL in the list
+
+        # If no connection was successful after trying all URLs
+        if not self.base_url:
+            raise SearXNGSearchError(f"Failed to connect to any SearXNG instance in the list: {base_url}")
 
     def search(self, query: str, max_results: int = 5, include_domains: Optional[List[str]] = None,
                exclude_domains: Optional[List[str]] = None, search_depth: str = "advanced",
@@ -332,7 +345,7 @@ def create_searxng_search(base_url: str) -> Optional[SearXNGSearch]:
     Factory function to create SearXNGSearch instance with error handling.
 
     Args:
-        base_url: Base URL of the SearXNG instance
+        base_url: Comma-separated string of SearXNG instance URLs
 
     Returns:
         SearXNGSearch instance if successful, None if connection fails
