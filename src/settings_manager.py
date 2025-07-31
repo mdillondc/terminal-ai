@@ -41,7 +41,7 @@ class SettingsManager:
         self.search = False  # Enable or disable search by default
         self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
         self.search_engine = "tavily"  # "tavily" or "searxng"
-        self.searxng_base_url = "http://localhost:8095, http://10.13.0.200:8095"  # URL for SearXNG instance. While this is a local instance, i don't know of any public ones where JSON output is available
+        self.searxng_base_url = "http://10.13.0.200:8095, https://some.instance"  # URL(s) for SearXNG instance. NB! Instances must have JSON API enabled. System will iterate until it finds an instance that works, or exhaust the list
 
         # Deep Search Settings
         self.search_deep = False  # Enable or disable deep search
