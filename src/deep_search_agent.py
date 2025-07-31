@@ -72,6 +72,7 @@ class DeepSearchAgent:
 
         # Track evaluation progress to detect diminishing returns
         previous_completeness_scores = []
+        highest_completeness_score = 0  # Track highest score to prevent illogical regression
         max_user_choice_iterations = 3
 
         # Generate initial search queries
@@ -109,8 +110,16 @@ class DeepSearchAgent:
             combined_info = "\n".join(all_search_results)
             evaluation = self._evaluate_completeness(query, combined_info, context, model)
 
+            # Track highest score to prevent illogical regression due to LLM inconsistency
+            raw_llm_score = evaluation['completeness_score']
+            highest_completeness_score = max(highest_completeness_score, raw_llm_score)
+
+            # Use highest score for display and logic (information only accumulates, scores shouldn't decrease)
+            display_score = highest_completeness_score
+            evaluation['completeness_score'] = display_score  # Update evaluation dict for consistency
+
             evaluation_text = f"**Research Evaluation (after {search_iteration} searches):**\n"
-            evaluation_text += f"    Completeness: {evaluation['completeness_score']}/10\n"
+            evaluation_text += f"    Completeness: {display_score}/10\n"
             evaluation_text += f"    Assessment: {evaluation['assessment']}"
             print_md(evaluation_text)
 
@@ -119,7 +128,7 @@ class DeepSearchAgent:
                 break
             else:
                 # Check for diminishing returns
-                current_score = evaluation['completeness_score']
+                current_score = display_score  # Use the highest score for diminishing returns logic
                 previous_completeness_scores.append(current_score)
 
                 # If we've had multiple evaluations and no improvement, detect diminishing returns
