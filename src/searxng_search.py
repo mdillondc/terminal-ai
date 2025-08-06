@@ -175,7 +175,7 @@ class SearXNGSearch:
         # Generate a simple answer summary (SearXNG doesn't provide this like Tavily)
         if converted_results:
             first_result = converted_results[0]
-            tavily_response['answer'] = f"Found {len(converted_results)} results for '{query}'. Top result: {first_result.get('title', 'Unknown')} - {first_result.get('content', '')[:200]}..."
+            tavily_response['answer'] = f"Found {len(converted_results)} results for '{query}'. Top result: {first_result.get('title', 'Unknown')} - {first_result.get('content', '')}"
 
         return tavily_response
 
@@ -209,12 +209,9 @@ class SearXNGSearch:
             formatted_output.append(f"\n**{i}. {result.get('title', 'No Title')}**")
             formatted_output.append(f"- URL: {result.get('url', 'No URL')}")
 
-            # Add content snippet if available
+            # Add full content if available
             content = result.get('content', '')
             if content:
-                # Truncate very long content
-                if len(content) > 500:
-                    content = content[:500] + "..."
                 formatted_output.append(f"- Content: {content}")
 
             # Add published date if available

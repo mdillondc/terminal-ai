@@ -382,7 +382,6 @@ class ConversationManager:
 
 
             # Build full conversation context with recent messages first
-            char_limit = self.settings_manager.search_context_char_limit
             recent_messages = []
             earlier_messages = []
 
@@ -391,8 +390,6 @@ class ConversationManager:
             for message in self.conversation_history[-recent_window:]:
                 if message["role"] in ["user", "assistant"]:
                     content = message["content"]
-                    if len(content) > char_limit:
-                        content = content[:char_limit] + "..."
                     recent_messages.append(f"{message['role']}: {content}")
 
             # Get earlier messages for reference resolution
@@ -400,8 +397,6 @@ class ConversationManager:
                 for message in self.conversation_history[:-recent_window]:
                     if message["role"] in ["user", "assistant"]:
                         content = message["content"]
-                        if len(content) > char_limit:
-                            content = content[:char_limit] + "..."
                         earlier_messages.append(f"{message['role']}: {content}")
 
             # Structure context with recent first, then earlier
@@ -594,8 +589,7 @@ class ConversationManager:
             for message in recent_messages:
                 if message.get("role") in ["user", "assistant"]:
                     content = message.get("content", "")
-                    if len(content) > self.settings_manager.search_context_char_limit:
-                        content = content[:self.settings_manager.search_context_char_limit] + "..."
+                    # No truncation - pass full content to LLM
                     context_parts.append(f"{message['role']}: {content}")
 
             context_text = "\n".join(context_parts) if context_parts else ""

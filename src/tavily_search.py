@@ -132,12 +132,9 @@ class TavilySearch:
             formatted_output.append(f"\n**{i}. {result.get('title', 'No Title')}**")
             formatted_output.append(f"- URL: {result.get('url', 'No URL')}")
 
-            # Add content snippet if available
+            # Add full content if available
             content = result.get('content', '')
             if content:
-                # Truncate very long content
-                if len(content) > 500:
-                    content = content[:500] + "..."
                 formatted_output.append(f"- Content: {content}")
 
             # Add published date if available
