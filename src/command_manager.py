@@ -95,12 +95,20 @@ class CommandManager:
                 # Check if this command requires an argument
                 requires_arg = self.command_registry.requires_argument(command_name)
 
+                # Always try to extract arguments (both required and optional)
                 argument = None
-                if requires_arg:
-                    # Extract argument - single word only
-                    rest_of_text = remaining_text[end_pos:].lstrip()
-                    if rest_of_text:
-                        # Split by whitespace and take first word as argument
+                rest_of_text = remaining_text[end_pos:].lstrip()
+                if rest_of_text:
+                    if rest_of_text.startswith('"'):
+                        # Handle quoted argument - extract everything until closing quote
+                        closing_quote = rest_of_text.find('"', 1)
+                        if closing_quote != -1:
+                            argument = rest_of_text[1:closing_quote]
+                            # Update end position to include quotes and any whitespace after
+                            arg_end = closing_quote + 1
+                            end_pos = end_pos + len(remaining_text[end_pos:]) - len(rest_of_text) + arg_end
+                    else:
+                        # Handle unquoted argument - take first word
                         words = rest_of_text.split()
                         if words:
                             argument = words[0]
@@ -128,7 +136,7 @@ class CommandManager:
 
         return extracted_commands, remaining_text
 
-    def process_commands(self, user_input: str) -> bool:
+    def process_commands(self, user_input: str) -> tuple[bool, str]:
         """
         Process and execute commands from user input.
 
@@ -140,7 +148,9 @@ class CommandManager:
             user_input: Raw user input string that may contain commands
 
         Returns:
-            bool: True if any commands were processed, False otherwise
+            tuple: (command_processed: bool, remaining_text: str)
+                   command_processed: True if any commands were processed, False otherwise
+                   remaining_text: Text remaining after command extraction
         """
         # Extract valid commands from user input
         extracted_commands, remaining_text = self._extract_valid_commands(user_input)
@@ -446,7 +456,7 @@ class CommandManager:
         if command_processed:
             print()
 
-        return command_processed
+        return command_processed, remaining_text
 
     def rag_list(self, from_toggle: bool = False) -> None:
         """

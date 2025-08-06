@@ -142,7 +142,18 @@ def main() -> None:
                                 print(f"> {command}")
 
                                 # Process the individual command
-                                command_manager.process_commands(command)
+                                command_processed, remaining_text = command_manager.process_commands(command)
+
+                                # If there's remaining text after command processing, send it to AI
+                                if remaining_text.strip():
+                                    # Check if nothink mode is enabled and prepend /nothink prefix
+                                    final_user_input = remaining_text.strip()
+                                    if settings_manager.setting_get("nothink"):
+                                        final_user_input = "/nothink " + final_user_input
+
+                                    # Add to conversation and generate response
+                                    conversation_manager.log_context(final_user_input, "user")
+                                    conversation_manager.generate_response()
                         else:
                             # Display prompt for non-command inputs
                             print(f"{settings_manager.setting_get('name_user')}{settings_manager.get_enabled_toggles()}:")
@@ -214,9 +225,12 @@ def main() -> None:
                         continue
 
                 if "--" in user_input:
-                    command_processed = command_manager.process_commands(user_input)
-                    if command_processed:
+                    command_processed, remaining_text = command_manager.process_commands(user_input)
+                    if command_processed and not remaining_text.strip():
                         continue
+                    elif command_processed and remaining_text.strip():
+                        # Commands were processed but there's remaining text for AI
+                        user_input = remaining_text.strip()
 
                 # Check if nothink mode is enabled and prepend /nothink prefix
                 final_user_input = user_input
