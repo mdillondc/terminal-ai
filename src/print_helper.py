@@ -55,10 +55,8 @@ def print_info(message: str, newline_before: bool = False, prefix: str = "- ") -
         capture_buffer.append(formatted_message)
 
     # Also log to .md file if not in incognito mode
-    if _conversation_manager and not _conversation_manager.settings_manager.setting_get("incognito"):
-        if newline_before:
-            _conversation_manager.log_md("")
-        _conversation_manager.log_md(formatted_message)
+    # Print info messages are no longer logged to files (JSON-only system)
+    # Users can export conversations to markdown using --export-markdown if needed
 
 def print_lines():
     """
@@ -153,6 +151,4 @@ def print_md(markdown_content: str):
         # Fallback to plain text if streamdown fails
         print(formatted_content)
 
-    # Also log to .md file if not in incognito mode
-    if _conversation_manager and not _conversation_manager.settings_manager.setting_get("incognito"):
-        _conversation_manager.log_md(formatted_content)
+

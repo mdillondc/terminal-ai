@@ -344,7 +344,7 @@ class CommandCompleter(Completer):
 
         if cached_results is None:
             # Search recursively for log files
-            pattern = os.path.join(rules.base_directory, "**", "*.md")
+            pattern = os.path.join(rules.base_directory, "**", "*.json")
             all_log_files = glob.glob(pattern, recursive=True)
 
             # Filter by partial name
@@ -361,6 +361,9 @@ class CommandCompleter(Completer):
 
         for log_file in cached_results:
             filename = os.path.basename(log_file)
+            # Remove .json extension for user-friendly display
+            if filename.endswith('.json'):
+                filename = filename[:-5]
             relative_path = self._get_relative_path(log_file, rules.base_directory)
 
             # Extract directory name from relative path (e.g., "samantha" from "samantha/log.md")

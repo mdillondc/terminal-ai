@@ -240,11 +240,11 @@ class CommandRegistry:
         self.register_command(CommandInfo(
             name="--log",
             description="Resume previous conversation. Replaces current conversation.",
-            usage="--log name-of-log.md",
+            usage="--log name-of-log",
             execution_order=2,
             completion_rules=CompletionRules(
                 CompletionType.LOG_FILE,
-                file_extensions=[".md"],
+                file_extensions=[".json"],
                 base_directory=os.path.join(self.working_dir, "logs")
             ),
             requires_argument=True
@@ -263,6 +263,15 @@ class CommandRegistry:
             name="--logrm",
             description="Deletes the current conversation's log file and clears the conversation history.",
             usage="--logrm",
+            execution_order=2,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
+        self.register_command(CommandInfo(
+            name="--export-markdown",
+            description="Exports the current conversation to markdown format in logs-exported/ directory.",
+            usage="--export-markdown",
             execution_order=2,
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False

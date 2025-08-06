@@ -43,49 +43,18 @@ class ConversationManager:
             print_md(f"Warning: Could not initialize RAG engine: {e}")
             self.rag_engine = None
 
-        # Initialize chronological log for proper ordering of conversation and verbose output
-        self._chronological_log = []
+
 
     def log_context(self, content: str, role: str = "user") -> None:
-        """Add content that LLM needs to see - goes to both .json and .md logs"""
+        """Add content that LLM needs to see - goes to conversation history"""
         # Skip if incognito mode is enabled
         if self.settings_manager.setting_get("incognito"):
             return
 
         # Add to conversation history for LLM/JSON
         self.conversation_history.append({"role": role, "content": content})
-        # Add to chronological log for .md file
-        self._chronological_log.append(("conversation", {"role": role, "content": content}))
 
-        # If .md file already exists, append immediately for real-time logging
-        current_log_location = self.settings_manager.setting_get("log_file_location")
-        if current_log_location and os.path.exists(current_log_location):
-            try:
-                formatted_piece = f"**{role}:**  \n{content}\n\n"
-                with open(current_log_location, 'a') as file:
-                    file.write(formatted_piece)
-            except Exception:
-                # Silently ignore file write errors to avoid breaking functionality
-                pass
 
-    def log_md(self, message: str) -> None:
-        """Add message to .md log only - NOT for LLM context"""
-        # Skip if incognito mode is enabled
-        if self.settings_manager.setting_get("incognito"):
-            return
-
-        # Add to chronological log for proper ordering
-        self._chronological_log.append(("verbose", message))
-
-        # If .md file already exists, append immediately for real-time logging
-        current_log_location = self.settings_manager.setting_get("log_file_location")
-        if current_log_location and os.path.exists(current_log_location):
-            try:
-                with open(current_log_location, 'a') as file:
-                    file.write(f"{message}\n")
-            except Exception:
-                # Silently ignore file write errors to avoid breaking functionality
-                pass
 
     def _process_and_print_chunk(self, chunk: str) -> None:
         """
@@ -807,49 +776,30 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
 
         current_log_file_location = self.settings_manager.setting_get("log_file_location")
         if current_log_file_location:
-            os.remove(current_log_file_location)
-            os.remove(current_log_file_location + ".json")
+            json_file = current_log_file_location + ".json"
+            if os.path.exists(json_file):
+                os.remove(json_file)
 
         instructions_file_name = self.settings_manager.setting_get("instructions").rsplit('.', 1)[0] # strip extension
         log_file_name = self.settings_manager.setting_get("log_file_name")
         log_file_path = os.path.join(self.settings_manager.setting_get("working_dir"), f"logs/{instructions_file_name}/")
-        log_file_location = log_file_path + log_file_name
+
+        # Remove .md extension if present for base name
+        if log_file_name.endswith('.md'):
+            log_file_name = log_file_name[:-3]
+
+        log_file_location = os.path.join(log_file_path, log_file_name)
 
         if not os.path.exists(log_file_path):
             os.makedirs(log_file_path)
 
-        # Build markdown content in chronological order
-        conversation_history_as_markdown = ""
-
-        # Process chronological log to maintain proper order
-        prev_entry_type = None
-        for entry_type, entry_content in self._chronological_log:
-            if entry_type == "conversation":
-                # Add spacing before conversation if previous was verbose
-                if prev_entry_type == "verbose":
-                    conversation_history_as_markdown += "\n"
-                # Format conversation piece
-                formatted_piece = f"**{entry_content['role']}:**  \n{entry_content['content']}\n\n"
-                conversation_history_as_markdown += formatted_piece
-            elif entry_type == "verbose":
-                # Add spacing before verbose if previous was conversation
-                if prev_entry_type == "conversation":
-                    pass  # conversation already adds spacing after itself
-                # Format verbose message
-                conversation_history_as_markdown += f"{entry_content}\n"
-            prev_entry_type = entry_type
-
-        # Save as markdown for user (includes both conversation + verbose output)
-        with open(log_file_location, 'w') as file:
-            file.write(conversation_history_as_markdown)
-            self.settings_manager.setting_set("log_file_location", log_file_location)
-
-        # Note: We don't clear _chronological_log here to preserve order for future saves
-
-        # Save as JSON in case user wants to resume conversation later
+        # Save conversation history as JSON only
         conversation_history = json.dumps(self.conversation_history, indent=4)
-        with open(log_file_location + ".json", 'w') as file:
+        json_file_location = log_file_location + ".json"
+        with open(json_file_location, 'w') as file:
             file.write(conversation_history)
+
+        self.settings_manager.setting_set("log_file_location", log_file_location)
 
     def _check_and_rename_log_after_first_exchange(self, interrupted: bool = False) -> None:
         """Check if this is the first user-AI exchange and rename log with AI-generated title"""
@@ -974,16 +924,14 @@ Generate only the filename focusing on content substance:""".format(context[:100
         return "general-conversation"
 
     def _rename_log_files_with_title(self, title: str, interrupted: bool = False) -> None:
-        """Rename the current log files to include the descriptive title"""
+        """Rename the current log file to include the descriptive title"""
         try:
             current_log_location = self.settings_manager.setting_get("log_file_location")
-            if not current_log_location or not os.path.exists(current_log_location):
+            if not current_log_location:
                 return
 
-            # Extract date from current filename
+            # Extract date from current filename (base name without extension)
             current_filename = os.path.basename(current_log_location)
-            if current_filename.endswith('.md'):
-                current_filename = current_filename[:-3]  # Remove .md extension
 
             # Extract date part (format: 2025-06-08_timestamp)
             date_part = current_filename.split('_')[0] if '_' in current_filename else current_filename
@@ -992,17 +940,14 @@ Generate only the filename focusing on content substance:""".format(context[:100
             import time
             timestamp = int(time.time())
 
-            # Create new filename: date_descriptive-title_timestamp.md
-            new_filename = f"{date_part}_{title}_{timestamp}.md"
+            # Create new base filename: date_descriptive-title_timestamp
+            new_filename = f"{date_part}_{title}_{timestamp}"
 
             # Get directory path
             log_directory = os.path.dirname(current_log_location)
             new_log_location = os.path.join(log_directory, new_filename)
 
-            # Rename both .md and .json files
-            if os.path.exists(current_log_location):
-                os.rename(current_log_location, new_log_location)
-
+            # Rename JSON file
             json_current = current_log_location + ".json"
             json_new = new_log_location + ".json"
             if os.path.exists(json_current):
@@ -1020,7 +965,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 print()
 
         except Exception as e:
-            print_md(f"Error renaming log files: {e}")
+            print_md(f"Error renaming log file: {e}")
 
     def generate_ai_suggested_title(self) -> str:
         """Generate AI-suggested title using full conversation context (for --logmv command)"""
@@ -1050,27 +995,25 @@ Generate only the filename focusing on content substance:""".format(context[:100
         """Manually rename log with user-provided title while preserving date/timestamp"""
         # Skip renaming if incognito mode is enabled
         if self.settings_manager.setting_get("incognito"):
-            return "incognito-mode.md"  # Return placeholder name
+            return "incognito-mode"  # Return placeholder name
 
         try:
             # Sanitize the title first
             title = title.replace(" ", "-").replace('"', "").replace("'", "")
 
             current_log_location = self.settings_manager.setting_get("log_file_location")
-            if not current_log_location or not os.path.exists(current_log_location):
+            if not current_log_location:
                 # If no current log, create filename with current date/timestamp
                 import time
                 import datetime
                 date_part = datetime.datetime.now().strftime('%Y-%m-%d')
                 timestamp = int(time.time())
-                new_filename = f"{date_part}_{title}_{timestamp}.md"
+                new_filename = f"{date_part}_{title}_{timestamp}"
                 self.settings_manager.setting_set("log_file_name", new_filename)
                 return new_filename
 
-            # Extract date from current filename
+            # Extract date from current filename (base name without extension)
             current_filename = os.path.basename(current_log_location)
-            if current_filename.endswith('.md'):
-                current_filename = current_filename[:-3]  # Remove .md extension
 
             # Extract date part (format: 2025-06-08_timestamp or 2025-06-08_title_timestamp)
             date_part = current_filename.split('_')[0] if '_' in current_filename else current_filename
@@ -1079,17 +1022,14 @@ Generate only the filename focusing on content substance:""".format(context[:100
             import time
             timestamp = int(time.time())
 
-            # Create new filename: date_descriptive-title_timestamp.md
-            new_filename = f"{date_part}_{title}_{timestamp}.md"
+            # Create new base filename: date_descriptive-title_timestamp
+            new_filename = f"{date_part}_{title}_{timestamp}"
 
             # Get directory path
             log_directory = os.path.dirname(current_log_location)
             new_log_location = os.path.join(log_directory, new_filename)
 
-            # Rename both .md and .json files
-            if os.path.exists(current_log_location):
-                os.rename(current_log_location, new_log_location)
-
+            # Rename JSON file
             json_current = current_log_location + ".json"
             json_new = new_log_location + ".json"
             if os.path.exists(json_current):
@@ -1102,24 +1042,20 @@ Generate only the filename focusing on content substance:""".format(context[:100
             return new_filename
 
         except Exception as e:
-            print_md(f"Error renaming log files: {e}")
+            print_md(f"Error renaming log file: {e}")
             # Fallback to simple filename if rename fails
-            fallback_name = f"{title}.md"
+            fallback_name = f"{title}"
             self.settings_manager.setting_set("log_file_name", fallback_name)
             return fallback_name
 
     def log_delete(self) -> bool:
-        """Delete the current conversation's log files (.md and .json)"""
+        """Delete the current conversation's log file (JSON)"""
         try:
             current_log_location = self.settings_manager.setting_get("log_file_location")
             if not current_log_location:
                 return False
 
-            # Delete .md file
-            if os.path.exists(current_log_location):
-                os.remove(current_log_location)
-
-            # Delete .json file
+            # Delete JSON file
             json_log_location = current_log_location + ".json"
             if os.path.exists(json_log_location):
                 os.remove(json_log_location)
@@ -1196,37 +1132,41 @@ Generate only the filename focusing on content substance:""".format(context[:100
         self.settings_manager.setting_set("log_file_location", None)
 
     def _display_conversation_history(self) -> None:
-        """Display the full .md file content including chronological verbose output."""
-        # Get the .md file path
-        current_log_location = self.settings_manager.setting_get("log_file_location")
-        if not current_log_location:
-            print_md("No log file location available")
-            return
-
-        md_file_path = current_log_location
-        if not os.path.exists(md_file_path):
-            print_md("Log file not found")
+        """Display the conversation history formatted from JSON data."""
+        if not self.conversation_history:
+            print_md("No conversation history available")
             return
 
         try:
-            # Read the full .md file content
-            with open(md_file_path, 'r') as file:
-                md_content = file.read()
-
-            if not md_content.strip():
-                print_md("Log file is empty")
-                return
-
             print_md("Resuming conversation history:")
             print_lines()
 
             # Count messages for summary
-            message_count = md_content.count('**user:**') + md_content.count('**assistant:**')
+            message_count = len([msg for msg in self.conversation_history if msg.get('role') in ['user', 'assistant']])
             if message_count > 0:
                 print_md(f"Conversation Summary: {message_count} messages")
                 print_lines()
 
-            # Display the full chronological content
+            # Build markdown content from conversation history
+            markdown_lines = []
+            for message in self.conversation_history:
+                role = message.get('role', '')
+                content = message.get('content', '')
+
+                if role == 'system':
+                    # Show truncated system messages
+                    summary = content[:100] + "..." if len(content) > 100 else content
+                    markdown_lines.append(f"**System:** {summary}")
+                    markdown_lines.append("")
+                elif role in ['user', 'assistant']:
+                    # Show full user and assistant messages
+                    markdown_lines.append(f"**{role}:**  ")
+                    markdown_lines.append(f"{content}")
+                    markdown_lines.append("")
+
+            md_content = "\n".join(markdown_lines)
+
+            # Display the content
             if self.settings_manager.setting_get("markdown"):
                 # Use streamdown for markdown rendering
                 streamdown_process = self._start_streamdown_process()
@@ -1241,6 +1181,6 @@ Generate only the filename focusing on content substance:""".format(context[:100
             print_lines()
 
         except Exception as e:
-            print_md(f"Error reading log file: {e}")
+            print_md(f"Error displaying conversation history: {e}")
 
 

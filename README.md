@@ -349,12 +349,64 @@ Create custom AI behaviors/prompts in `instructions/`:
 
 ## Conversation Management
 
+Terminal-AI uses a JSON-only logging system that provides reliable conversation storage and optional markdown export.
+
+### Logging System Overview
+
+**File Structure:**
+- `logs/` - Contains JSON conversation files (authoritative records)
+- `logs-exported/` - Contains exported markdown files (optional export)
+
+**How it Works:**
+- All conversations are automatically saved as JSON files in `logs/{instruction-set}/`
+- JSON files contain complete conversation history including system messages
+- Markdown files are only created when explicitly exported using `--export-markdown`
+- JSON files are the single source of truth for all conversation data
+
+### Commands
+
 | Command | Description |
 |---------|-------------|
-| `--log <filename>` | Resume previous conversation |
+| `--log <filename>` | Resume previous conversation from JSON file |
 | `--logmv [title]` | Rename current conversation |
 | `--logrm` | Delete current conversation |
+| `--export-markdown` | Export current conversation to markdown in logs-exported/ |
 | `--incognito` | Toggle private mode (no logging) |
+
+### Usage Examples
+
+```bash
+# Resume a conversation (works with or without file extension)
+--log my-conversation
+--log my-conversation.json
+--log my-conversation.md  # also works for compatibility
+
+# Export current conversation to markdown
+--export-markdown
+
+# Rename current conversation
+--logmv "project-discussion"
+--logmv  # AI will suggest a title
+
+# Delete current conversation
+--logrm
+```
+
+### File Organization
+
+Conversations are organized by instruction set:
+```
+logs/
+├── samantha/
+│   ├── 2025-01-15_conversation_1736982847.json
+│   └── 2025-01-15_project-discussion_1736983156.json
+└── rewrite/
+    └── 2025-01-15_code-review_1736983892.json
+
+logs-exported/
+├── 2025-01-15_conversation_1736982847.md
+└── 2025-01-15_project-discussion_1736983156.md
+```
 
 ## Text-to-Speech
 

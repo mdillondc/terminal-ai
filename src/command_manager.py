@@ -7,6 +7,7 @@ import clipboard
 
 import tiktoken
 from settings_manager import SettingsManager
+from export_manager import ExportManager
 from openai import OpenAI
 from command_registry import CommandRegistry
 from command_completer import CommandCompleter
@@ -41,6 +42,9 @@ class CommandManager:
         # This ensures we don't create a duplicate RAG engine with a hardcoded OpenAI client
         self.rag_engine = self.conversation_manager.rag_engine
 
+        # Initialize export manager for markdown export functionality
+        self.export_manager = ExportManager()
+
     def _log_command_with_output(self, command: str, captured_output: list) -> None:
         """
         Log a command to LLM context and its verbose output to .md only.
@@ -55,10 +59,8 @@ class CommandManager:
         # Log the command itself to LLM context (clean, no noise)
         self.conversation_manager.log_context(command, "user")
 
-        # Log verbose output to .md only (not for LLM)
-        if captured_output:
-            verbose_output = "\n".join(captured_output)
-            self.conversation_manager.log_md(f"Command output:\n{verbose_output}")
+        # Verbose output is no longer logged to files (JSON-only system)
+        # Users can export conversations to markdown using --export-markdown if needed
 
     def _extract_valid_commands(self, user_input: str) -> Tuple[List[Dict[str, Any]], str]:
         """
@@ -214,8 +216,7 @@ class CommandManager:
 
                     # Log rename output to NEW log file
                     rename_output = stop_capturing_print_info()
-                    if rename_output and not self.settings_manager.setting_get("incognito"):
-                        self.conversation_manager.log_md("\n".join(rename_output))
+                    # Rename output is no longer logged to files (JSON-only system)
                     command_processed = True
                     continue  # Skip the normal logging flow
                 elif command_name == "--logrm":
@@ -224,13 +225,26 @@ class CommandManager:
                     else:
                         print_md("No log file to delete or deletion failed")
                     command_executed = True
+                elif command_name == "--export-markdown":
+                    export_path = self.export_manager.export_current_conversation()
+                    if export_path:
+                        print_md(f"Conversation exported to: {export_path}")
+                    else:
+                        print_md("Export failed: No active conversation or export error")
+                    command_executed = True
                 elif command_name == "--log":
                     if self.settings_manager.setting_get("incognito"):
                         print_md("Cannot load log: incognito mode is enabled (no logging active)")
                     elif arg is None:
                         print_md("Please specify the log you want to use")
                     else:
-                        self.settings_manager.setting_set("log_file_name", arg)
+                        # Strip any file extensions (.md or .json) for compatibility
+                        base_name = arg
+                        if base_name.endswith('.md'):
+                            base_name = base_name[:-3]
+                        elif base_name.endswith('.json'):
+                            base_name = base_name[:-5]
+                        self.settings_manager.setting_set("log_file_name", base_name)
                         self.conversation_manager.log_resume()
                     command_executed = True
                 elif command_name == "--cbl":
