@@ -7,10 +7,8 @@
 As of some damn time in 2025, OpenAI has implemented absurd "organization verification" requirements for basic API features like **streaming responses** with their newer models (GPT-5, etc.). This is fucking ridiculous - streaming vs non-streaming produces the exact same content and uses the same computational resources, but OpenAI decided to gate streaming behind additional verification bureaucracy.
 
 **What this means:**
-- 🚫 **OpenAI is no longer the default** - Google Gemini 2.5 Flash is now the default model
-- 💰 **Massive cost savings** - Gemini is 16x cheaper than equivalent OpenAI models
-- 🚀 **Better performance** - Newer training data, larger context windows, no arbitrary restrictions
-- ✅ **OpenAI models still available** - Use `--model gpt-5` if you want, but expect raw error messages when their bureaucratic systems reject you
+- 🚫 **OpenAI is no longer the default** - Google Gemini 2.5 Flash is now the default model. OpenAI is acting in a fucked up, dumbass way that makes no logical sense. Therefore, I conclude they should go fuck themselves and no longer deserve to be the default provider.
+- ✅ **OpenAI models still available** - Use `--model gpt-5` if you want, but expect raw error messages when their bureaucratic systems reject you. As long as OpenAI continues to act like complete dicks, I won't bend over backwards to make this app work with them. If, in the future they decide to behave like reasonable people, I'll be happy to add them back as an option. Until then, triple-fuck-you, OpenAI!
 
 **Bottom line:** OpenAI is acting like a massive dick with these pointless restrictions. This app now defaults to providers that actually respect developers and don't implement arbitrary technical limitations for bureaucratic reasons.
 
@@ -169,12 +167,21 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 | Command | Description |
 |---------|-------------|
 | `--search` | Toggle web search mode |
-| `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session |
-| `--search-engine` | Show current engine and options |
+| `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session. Can be overriden in ~/.config/terminal-ai/config |
 
-**Search Engine Options:**
-- **Tavily**: Commercial API with AI-powered results and advanced features
-- **SearXNG**: Privacy-focused open-source metasearch engine (requires instance with JSON output enabled)
+**Search Engine Comparison:**
+
+| Feature | Tavily | SearXNG |
+|---------|--------|---------|
+| **Setup Complexity** | Easy - just API key | Technical - requires self-hosted instance or public instance with JSON API enabled |
+| **Cost** | Pay-per-search (~$0.005/search) | Free |
+| **Privacy** | Commercial service | Fully private/self-hosted |
+| **Content Quality** | AI-optimized results | Raw search engine results |
+| **Speed** | Fast | Slower (especially with searxng_extract_full_content set to True) |
+
+**Which Should You Choose?**
+- **Choose Tavily** if you want: Easy setup, don't mind costs, want AI-optimized results
+- **Choose SearXNG** if you want: Complete privacy, free operation, full control over search sources
 
 **Example Usage:**
 ```bash
@@ -223,6 +230,23 @@ search:
 
 Without JSON support, SearXNG integration will not work.
 
+**SearXNG Content Extraction Settings** *(SearXNG only - ignored when using Tavily)*:
+
+```bash
+# Extract full webpage content (not just search snippets)
+searxng_extract_full_content=true
+
+# Limit extracted content to first 2500 words per page (configurable word count to avoid exceeding context limits of whatever LLM your are using)
+searxng_extract_full_content_truncate=2500
+```
+
+**How Content Extraction Works:**
+- **When `searxng_extract_full_content=true`**: The app downloads and extracts the entire content of each search result webpage, making the process slower but providing much more detailed information. It also uses paywall bypass methods to access full articles when possible. If this setting is `False`, the app only uses the brief snippets returned by SearXNG and does not attempt to download full webpages.
+- **When `searxng_extract_full_content=false`**: Uses only search result snippets (faster but less detailed)
+- **`searxng_extract_full_content_truncate`**: Sets the maximum number of words from each extracted webpage that will be included in the AI's context. This helps prevent exceeding the LLM's context window limit.
+
+**Note:** Tavily handles content extraction automatically - these settings have no effect when `search_engine=tavily`.
+
 ### Deep Search Mode
 
 The `--search-deep` command enables autonomous, intelligent web research that dynamically determines when sufficient information has been gathered to comprehensively answer complex queries.
@@ -240,7 +264,7 @@ Unlike basic search which performs a fixed number of searches, deep search uses 
 3. **Gap Analysis**: Identifies specific missing information or perspectives
 4. **User Choice**: When below 10/10, offers user choice to continue or stop research
 5. **Targeted Follow-up**: Generates precise searches to fill identified gaps
-6. **Smart Termination**: Detects diminishing returns and prevents infinite loops
+6. **Smart Termination**: Detects diminishing returns to prevent infinite search loops
 
 #### Example Deep Search Session
 
@@ -414,13 +438,14 @@ Conversations are organized by instruction set:
 logs/
 ├── samantha/
 │   ├── 2025-01-15_conversation_1736982847.json
-│   └── 2025-01-15_project-discussion_1736983156.json
+│   ├── 2025-01-15_project-discussion_1736983156.json
+│   └── export/
+│       ├── 2025-01-15_conversation_1736982847.md
+│       └── 2025-01-15_project-discussion_1736983156.md
 └── rewrite/
-    └── 2025-01-15_code-review_1736983892.json
-
-logs-exported/
-├── 2025-01-15_conversation_1736982847.md
-└── 2025-01-15_project-discussion_1736983156.md
+    ├── 2025-01-15_code-review_1736983892.json
+    └── export/
+        └── 2025-01-15_code-review_1736983892.md
 ```
 
 
@@ -476,7 +501,7 @@ summarize() {
 ```
 
 ### Exit Methods
-- `quit`, `q`, `:q`, `:wq`, or `Ctrl+C`
+- `quit`, `q`, `:q`, `:wq`
 - Press `q` + `Enter` during AI responses to interrupt (not exit)
 
 ---

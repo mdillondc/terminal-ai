@@ -262,7 +262,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--export-markdown",
-            description="Exports the current conversation to markdown format in logs-exported/ directory.",
+            description="Exports the current conversation to markdown format in logs/{instruction-set}/export/ directory.",
             usage="--export-markdown",
             execution_order=2,
             completion_rules=CompletionRules(CompletionType.NONE),
