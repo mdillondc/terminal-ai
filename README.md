@@ -1,5 +1,19 @@
 # Terminal AI Assistant
 
+## ⚠️ Important Notice: Why This App Defaults to Google Gemini Instead of OpenAI
+
+**TL;DR: OpenAI has become a bureaucratic nightmare with arbitrary restrictions that make no technical sense.**
+
+As of some damn time in 2025, OpenAI has implemented absurd "organization verification" requirements for basic API features like **streaming responses** with their newer models (GPT-5, etc.). This is fucking ridiculous - streaming vs non-streaming produces the exact same content and uses the same computational resources, but OpenAI decided to gate streaming behind additional verification bureaucracy.
+
+**What this means:**
+- 🚫 **OpenAI is no longer the default** - Google Gemini 2.5 Flash is now the default model
+- 💰 **Massive cost savings** - Gemini is 16x cheaper than equivalent OpenAI models
+- 🚀 **Better performance** - Newer training data, larger context windows, no arbitrary restrictions
+- ✅ **OpenAI models still available** - Use `--model gpt-5` if you want, but expect raw error messages when their bureaucratic systems reject you
+
+**Bottom line:** OpenAI is acting like a massive dick with these pointless restrictions. This app now defaults to providers that actually respect developers and don't implement arbitrary technical limitations for bureaucratic reasons.
+
 ![Terminal AI Assistant Screenshot](screenshot.png)
 
 A powerful terminal-based AI assistant that combines the best of conversational AI with advanced features like web search, RAG, youtube/article extraction, markdown rendering, multi-provider support and more.
@@ -17,7 +31,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Document Analysis (RAG)](#document-analysis-rag)
 - [AI Customization](#ai-customization)
 - [Conversation Management](#conversation-management)
-- [Text-to-Speech](#text-to-speech)
+
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
 - [Troubleshooting](#troubleshooting)
@@ -30,7 +44,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
 - **Content Extraction**: YouTube transcripts, website content
 - **Conversation Management**: Save, resume, and organize conversations
-- **Text-to-Speech**: Natural speech synthesis (OpenAI)
+
 - **Instruction Templates**: Custom AI behaviors and skills
 - **Clipboard Integration**: Use clipboard content as input
 - **Privacy-First**: Local processing with Ollama for sensitive documents
@@ -79,10 +93,11 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 python src/main.py
 
 # Basic usage
-> --model gpt-4.1
-> Hello! How can you help me today?
+> --model gpt-5
+# Basic conversation (uses Google Gemini 2.5 Flash by default)
+> Hello, how can you help me today?
 
-# Enable web search
+# Web search and analysis
 > --search
 > What's the latest news about AI?
 
@@ -94,10 +109,11 @@ python src/main.py
 > --file document.pdf
 > What are the main conclusions?
 
-# Enable text-to-speech
-> --tts
-> Tell me a joke
-# The joke will be spoken aloud
+# Switch to OpenAI model (expect raw errors for restricted features)
+> --model gpt-5
+> Tell me about quantum computing
+
+
 
 # Exit the application
 > quit
@@ -407,14 +423,7 @@ logs-exported/
 └── 2025-01-15_project-discussion_1736983156.md
 ```
 
-## Text-to-Speech
 
-| Command | Description |
-|---------|-------------|
-| `--tts` | Toggle text-to-speech |
-| `--tts-model <model>` | Change TTS model |
-| `--tts-voice <voice>` | Select voice |
-| `--tts-save-as-mp3` | Save responses as MP3 files |
 
 ## Configuration
 
@@ -436,7 +445,7 @@ Key settings in `src/settings_manager.py`:
 
 ```python
 # Default model and provider settings
-self.default_model = "gpt-4.1"
+self.default_model = "gpt-5"
 self.embedding_provider = "ollama"  # or "openai"
 self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
 self.openai_embedding_model = "text-embedding-3-small"
@@ -461,7 +470,7 @@ alias ai='python ~/terminal-ai/src/main.py'
 # --url command will automatically redirect to --youtube command when needed
 summarize() {
     python ~/terminal-ai/src/main.py \
-        --input "--model gpt-4.1 --instructions summary.md --url $1" \
+        --input "--model gpt-5 --instructions summary.md --url $1" \
         --input "summarize this article"
 }
 ```

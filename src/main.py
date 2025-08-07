@@ -10,7 +10,7 @@ from prompt_toolkit.styles import Style
 from settings_manager import SettingsManager
 from conversation_manager import ConversationManager
 from command_manager import CommandManager
-from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
+
 from print_helper import print_md, print_lines, set_conversation_manager
 from api_key_check import check
 
@@ -186,16 +186,11 @@ def main() -> None:
                     style=gruvbox_style,
                 )
 
-                # Check if user wants to interrupt TTS playback
-                if user_input.lower().strip() == "q" and is_tts_playing():
-                    interrupt_tts()
-                    print_md("Audio playback stopped")
-                    continue
+
 
                 exit_commands = ("q", "quit", ":q", ":wq")
                 if user_input.lower().strip() in exit_commands:
                     if confirm_exit():
-                        cleanup_tts()
                         break
                     else:
                         continue
@@ -218,7 +213,6 @@ def main() -> None:
                 conversation_manager.generate_response()
         except KeyboardInterrupt:
             if confirm_exit():
-                cleanup_tts()
                 break
 
 

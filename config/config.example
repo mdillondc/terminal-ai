@@ -13,8 +13,7 @@
 # API SETTINGS
 # =============================================================================
 
-# Default AI model to use (provider detected automatically)
-# model = gpt-4.1
+# Default AI model to use
 # model = gemini-2.5-flash
 # model = llama3.1:8b
 
@@ -25,13 +24,13 @@
 # RAG (RETRIEVAL AUGMENTED GENERATION) SETTINGS
 # =============================================================================
 
-# Embedding provider (openai or ollama)
 # embedding_provider = ollama
 
-# OpenAI embedding model
-# openai_embedding_model = text-embedding-3-small
-
-# Ollama embedding model
+# Ollama embedding model (recommended for local privacy)
 # ollama_embedding_model = snowflake-arctic-embed2:latest
 
+# OpenAI embedding model (requires API key and sends data to OpenAI)
+# openai_embedding_model = text-embedding-3-small
+
 # ...
+# SEE settings_manager.py FOR ALL AVAILABLE SETTINGS

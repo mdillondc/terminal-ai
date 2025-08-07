@@ -9,9 +9,8 @@ import os
 import urllib.request
 from typing import Any, Optional, Dict, List
 from openai import OpenAI
-from openai import BadRequestError
+
 from settings_manager import SettingsManager
-from print_helper import print_md
 
 
 class LLMClientManager:
@@ -58,9 +57,7 @@ class LLMClientManager:
         Raises:
             Exception: If the provider is not available or the request fails
         """
-        # Check if this is an o3 model that requires Responses API
-        if self._is_o3_model(model):
-            return self._create_response_completion(model, messages, max_tokens, **kwargs)
+
 
         # Handle Anthropic models differently
         if self._is_anthropic_model(model):
@@ -75,13 +72,8 @@ class LLMClientManager:
             **kwargs
         }
 
-        # Handle temperature parameter based on model type
-        if self._is_o1_model(model):
-            # o1 models don't support temperature parameter at all
-            pass
-        else:
-            # Other models support custom temperature
-            params["temperature"] = temperature
+        # Set temperature for all models (no special OpenAI handling)
+        params["temperature"] = temperature
 
         if max_tokens is not None:
             params["max_tokens"] = max_tokens
@@ -162,151 +154,9 @@ class LLMClientManager:
         ]
         return any(pattern in model_lower for pattern in extended_thinking_patterns)
 
-    def _is_o1_model(self, model_name: str) -> bool:
-        """Detect if a model is from OpenAI's o1 series (doesn't support temperature)"""
-        model_lower = model_name.lower()
-        # Known o1 model names and patterns
-        o1_exact_names = ['o1', 'o1-preview', 'o1-mini', 'o1-pro']
-        o1_patterns = ['o1-2024-', 'o1_2024_', 'o1-mini-', 'o1_mini_', 'o1-pro-', 'o1_pro_']
 
-        return (model_lower in o1_exact_names or
-                any(pattern in model_lower for pattern in o1_patterns))
 
-    def _is_o3_model(self, model_name: str) -> bool:
-        """Detect if a model is from OpenAI's o3 series (uses Responses API)"""
-        model_lower = model_name.lower()
-        # Known o3 model names and patterns
-        o3_exact_names = ['o3', 'o3-mini', 'o3-pro']
-        o3_patterns = ['o3-2025-', 'o3_2025_', 'o3-mini-2025-', 'o3_mini_2025_', 'o3-pro-', 'o3_pro_']
 
-        return (model_lower in o3_exact_names or
-                any(pattern in model_lower for pattern in o3_patterns))
-
-    def _create_response_completion(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        max_tokens: Optional[int] = None,
-        **kwargs
-    ) -> Any:
-        """
-        Create a response using OpenAI's Responses API for o3 models.
-
-        Args:
-            model: The model name to use
-            messages: List of message dictionaries
-            max_tokens: Maximum tokens in response
-            **kwargs: Additional parameters
-
-        Returns:
-            Response object from the Responses API, wrapped to be compatible with Chat Completions API
-        """
-        client = self._get_client_for_model(model)
-
-        # Extract stream parameter
-        is_stream = kwargs.pop('stream', False)
-
-        # Convert messages to the input format expected by Responses API
-        input_messages = []
-        for msg in messages:
-            if msg['role'] == 'system':
-                # Convert system messages to developer messages
-                input_messages.append({
-                    "role": "developer",
-                    "content": [{"type": "input_text", "text": msg['content']}]
-                })
-            else:
-                input_messages.append({
-                    "role": msg['role'],
-                    "content": [{"type": "input_text", "text": msg['content']}]
-                })
-
-        # Build parameters for Responses API
-        params = {
-            "model": model,
-            "input": input_messages,
-            "reasoning": {"effort": "medium"},  # Default reasoning effort
-            "store": False,  # Don't store the conversation
-            "stream": is_stream,
-            **kwargs
-        }
-
-        if max_tokens is not None:
-            params["max_output_tokens"] = max_tokens
-
-        try:
-            response = client.responses.create(**params)
-        except BadRequestError as e:
-            if "organization must be verified" in str(e).lower():
-                org_text = f"Organization verification required for {model} model streaming.\n"
-                org_text += "To enable streaming with o3 models:\n"
-                org_text += "    1. Go to https://platform.openai.com/settings/organization/general\n"
-                org_text += "    2. Click 'Verify Organization'\n"
-                org_text += "    3. Wait up to 15 minutes for access to propagate"
-                print_md(org_text)
-
-                # Return a mock response indicating the error
-                class MockErrorResponse:
-                    def __init__(self):
-                        self.content = "Organization verification required for this model. Please verify your organization in OpenAI settings."
-
-                return MockErrorResponse()
-            else:
-                # Re-raise other BadRequestErrors
-                raise
-
-        if is_stream:
-            # Wrap the streaming response to be compatible with Chat Completions API format
-            return self._wrap_responses_stream(response)
-        else:
-            # Wrap the non-streaming response
-            return self._wrap_responses_response(response)
-
-    def _wrap_responses_stream(self, response_stream):
-        """
-        Wrap Responses API streaming response to be compatible with Chat Completions API format.
-        """
-        # Define mock classes once to avoid duplication
-        class MockDelta:
-            def __init__(self):
-                self.content = None
-
-        class MockChoice:
-            def __init__(self):
-                self.delta = MockDelta()
-
-        class MockChunk:
-            def __init__(self):
-                self.choices = [MockChoice()]
-
-        class ChatCompletionWrapper:
-            def __init__(self, response_stream):
-                self.response_stream = response_stream
-
-            def __iter__(self):
-                return self
-
-            def __next__(self):
-                try:
-                    event = next(self.response_stream)
-                    chunk = MockChunk()
-
-                    # Extract text content from various event types
-                    if hasattr(event, 'type'):
-                        if event.type == 'response.output_text.delta' and hasattr(event, 'delta'):
-                            chunk.choices[0].delta.content = event.delta
-                        elif hasattr(event, 'data') and hasattr(event.data, 'delta'):
-                            chunk.choices[0].delta.content = event.data.delta
-
-                    return chunk
-
-                except StopIteration:
-                    raise StopIteration
-                except Exception:
-                    # Return empty chunk on error
-                    return MockChunk()
-
-        return ChatCompletionWrapper(response_stream)
 
     def _create_anthropic_completion(
         self,
@@ -444,34 +294,7 @@ class LLMClientManager:
 
         return MockResponse(text_content)
 
-    def _wrap_responses_response(self, response):
-        """
-        Wrap Responses API non-streaming response to extract text content.
-        """
-        # Extract text content from the response output
-        text_content = ""
-        if hasattr(response, 'output'):
-            for output_item in response.output:
-                if hasattr(output_item, 'content'):
-                    for content_item in output_item.content:
-                        if hasattr(content_item, 'text'):
-                            text_content += content_item.text
 
-        # Create a mock response that matches OpenAI's response format
-        class MockMessage:
-            def __init__(self, content):
-                self.content = content
-
-        class MockChoice:
-            def __init__(self, content):
-                self.message = MockMessage(content)
-
-        class MockResponse:
-            def __init__(self, content):
-                self.choices = [MockChoice(content)]
-                self.content = content  # Keep for backward compatibility
-
-        return MockResponse(text_content)
 
     def _is_ollama_available(self) -> bool:
         """Check if Ollama is available with caching"""

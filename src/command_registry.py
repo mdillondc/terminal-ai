@@ -19,8 +19,7 @@ class CompletionType(Enum):
     LOG_FILE = "log_file"  # Log file completion
     INSTRUCTION_FILE = "instruction_file"  # Instruction file completion
     MODEL_NAME = "model_name"  # Model name suggestions
-    TTS_MODEL = "tts_model"  # TTS model suggestions
-    TTS_VOICE = "tts_voice"  # TTS voice suggestions
+
     RAG_COLLECTION = "rag_collection"  # RAG collection name suggestions
     RAG_COLLECTION_FILE = "rag_collection_file"  # Files in active RAG collection
     SEARCH_ENGINE = "search_engine"  # Search engine suggestions
@@ -69,11 +68,11 @@ class CommandRegistry:
         self.register_command(CommandInfo(
             name="--model",
             description="Switches the underlying AI model. Use this to select a different AI model for processing commands (dynamically fetched from OpenAI, Google, and Ollama APIs).",
-            usage="--model gpt-4.1",
+            usage="--model gpt-5",
             execution_order=1,
             completion_rules=CompletionRules(
                 CompletionType.MODEL_NAME,
-                custom_suggestions=["gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]  # Fallback suggestions if APIs unavailable
+                custom_suggestions=["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "claude-3.5-sonnet"]  # Fallback suggestions prioritizing Google/Anthropic over OpenAI
             ),
             requires_argument=True
         ))
@@ -270,47 +269,7 @@ class CommandRegistry:
             requires_argument=False
         ))
 
-        # TTS commands
-        self.register_command(CommandInfo(
-            name="--tts",
-            description="Toggles the Text-to-Speech feature on or off, enabling or disabling spoken responses.",
-            usage="--tts",
-            execution_order=1,
-            completion_rules=CompletionRules(CompletionType.NONE),
-            requires_argument=False
-        ))
 
-        self.register_command(CommandInfo(
-            name="--tts-model",
-            description="Changes the Text-to-Speech model to alter the voice synthesis.",
-            usage="--tts-model tts-1-hd",
-            execution_order=1,
-            completion_rules=CompletionRules(
-                CompletionType.TTS_MODEL,
-                custom_suggestions=["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
-            ),
-            requires_argument=True
-        ))
-
-        self.register_command(CommandInfo(
-            name="--tts-voice",
-            description="Selects a different voice for Text-to-Speech responses.",
-            usage="--tts-voice onyx",
-            execution_order=1,
-            completion_rules=CompletionRules(
-                CompletionType.TTS_VOICE
-            ),
-            requires_argument=True
-        ))
-
-        self.register_command(CommandInfo(
-            name="--tts-save-as-mp3",
-            description="Save TTS responses to a MP3 files.",
-            usage="--tts-save-as-mp3",
-            execution_order=1,
-            completion_rules=CompletionRules(CompletionType.NONE),
-            requires_argument=False
-        ))
 
         # Utility commands
 

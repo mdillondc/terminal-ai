@@ -33,15 +33,11 @@ class SettingsManager:
         self.log_file_location = None  # Full path to current JSON log file (including .json extension), set after first AI response
 
         # API Settings
-        self.model = "gpt-4.1-mini"  # Default model (provider detected automatically)
+        self.model = "gemini-2.5-flash"  # Default model (Google Gemini - reliable and cheaper than OpenAI)
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
         self.nothink = False  # Disable thinking mode on Ollama models that support it
 
-        # Voice Settings
-        self.tts = False  # Enable or disable text-to-speech by default
-        self.tts_model = "gpt-4o-mini-tts"  # Model for text-to-speech
-        self.tts_voice = "echo"  # Voice for text-to-speech
-        self.tts_save_mp3 = False  # Save text-to-speech output as MP3 file to audio_output directory
+
 
         # Search Settings
         self.search = False  # Enable or disable search by default
@@ -108,8 +104,6 @@ class SettingsManager:
             instruction_name = self.instructions.rsplit('.', 1)[0]
             enabled_toggles.append(instruction_name)
 
-        if self.tts:
-            enabled_toggles.append("tts")
         if self.search:
             enabled_toggles.append("search")
         if self.search_deep:

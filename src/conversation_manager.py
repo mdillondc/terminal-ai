@@ -8,7 +8,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Any, List
 from settings_manager import SettingsManager
-from tts_service import get_tts_service, interrupt_tts, is_tts_playing
+
 from tavily_search import create_tavily_search, TavilySearchError
 from searxng_search import create_searxng_search, SearXNGSearchError
 from search_utils import extract_full_content_from_search_results
@@ -351,9 +351,7 @@ class ConversationManager:
             # Check if this is the first user-AI exchange and rename log with descriptive title
             self._check_and_rename_log_after_first_exchange(interrupted)
 
-        # Generate and play TTS audio if enabled
-        if self.settings_manager.setting_get("tts") and complete_response:
-            self._handle_tts_playback(complete_response, interrupted)
+
 
         # Ensure proper spacing before next user prompt
         if complete_response:
@@ -739,27 +737,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
             return []
 
 
-    def _handle_tts_playback(self, text: str, was_interrupted: bool = False):
-        """
-        Handle TTS playback of AI response.
 
-        Args:
-            text: Text to convert to speech
-            was_interrupted: Whether the AI response was interrupted
-        """
-        try:
-
-
-            if was_interrupted:
-                print("Skipping TTS due to interrupted response")
-                return
-
-            # Get TTS service and generate speech
-            tts_service = get_tts_service(self.client)
-            tts_service.generate_and_play_speech(text)
-
-        except Exception as e:
-            print_md(f"TTS error: {e}")
 
     def _check_for_interrupt(self) -> bool:
         """Check for 'q' + Enter. Returns True if 'q' was entered."""
@@ -773,15 +751,9 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
                 try:
                     line = sys.stdin.readline().strip()
                     if line.lower() == 'q':
-                        # Also interrupt any playing TTS
-                        if is_tts_playing():
-                            interrupt_tts()
                         return True
                     return False
                 except (EOFError, KeyboardInterrupt):
-                    # Also interrupt TTS on keyboard interrupt
-                    if is_tts_playing():
-                        interrupt_tts()
                     return True
             return False
         except Exception:

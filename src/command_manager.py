@@ -16,7 +16,7 @@ from web_content_extractor import WebContentExtractor
 from document_processor import DocumentProcessor
 from rag_config import is_supported_file, get_supported_extensions_display
 from print_helper import print_md, start_capturing_print_info, stop_capturing_print_info
-from constants import NetworkConstants, OpenAIPricingConstants
+from constants import NetworkConstants, ModelPricingConstants
 
 
 class CommandManager:
@@ -353,49 +353,7 @@ class CommandManager:
                 elif command_name == "--usage":
                     self.display_token_usage()
                     command_executed = True
-                elif command_name == "--tts-model":
-                    if arg is None:
-                        print_md("Please specify a TTS model. Available models: tts-1, tts-1-hd, gpt-4o-mini-tts")
-                    else:
-                        valid_models = ["tts-1", "tts-1-hd", "gpt-4o-mini-tts"]
-                        if arg in valid_models:
-                            self.settings_manager.setting_set("tts_model", arg)
-                            print_md(f"TTS model set to: {arg}")
-                        else:
-                            print_md(f"Invalid TTS model: {arg}. Available models: {', '.join(valid_models)}")
-                    command_executed = True
-                elif command_name == "--tts-voice":
-                    if arg is None:
-                        print_md("Please specify a TTS voice")
-                    else:
-                        self.settings_manager.setting_set("tts_voice", arg)
-                        print_md(f"TTS voice set to: {arg}")
-                    command_executed = True
-                elif command_name == "--tts-save-as-mp3":
-                    tts_save_mp3 = self.settings_manager.setting_get("tts_save_mp3")
-                    if tts_save_mp3:
-                        self.settings_manager.setting_set("tts_save_mp3", False)
-                        print_md("TTS save as MP3 disabled")
-                    else:
-                        self.settings_manager.setting_set("tts_save_mp3", True)
-                        print_md("TTS save as MP3 enabled")
-                    command_executed = True
-                elif command_name == "--tts":
-                    tts = self.settings_manager.setting_get("tts")
-                    if tts:
-                        self.settings_manager.setting_set("tts", False)
-                        print_md("TTS disabled")
-                    else:
-                        # Check for privacy: don't enable TTS when using Ollama models
-                        current_model = self.settings_manager.setting_get("model")
-                        if current_model and self.conversation_manager.llm_client_manager.get_provider_for_model(current_model) == "ollama":
-                            tts_privacy_text = "TTS not available when using Ollama models\n"
-                            tts_privacy_text += "    TTS would send your text to OpenAI, breaking local privacy"
-                            print_md(tts_privacy_text)
-                        else:
-                            self.settings_manager.setting_set("tts", True)
-                            print_md("TTS enabled")
-                    command_executed = True
+
                 elif command_name == "--rag-deactivate":
                     self.rag_off()
                     print_md("RAG deactivated")
@@ -754,7 +712,7 @@ class CommandManager:
         Anthropic, and Ollama APIs.
 
         Args:
-            arg: Model name to set (e.g., 'gpt-4.1').
+            arg: Model name to set (e.g., 'gpt-5').
                  If None, displays available models and usage information.
         """
         if arg == None:
@@ -817,11 +775,7 @@ class CommandManager:
         # Determine model source
         provider = self.conversation_manager.llm_client_manager.get_provider_for_model(model)
 
-        # Check if TTS needs to be disabled for privacy when switching to Ollama
-        if provider == "ollama":
-            if self.settings_manager.setting_get("tts"):
-                self.settings_manager.setting_set("tts", False)
-                print_md("TTS automatically disabled for privacy (Ollama models)")
+
 
         # Show appropriate message using centralized method
         self.settings_manager.display_model_info("switch", provider, self.conversation_manager.llm_client_manager)
@@ -1249,10 +1203,10 @@ class CommandManager:
 
     def get_openai_pricing(self, model: str) -> Optional[Dict[str, float]]:
         """
-        Get OpenAI pricing data for a model.
+        Get pricing data for a model from any provider.
         Returns costs per 1M tokens for input and output.
         """
-        return OpenAIPricingConstants.get_model_pricing(model)
+        return ModelPricingConstants.get_model_pricing(model)
 
     def calculate_cost(self, input_tokens: int, output_tokens: int, model: str) -> dict:
         """
@@ -1328,7 +1282,7 @@ class CommandManager:
         model = self.conversation_manager.model
 
         # Check if this is an OpenAI model for accuracy warning
-        is_openai_model = model.startswith(('gpt-', 'o1', 'o3', 'text-embedding-', 'tts-', 'whisper-', 'dall-e'))
+        is_openai_model = model.startswith(('gpt-', 'text-embedding-', 'whisper-', 'dall-e'))
 
         if not is_openai_model:
             print_md("Note: Token counts are rough estimates for non-OpenAI models")

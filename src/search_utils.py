@@ -57,11 +57,11 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
 
     # Track extraction results
     successful_extractions = 0
-    failed_extractions = 0
-    truncated_count = 0
-    total_chars_before = 0
-    total_chars_after = 0
-    extraction_results = {}
+    failed_extractions     = 0
+    truncated_count        = 0
+    total_chars_before     = 0
+    total_chars_after      = 0
+    extraction_results     = {}
 
     # Process URLs in parallel using ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=settings_manager.concurrent_workers) as executor:

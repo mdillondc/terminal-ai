@@ -129,16 +129,25 @@ class UIConstants:
 
 
 
-class OpenAIPricingConstants:
+class ModelPricingConstants:
     """
-    OpenAI API pricing data (per 1M tokens) as of January 2025.
+    Multi-provider API pricing data (per 1M tokens) as of January 2025.
+    Includes OpenAI, Google Gemini, and other providers.
 
     All prices are in USD per 1 million tokens.
-    Source: https://openai.com/pricing
+    Sources:
+    - OpenAI: https://openai.com/pricing
+    - Google: https://ai.google.dev/pricing
     """
 
-    # OpenAI pricing data (per 1M tokens)
+    # Multi-provider pricing data (per 1M tokens)
     PRICING_DATA = {
+        # Google Gemini models - Cost-effective with excellent performance
+        'gemini-2.5-flash': {'input': 0.15, 'output': 0.60},
+        'gemini-2.5-pro': {'input': 1.25, 'output': 10.00},
+        'gemini-2.0-flash': {'input': 0.10, 'output': 0.40},
+        'gemini-1.5-flash': {'input': 0.075, 'output': 0.30},
+        'gemini-1.5-pro': {'input': 1.25, 'output': 5.00},
         # GPT-4o models - Latest generation with vision and multimodal capabilities
         'gpt-4o': {'input': 5.00, 'output': 15.00},
         'gpt-4o-2024-11-20': {'input': 2.50, 'output': 10.00},
@@ -160,23 +169,18 @@ class OpenAIPricingConstants:
         'gpt-3.5-turbo': {'input': 3.00, 'output': 6.00},
         'gpt-3.5-turbo-0125': {'input': 0.50, 'output': 1.50},
 
-        # GPT-4.1 models - Next generation models with improved capabilities
-        'gpt-4.1': {'input': 2.00, 'output': 8.00},
-        'gpt-4.1-mini': {'input': 0.40, 'output': 1.60},
-        'gpt-4.1-nano': {'input': 0.10, 'output': 0.40},
+        # GPT-5 models (fucking shit models)
+        'gpt-5': {'input': 2.00, 'output': 8.00},
+        'gpt-5-mini': {'input': 0.40, 'output': 1.60},
+        'gpt-5-nano': {'input': 0.10, 'output': 0.40},
+        'gpt-5-2024-12-05': {'input': 2.00, 'output': 8.00},
+        'gpt-5-preview': {'input': 2.00, 'output': 8.00},
+        'gpt-5-mini-2024-12-05': {'input': 0.40, 'output': 1.60},
+        'gpt-5-nano-2024-12-05': {'input': 0.10, 'output': 0.40},
 
-        # GPT-4.1 model variations with specific release dates
-        'gpt-4.1-2024-12-05': {'input': 2.00, 'output': 8.00},
-        'gpt-4.1-preview': {'input': 2.00, 'output': 8.00},
-        'gpt-4.1-mini-2024-12-05': {'input': 0.40, 'output': 1.60},
-        'gpt-4.1-nano-2024-12-05': {'input': 0.10, 'output': 0.40},
-
-        # Reasoning models - Specialized for complex problem-solving
-        'o3': {'input': 2.00, 'output': 8.00},
-        'o3-mini': {'input': 1.10, 'output': 4.40},
-        'o1': {'input': 15.00, 'output': 60.00},
-        'o1-mini': {'input': 3.00, 'output': 12.00},
-        'o1-preview': {'input': 15.00, 'output': 60.00},
+        # Anthropic Claude models - High quality reasoning
+        'claude-3.5-sonnet': {'input': 3.00, 'output': 15.00},
+        'claude-3.5-haiku': {'input': 0.80, 'output': 4.00},
     }
 
     @classmethod

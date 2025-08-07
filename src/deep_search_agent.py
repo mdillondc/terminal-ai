@@ -48,7 +48,7 @@ class DeepSearchAgent:
                 raise Exception("Failed to initialize Tavily search client")
             self.search_client: Union[TavilySearch, SearXNGSearch] = search_client
 
-    def conduct_deep_search(self, query: str, context: str = "", model: str = "gpt-4o-mini") -> Tuple[List[str], List[Dict[str, str]]]:
+    def conduct_deep_search(self, query: str, context: str = "", model: str = "gemini-2.5-flash") -> Tuple[List[str], List[Dict[str, str]]]:
         """
         Conduct an autonomous deep search that continues until comprehensive coverage is achieved.
 

@@ -246,10 +246,7 @@ class CommandCompleter(Completer):
             yield from self._complete_instruction_files(argument_part, completion_rules)
         elif completion_type == CompletionType.MODEL_NAME:
             yield from self._complete_model_names(argument_part, completion_rules)
-        elif completion_type == CompletionType.TTS_MODEL:
-            yield from self._complete_tts_models(argument_part, completion_rules)
-        elif completion_type == CompletionType.TTS_VOICE:
-            yield from self._complete_tts_voices(argument_part, completion_rules)
+
         elif completion_type == CompletionType.RAG_COLLECTION:
             yield from self._complete_rag_collections(argument_part, completion_rules)
         elif completion_type == CompletionType.RAG_COLLECTION_FILE:
@@ -438,30 +435,7 @@ class CommandCompleter(Completer):
                         display_meta="Fallback Model"
                     )
 
-    def _complete_tts_models(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete TTS model names with fuzzy matching"""
-        # OpenAI TTS models
-        tts_models = [
-            ("tts-1", "Standard TTS model, optimized for real-time use"),
-            ("tts-1-hd", "High-definition TTS model, optimized for quality"),
-            ("gpt-4o-mini-tts", "Latest GPT-based TTS model with improved prosody")
-        ]
 
-        matches = []
-        for model_name, description in tts_models:
-            is_match, score = self._fuzzy_match(partial_name, model_name)
-            if is_match:
-                matches.append((score, model_name, description))
-
-        # Sort by score (higher is better), then alphabetically
-        matches.sort(key=lambda x: (-x[0], x[1]))
-
-        for score, model_name, description in matches:
-            yield Completion(
-                text=model_name,
-                start_position=-len(partial_name),
-                display_meta=description
-            )
 
     def _complete_search_engines(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete search engine names with fuzzy matching"""
@@ -486,28 +460,7 @@ class CommandCompleter(Completer):
                 display_meta=description
             )
 
-    def _complete_tts_voices(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete TTS voice names with fuzzy matching"""
-        # Use custom suggestions if available, otherwise no completions
-        if not rules.custom_suggestions:
-            return
 
-        matches = []
-        for voice_name in rules.custom_suggestions:
-            is_match, score = self._fuzzy_match(partial_name, voice_name)
-            if is_match:
-                matches.append((score, voice_name))
-
-        # Sort by score (higher is better), then alphabetically
-        matches.sort(key=lambda x: (-x[0], x[1]))
-
-        for score, voice_name in matches:
-            yield Completion(
-                text=voice_name,
-                display_text=voice_name,
-                meta="TTS voice",
-                style="class:completion"
-            )
 
     def _complete_rag_collections(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete RAG collection names using VectorStore with fuzzy matching"""
