@@ -344,7 +344,6 @@ Create custom AI behaviors/prompts in `instructions/`:
 | Command | Description |
 |---------|-------------|
 | `--markdown` | Toggle markdown rendering |
-| `--scroll` | Toggle scroll navigation (hotkey F8). Use j/k to scroll, gg for top, G for bottom |
 | `--nothink` | Disable thinking on Ollama models |
 
 ## Conversation Management

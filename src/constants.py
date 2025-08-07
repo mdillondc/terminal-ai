@@ -126,7 +126,7 @@ class UIConstants:
 
     MAX_COMPLETION_CACHE_ENTRIES = 100  # LRU cache size for completions
     GRUVBOX_STYLE_MARGIN = 1            # Markdown formatting margin
-    SCROLL_LINES_DEFAULT = 1            # Default lines to scroll at once
+
 
 
 class OpenAIPricingConstants:

@@ -26,11 +26,17 @@ class SettingsManager:
     def assign_defaults(self) -> None:
         # Global settings
         self.working_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        self.name_ai = "AI"  # Name of the AI, example: "Samantha"
+        self.name_user = "User"  # Name of the user, example: "John"
+        self.instructions = "samantha.md"  # Instructions file for the AI letting it know how to behave
+        self.log_file_name = self.generate_new_log_filename()  # Keep track of the log file name for the current session
+        self.log_file_location = None  # Full path to current JSON log file (including .json extension), set after first AI response
 
         # API Settings
         self.model = "gpt-4.1-mini"  # Default model (provider detected automatically)
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
-
+        self.nothink = False  # Disable thinking mode on Ollama models that support it
+        
         # Voice Settings
         self.tts = False  # Enable or disable text-to-speech by default
         self.tts_model = "gpt-4o-mini-tts"  # Model for text-to-speech
@@ -41,15 +47,16 @@ class SettingsManager:
         self.search = False  # Enable or disable search by default
         self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
         self.search_engine = "tavily"  # "tavily" or "searxng"
+        self.search_deep = False  # Enable or disable deep search
+        self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search
+        self.search_context_window = 6  # Number of recent messages to include in search context
+        self.search_max_queries = 2  # Maximum number of search queries to generate and execute
         self.searxng_base_url = "http://10.13.0.200:8095, https://some.instance"  # URL(s) for SearXNG instance. NB! Instances must have JSON API enabled. System will iterate until it finds an instance that works, or exhaust the list
         self.searxng_extract_full_content = True  # Extract full page content from SearXNG search result URLs (uses WebContentExtractor with paywall bypass)
         self.searxng_extract_full_content_truncate = 5000  # Maximum characters to keep from each extracted URL content (prevents context window overflow)
-
-        # Deep Search Settings
-        self.search_deep = False  # Enable or disable deep search
-        self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search
-
+        
         # Markdown streamdown settings
+        self.markdown = True  # Enable markdown parsing and rendering
         self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']  # Gruvbox theme for streamdown/markdown formatting
         self.rag_enable_hybrid_search = True   # Combine semantic (embedding) and keyword (BM25) search for better document retrieval
         self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
@@ -67,30 +74,9 @@ class SettingsManager:
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
         self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
 
-        # Search Context Settings
-        self.search_context_window = 6  # Number of recent messages to include in search context
-        self.search_max_queries = 2  # Maximum number of search queries to generate and execute
-
-        # Thinking Settings
-        self.nothink = False  # Disable thinking mode on Ollama models that support it
-
         # Privacy Settings
         self.incognito = False  # Enable or disable conversation logging
-
-        # Navigation Settings
-        self.scroll = False  # Determine when scrolling is enabled
-        self.scroll_lines = 1  # How many lines to scroll at once
-
-        # General Settings
-        self.name_ai = "AI"  # Name of the AI, example: "Samantha"
-        self.name_user = "User"  # Name of the user, example: "John"
-        self.instructions = "samantha.md"  # Instructions file for the AI letting it know how to behave
-        self.log_file_name = self.generate_new_log_filename()  # Keep track of the log file name for the current session
-
-        # Display Settings
-        self.markdown = True  # Enable markdown parsing and rendering
-        self.log_file_location = None
-
+        
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using date + timestamp format"""
         return f"{datetime.datetime.now().strftime('%Y-%m-%d')}_{int(time.time())}.md"

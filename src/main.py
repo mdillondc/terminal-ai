@@ -13,7 +13,6 @@ from command_manager import CommandManager
 from tts_service import cleanup_tts, is_tts_playing, interrupt_tts
 from print_helper import print_md, print_lines, set_conversation_manager
 from api_key_check import check
-from scroll import ScrollManager
 
 def confirm_exit() -> bool:
     response = input("Confirm quitting (Y/n)? ").strip().lower()
@@ -65,9 +64,6 @@ def main() -> None:
 
     command_manager = CommandManager(conversation_manager)
 
-    # Init scroll manager
-    scroll_manager = ScrollManager(settings_manager, conversation_manager)
-
     # Display model info using centralized method with source attribution
     current_model = settings_manager.setting_get("model")
     print_md(f"Model: {current_model} (settings_manager.py)")
@@ -98,22 +94,7 @@ def main() -> None:
             # Force start new completion
             event.current_buffer.start_completion(select_first=False)
 
-    @kb.add('f8')
-    def toggle_scroll_mode(event):
-        """Toggle scroll navigation mode with F8 key"""
-        if scroll_manager.scroll_mode:
-            # Exit scroll mode directly
-            scroll_manager.handle_toggle()
-        else:
-            # Enable scroll and immediately enter scroll mode
-            if settings_manager.setting_get("incognito"):
-                print_md("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
-            else:
-                settings_manager.setting_set("scroll", True)
-                scroll_manager._enter_scroll_mode()
 
-    # Set up scroll key bindings
-    scroll_manager.setup_key_bindings(kb)
 
     first_ai_interaction = True
     while True:
@@ -190,11 +171,6 @@ def main() -> None:
 
                     # Overall menu container
                     'completion-menu': 'bg:#282828',
-
-                    # Scrollbar styling
-                    'scrollbar.background': 'bg:#3c3836',
-                    'scrollbar.button': 'bg:#504945',
-                    'scrollbar.arrow': 'bg:#504945 #ebdbb2',
 
                     # Custom completion class
                     'completion': 'bg:#282828 #ebdbb2',

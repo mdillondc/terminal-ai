@@ -316,16 +316,7 @@ class CommandManager:
                 elif command_name == "--search-engine":
                     self.set_search_engine(arg)
                     command_executed = True
-                elif command_name == "--scroll":
-                    print_md("Press F8 to toggle scroll mode")
-                    if self.settings_manager.setting_get("scroll"):
-                        self.settings_manager.setting_set("scroll", False)
-                    else:
-                        if self.settings_manager.setting_get("incognito"):
-                            print_md("Cannot enable scroll mode in incognito mode - no logs available to scroll through")
-                        else:
-                            self.settings_manager.setting_set("scroll", True)
-                    command_executed = True
+
                 elif command_name == "--nothink":
                     nothink = self.settings_manager.setting_get("nothink")
                     if nothink:
