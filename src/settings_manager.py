@@ -36,7 +36,7 @@ class SettingsManager:
         self.model = "gpt-4.1-mini"  # Default model (provider detected automatically)
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
         self.nothink = False  # Disable thinking mode on Ollama models that support it
-        
+
         # Voice Settings
         self.tts = False  # Enable or disable text-to-speech by default
         self.tts_model = "gpt-4o-mini-tts"  # Model for text-to-speech
@@ -53,8 +53,8 @@ class SettingsManager:
         self.search_max_queries = 2  # Maximum number of search queries to generate and execute
         self.searxng_base_url = "http://10.13.0.200:8095, https://some.instance"  # URL(s) for SearXNG instance. NB! Instances must have JSON API enabled. System will iterate until it finds an instance that works, or exhaust the list
         self.searxng_extract_full_content = True  # Extract full page content from SearXNG search result URLs (uses WebContentExtractor with paywall bypass)
-        self.searxng_extract_full_content_truncate = 5000  # Maximum characters to keep from each extracted URL content (prevents context window overflow)
-        
+        self.searxng_extract_full_content_truncate = 2500  # Maximum words to keep from each extracted URL content (prevents context window overflow)
+
         # Markdown streamdown settings
         self.markdown = True  # Enable markdown parsing and rendering
         self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']  # Gruvbox theme for streamdown/markdown formatting
@@ -76,7 +76,7 @@ class SettingsManager:
 
         # Privacy Settings
         self.incognito = False  # Enable or disable conversation logging
-        
+
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using date + timestamp format"""
         return f"{datetime.datetime.now().strftime('%Y-%m-%d')}_{int(time.time())}.md"

@@ -83,13 +83,14 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
                     original_content = results[index].get('content', '')
                     extracted_content = extraction_result['content']
 
-                    # Apply truncation if configured
-                    truncate_length = getattr(settings_manager, 'searxng_extract_full_content_truncate', 2000)
-                    original_length = len(extracted_content)
-                    total_chars_before += original_length
+                    # Apply truncation if configured (word-based)
+                    truncate_length = getattr(settings_manager, 'searxng_extract_full_content_truncate', 1000)
+                    words = extracted_content.split()
+                    original_word_count = len(words)
+                    total_chars_before += len(extracted_content)
 
-                    if original_length > truncate_length:
-                        extracted_content = extracted_content[:truncate_length] + "..."
+                    if original_word_count > truncate_length:
+                        extracted_content = ' '.join(words[:truncate_length]) + "..."
                         truncated_count += 1
 
                     total_chars_after += len(extracted_content)
@@ -100,7 +101,7 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
                         results[index]['title'] = extraction_result['title']
 
                     successful_extractions += 1
-                    extraction_results[index] = {'status': 'success', 'chars': len(extracted_content), 'truncated': original_length > truncate_length}
+                    extraction_results[index] = {'status': 'success', 'words': len(extracted_content.split()), 'truncated': original_word_count > truncate_length}
 
                 else:
                     # Extraction failed - keep original snippet
@@ -123,11 +124,11 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
         result = extraction_results.get(index, {'status': 'failed'})
 
         if result['status'] == 'success':
-            chars_info = f"({result['chars']} words"
+            word_info = f"({result['words']} words"
             if result.get('truncated'):
-                chars_info += ", truncated"
-            chars_info += ")"
-            summary_text += f"    {title} {chars_info}\n"
+                word_info += ", truncated"
+            word_info += ")"
+            summary_text += f"    {title} {word_info}\n"
         else:
             summary_text += f"    {title} (extraction failed)\n"
 
