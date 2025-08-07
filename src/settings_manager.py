@@ -42,6 +42,8 @@ class SettingsManager:
         self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
         self.search_engine = "tavily"  # "tavily" or "searxng"
         self.searxng_base_url = "http://10.13.0.200:8095, https://some.instance"  # URL(s) for SearXNG instance. NB! Instances must have JSON API enabled. System will iterate until it finds an instance that works, or exhaust the list
+        self.searxng_extract_full_content = True  # Extract full page content from SearXNG search result URLs (uses WebContentExtractor with paywall bypass)
+        self.searxng_extract_full_content_truncate = 5000  # Maximum characters to keep from each extracted URL content (prevents context window overflow)
 
         # Deep Search Settings
         self.search_deep = False  # Enable or disable deep search

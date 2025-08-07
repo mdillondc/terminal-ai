@@ -11,6 +11,7 @@ from settings_manager import SettingsManager
 from tts_service import get_tts_service, interrupt_tts, is_tts_playing
 from tavily_search import create_tavily_search, TavilySearchError
 from searxng_search import create_searxng_search, SearXNGSearchError
+from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
 from constants import ColorConstants, ConversationConstants
@@ -485,6 +486,9 @@ class ConversationManager:
             all_source_metadata = []
             seen_urls = set()
             display_seen_urls = set()
+            stored_raw_results = []  # Store raw results for content extraction after display
+
+
 
             # Execute all searches in parallel
             with ThreadPoolExecutor(max_workers=3) as executor:
@@ -502,6 +506,13 @@ class ConversationManager:
                     try:
                         # Get search results
                         raw_results = future.result()
+
+                        # Store raw results for potential content extraction after display
+                        stored_raw_results.append({
+                            'raw_results': raw_results,
+                            'query': query,
+                            'search_number': i
+                        })
 
                         # Format results for display
                         results = search_client.format_results_for_ai(raw_results, query)
@@ -545,6 +556,55 @@ class ConversationManager:
                         search_section += f"    Search failed: {e}"
                         # Always print error sections
                         print_md(search_section)
+
+            # Extract full content if enabled for SearXNG - AFTER all search results are displayed
+            if (search_engine == "searxng" and
+                self.settings_manager.searxng_extract_full_content and
+                stored_raw_results):
+
+                # Combine all URLs from all searches for ONE extraction
+                all_results = []
+                url_to_search_mapping = {}  # Map URL to search data for updating later
+
+                for search_data in stored_raw_results:
+                    raw_results = search_data['raw_results']
+                    for result in raw_results.get('results', []):
+                        if result.get('url'):
+                            all_results.append(result.copy())
+                            url_to_search_mapping[result['url']] = search_data
+
+                if all_results:
+                    # Create combined raw_results structure for ONE extraction
+                    combined_raw_results = {'results': all_results}
+
+                    # Do ONE content extraction for all URLs (shows one message)
+                    enhanced_combined_results = extract_full_content_from_search_results(
+                        combined_raw_results, self.settings_manager, self.llm_client_manager
+                    )
+
+                    # Map enhanced results back to individual searches
+                    for enhanced_result in enhanced_combined_results.get('results', []):
+                        url = enhanced_result.get('url')
+                        if url in url_to_search_mapping:
+                            search_data = url_to_search_mapping[url]
+                            query = search_data['query']
+
+                            # Update the original raw_results with enhanced content
+                            raw_results = search_data['raw_results']
+                            for i, original_result in enumerate(raw_results.get('results', [])):
+                                if original_result.get('url') == url:
+                                    raw_results['results'][i] = enhanced_result
+                                    break
+
+                            # Update the corresponding entry in all_search_results with enhanced content
+                            enhanced_results = search_client.format_results_for_ai(raw_results, query)
+
+                            # Find and replace the matching result in all_search_results
+                            for idx, existing_result in enumerate(all_search_results):
+                                if query in existing_result:
+                                    all_search_results[idx] = enhanced_results
+                                    break
+
 
 
 

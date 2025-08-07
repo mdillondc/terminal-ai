@@ -13,6 +13,7 @@ from typing import List, Dict, Optional, Any, Tuple, Union
 from datetime import datetime
 from tavily_search import TavilySearch, create_tavily_search
 from searxng_search import SearXNGSearch, create_searxng_search
+from search_utils import extract_full_content_from_search_results
 from print_helper import print_md
 
 
@@ -258,6 +259,7 @@ Respond with only the search queries, one per line, no explanations or numbering
         """
         batch_results = []
         batch_metadata = []
+        stored_raw_results = []  # Store raw results for content extraction after display
 
         for i, query in enumerate(queries):
             search_number = start_index + i
@@ -299,10 +301,65 @@ Respond with only the search queries, one per line, no explanations or numbering
                             search_text += f"    {title}\n"
                     print_md(search_text.rstrip())
 
+                # Store raw results for content extraction after display (now that we know batch_index)
+                stored_raw_results.append({
+                    'raw_results': raw_results,
+                    'query': query,
+                    'search_number': search_number,
+                    'batch_index': len(batch_results) - 1 if unique_sources and formatted_results else -1
+                })
+
             except Exception as e:
                 error_text = f"**Search {search_number}:** {query}\n"
                 error_text += f"    Search failed: {e}"
                 print_md(error_text)
+
+        # Extract full content if enabled for SearXNG - AFTER all search results are displayed
+        if (self.settings_manager.search_engine == "searxng" and
+            self.settings_manager.searxng_extract_full_content and
+            stored_raw_results):
+
+            # Combine all URLs from all searches for ONE extraction
+            all_results = []
+            url_to_search_mapping = {}  # Map URL to search data for updating later
+
+            for search_data in stored_raw_results:
+                if search_data['batch_index'] >= 0:  # Only process successful searches
+                    raw_results = search_data['raw_results']
+                    for result in raw_results.get('results', []):
+                        if result.get('url'):
+                            all_results.append(result.copy())
+                            url_to_search_mapping[result['url']] = search_data
+
+            if all_results:
+                # Create combined raw_results structure for ONE extraction
+                combined_raw_results = {'results': all_results}
+
+                # Do ONE content extraction for all URLs (shows one message)
+                enhanced_combined_results = extract_full_content_from_search_results(
+                    combined_raw_results, self.settings_manager, self.llm_client_manager
+                )
+
+                # Map enhanced results back to individual searches
+                for enhanced_result in enhanced_combined_results.get('results', []):
+                    url = enhanced_result.get('url')
+                    if url in url_to_search_mapping:
+                        search_data = url_to_search_mapping[url]
+                        batch_idx = search_data['batch_index']
+                        query = search_data['query']
+
+                        # Update the original raw_results with enhanced content
+                        raw_results = search_data['raw_results']
+                        for i, original_result in enumerate(raw_results.get('results', [])):
+                            if original_result.get('url') == url:
+                                raw_results['results'][i] = enhanced_result
+                                break
+
+                        # Re-format results with enhanced content for AI
+                        enhanced_results = self.search_client.format_results_for_ai(raw_results, query)
+
+                        # Replace the corresponding entry in batch_results
+                        batch_results[batch_idx] = enhanced_results
 
         return batch_results, batch_metadata
 

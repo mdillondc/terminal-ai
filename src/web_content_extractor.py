@@ -29,7 +29,7 @@ class WebContentExtractor:
         self.llm_client_manager = llm_client_manager
         self.settings_manager = SettingsManager.getInstance()
 
-    def extract_content(self, url: str) -> Dict[str, Optional[str]]:
+    def extract_content(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """
         Extract main content from a web page with access restriction bypass capabilities.
         Handles paywalls, bot detection, login walls, rate limiting, and other blocking methods.
@@ -47,62 +47,68 @@ class WebContentExtractor:
 
         try:
             # Validate URL
-            if not self._is_valid_url(url):
+            if not self._is_valid_url(url, verbose):
                 result['error'] = "Invalid URL format"
                 return result
 
             # Try normal extraction first
-            print_md("Fetching webpage...")
-            normal_result = self._basic_extraction(url)
+            if verbose:
+                print_md("Fetching webpage...")
+            normal_result = self._basic_extraction(url, verbose)
 
             # Check if we got an error that might be bypassed (403, 429, etc.)
             if normal_result['error']:
                 error_msg = normal_result['error'].lower()
                 if any(code in error_msg for code in ['403', '429', 'forbidden', 'blocked', 'bot']):
-                    if '403' in error_msg:
-                        print_md("Access denied (HTTP 403) - attempting bypass methods...")
-                    elif '429' in error_msg:
-                        print_md("Rate limited (HTTP 429) - attempting bypass methods...")
-                    elif 'bot' in error_msg:
-                        print_md("Bot detection triggered - attempting bypass methods...")
-                    else:
-                        print_md("Access blocked - attempting bypass methods...")
+                    if verbose:
+                        if '403' in error_msg:
+                            print_md("Access denied (HTTP 403) - attempting bypass methods...")
+                        elif '429' in error_msg:
+                            print_md("Rate limited (HTTP 429) - attempting bypass methods...")
+                        elif 'bot' in error_msg:
+                            print_md("Bot detection triggered - attempting bypass methods...")
+                        else:
+                            print_md("Access blocked - attempting bypass methods...")
 
-                    bypass_result = self._try_access_bypass(url, "")
+                    bypass_result = self._try_access_bypass(url, "", verbose)
                     if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
                         return bypass_result
                     else:
-                        print_md("All bypass methods failed - returning original error")
+                        if verbose:
+                            print_md("All bypass methods failed - returning original error")
                         return normal_result
                 else:
                     return normal_result
 
             # Check for access restrictions in content using LLM
             if normal_result['content']:
-                is_blocked = self._llm_evaluate_content(normal_result['content'])
+                is_blocked = self._llm_evaluate_content(normal_result['content'], verbose)
                 if is_blocked:
-                    print_md("Access restriction detected - attempting bypass methods...")
-                    bypass_result = self._try_access_bypass(url, normal_result['content'])
+                    if verbose:
+                        print_md("Access restriction detected - attempting bypass methods...")
+                    bypass_result = self._try_access_bypass(url, normal_result['content'], verbose)
                     if bypass_result['content']:
                         return bypass_result
                     else:
                         content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
-                        bypass_error_text = "All bypass methods failed - content appears blocked\n"
-                        bypass_error_text += f"    Limited content ({content_length} words) added to context - may not be sufficient for analysis"
-                        print_md(bypass_error_text)
+                        if verbose:
+                            bypass_error_text = "All bypass methods failed - content appears blocked\n"
+                            bypass_error_text += f"    Limited content ({content_length} words) added to context - may not be sufficient for analysis"
+                            print_md(bypass_error_text)
                         normal_result['warning'] = "Content may be incomplete due to access restrictions"
                         normal_result['bypass_failed'] = True
                         return normal_result
             else:
                 # No content to evaluate
-                bypass_result = self._try_access_bypass(url, "")
+                bypass_result = self._try_access_bypass(url, "", verbose)
                 if bypass_result['content']:
                     return bypass_result
                 else:
                     content_length = len(normal_result.get('content', '').split()) if normal_result.get('content') else 0
-                    bypass_error_text = "All bypass methods failed - content appears blocked\n"
-                    bypass_error_text += f"    Limited content ({content_length} words) added to context - may not be sufficient for analysis"
-                    print_md(bypass_error_text)
+                    if verbose:
+                        bypass_error_text = "All bypass methods failed - content appears blocked\n"
+                        bypass_error_text += f"    Limited content ({content_length} words) added to context - may not be sufficient for analysis"
+                        print_md(bypass_error_text)
                     normal_result['warning'] = "Content may be incomplete due to access restrictions"
                     normal_result['bypass_failed'] = True
                     return normal_result
@@ -113,7 +119,7 @@ class WebContentExtractor:
             result['error'] = f"Unexpected error: {e}"
             return result
 
-    def _is_valid_url(self, url: str) -> bool:
+    def _is_valid_url(self, url: str, verbose: bool = True) -> bool:
         """Check if URL has a valid format."""
         try:
             parsed = urlparse(url)
@@ -122,7 +128,8 @@ class WebContentExtractor:
             # Invalid URL format
             return False
         except Exception as e:
-            print_md(f"Unexpected error validating URL: {e}")
+            if verbose:
+                print_md(f"Unexpected error validating URL: {e}")
             return False
 
     def _extract_title(self, soup: BeautifulSoup) -> str:
@@ -298,7 +305,7 @@ class WebContentExtractor:
 
         return '\n'.join(cleaned_lines).strip()
 
-    def _basic_extraction(self, url: str) -> Dict[str, Optional[str]]:
+    def _basic_extraction(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """Basic content extraction without access restriction handling."""
         result = {
             'title': None,
@@ -320,7 +327,8 @@ class WebContentExtractor:
                 result['error'] = "No readable content found on the page"
                 return result
 
-            print_md(f"Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
+            if verbose:
+                print_md(f"Extracted content: \"{result['title']}\" ({len(result['content'].split())} words)")
 
         except requests.exceptions.Timeout:
             result['error'] = "Request timed out"
@@ -345,7 +353,7 @@ class WebContentExtractor:
             text = text[:-3]  # Remove trailing ```
         return text.strip()
 
-    def _llm_evaluate_content(self, content: Optional[str]) -> Optional[str]:
+    def _llm_evaluate_content(self, content: str, verbose: bool = True) -> Optional[str]:
         """Use LLM to evaluate if content is complete or blocked by restrictions."""
         if not content:
             return None
@@ -390,7 +398,8 @@ Respond in JSON format only:
             try:
                 result = json.loads(clean_json)
                 if not isinstance(result, dict):
-                    print_md(f"ERROR: LLM returned invalid JSON structure (not a dictionary): {response_text}")
+                    if verbose:
+                        print_md(f"ERROR: LLM returned invalid JSON structure (not a dictionary): {response_text}")
                     return None
 
                 if result.get("blocked") == True:
@@ -398,19 +407,21 @@ Respond in JSON format only:
                 else:
                     return None  # Content is complete
             except json.JSONDecodeError:
-                json_error_text = f"ERROR: LLM returned invalid JSON for content evaluation: {response_text}\n"
-                json_error_text += "    Cannot proceed with content evaluation - LLM must return valid JSON"
-                print_md(json_error_text)
+                if verbose:
+                    json_error_text = f"ERROR: LLM returned invalid JSON for content evaluation: {response_text}\n"
+                    json_error_text += "    Cannot proceed with content evaluation - LLM must return valid JSON"
+                    print_md(json_error_text)
                 return None
 
         except Exception as e:
-            print_md(f"LLM evaluation failed, falling back to basic checks: {str(e)}")
+            if verbose:
+                print_md(f"LLM evaluation failed, falling back to basic checks: {str(e)}")
             # Simple fallback - very short content is likely incomplete
             if len(content.split()) < 30:
                 return "insufficient content"
             return None
 
-    def _llm_evaluate_bypass(self, original_content: Optional[str], bypass_content: Optional[str]) -> bool:
+    def _llm_evaluate_bypass(self, original_content: str, bypass_content: str, verbose: bool = True) -> bool:
         """Use LLM to compare original and bypass content to determine if bypass was successful."""
         if not bypass_content:
             return False
@@ -451,17 +462,20 @@ Respond in JSON format only:
             try:
                 result = json.loads(clean_json)
                 if not isinstance(result, dict):
-                    print_md(f"ERROR: LLM returned invalid JSON structure for bypass evaluation: {response_text}")
+                    if verbose:
+                        print_md(f"ERROR: LLM returned invalid JSON structure for bypass evaluation: {response_text}")
                     return False
                 return not result.get("blocked", True)  # If not blocked, bypass was successful
             except json.JSONDecodeError:
-                bypass_json_error_text = f"ERROR: LLM returned invalid JSON for bypass evaluation: {response_text}\n"
-                bypass_json_error_text += "    Cannot proceed with bypass evaluation - LLM must return valid JSON"
-                print_md(bypass_json_error_text)
+                if verbose:
+                    bypass_json_error_text = f"ERROR: LLM returned invalid JSON for bypass evaluation: {response_text}\n"
+                    bypass_json_error_text += "    Cannot proceed with bypass evaluation - LLM must return valid JSON"
+                    print_md(bypass_json_error_text)
                 return False
 
         except Exception as e:
-            print_md(f"LLM bypass evaluation failed: {str(e)}")
+            if verbose:
+                print_md(f"LLM bypass evaluation failed: {str(e)}")
             # Fallback to simple length comparison
             if not original_content or not bypass_content:
                 return bool(bypass_content and len(bypass_content.split()) > 50)
@@ -469,7 +483,7 @@ Respond in JSON format only:
             bypass_words = len(bypass_content.split())
             return bypass_words > original_words * 1.5  # 50% more content suggests success
 
-    def _try_access_bypass(self, url: str, original_content: str) -> Dict[str, Optional[str]]:
+    def _try_access_bypass(self, url: str, original_content: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """Try multiple methods to bypass access restrictions."""
         bypass_methods = [
             ("alternative user agents", self._try_bot_user_agent),
@@ -480,29 +494,34 @@ Respond in JSON format only:
 
         for method_name, method_func in bypass_methods:
             try:
-                print_md(f"Attempting bypass using {method_name}...")
-                result = method_func(url)
+                if verbose:
+                    print_md(f"Attempting bypass using {method_name}...")
+                result = method_func(url, verbose)
 
                 # Check if we got content
                 if result and result.get('content'):
                     # Use LLM to evaluate if bypass was successful
-                    bypass_successful = self._llm_evaluate_bypass(original_content, result.get('content'))
+                    bypass_successful = self._llm_evaluate_bypass(original_content, result.get('content'), verbose)
 
                     if bypass_successful:
                         # Success!
                         specific_method = result.get('method', method_name)
                         content_length = len(result.get('content', '').split())
-                        print_md(f"Success: Bypassed using {specific_method} - extracted {content_length} words")
+                        if verbose:
+                            print_md(f"Success: Bypassed using {specific_method} - extracted {content_length} words")
                         result['warning'] = f"Access restriction bypassed using {specific_method}"
                         return result
                     else:
                         # Failed validation
-                        print_md(f"Failed: {method_name} - bypass did not improve content")
+                        if verbose:
+                            print_md(f"Failed: {method_name} - bypass did not improve content")
                 else:
-                    print_md(f"Failed: {method_name} - no content retrieved")
+                    if verbose:
+                        print_md(f"Failed: {method_name} - no content retrieved")
 
             except Exception as e:
-                print_md(f"Failed: {method_name} - {str(e)}")
+                if verbose:
+                    print_md(f"Failed: {method_name} - {str(e)}")
                 continue
 
         # All methods failed
@@ -510,7 +529,7 @@ Respond in JSON format only:
 
 
 
-    def _try_archive_org(self, url: str) -> Dict[str, Optional[str]]:
+    def _try_archive_org(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """Try to fetch content from Archive.org (Wayback Machine)."""
         # Generate timestamps dynamically based on current date
         now = datetime.now()
@@ -564,7 +583,7 @@ Respond in JSON format only:
 
         return {'content': None, 'error': 'No usable Archive.org snapshots found'}
 
-    def _try_bot_user_agent(self, url: str) -> Dict[str, Optional[str]]:
+    def _try_bot_user_agent(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """Try with various user agents including search engine bots and realistic browsers."""
         user_agent_configs = [
             # Social media crawlers (try first - high success rate)
@@ -647,7 +666,7 @@ Respond in JSON format only:
 
         return {'content': None, 'error': 'All user agents failed'}
 
-    def _try_print_version(self, url: str) -> Dict[str, Optional[str]]:
+    def _try_print_version(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """Try to access a print version of the page."""
         print_variations = [
             ("?print=1", f"{url}?print=1"),
@@ -682,7 +701,7 @@ Respond in JSON format only:
 
         return {'content': None, 'error': 'No working print version found'}
 
-    def _try_amp_version(self, url: str) -> Dict[str, Optional[str]]:
+    def _try_amp_version(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """Try AMP (Accelerated Mobile Pages) version."""
         parsed = urlparse(url)
 
