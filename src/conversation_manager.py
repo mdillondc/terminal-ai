@@ -491,7 +491,7 @@ class ConversationManager:
 
 
             # Execute all searches in parallel
-            with ThreadPoolExecutor(max_workers=3) as executor:
+            with ThreadPoolExecutor(max_workers=self.settings_manager.concurrent_workers) as executor:
                 # Start all searches at once
                 future_to_query = {
                     executor.submit(search_client.search, query, **search_params): query

@@ -64,7 +64,7 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
     extraction_results = {}
 
     # Process URLs in parallel using ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=settings_manager.concurrent_workers) as executor:
         # Submit all extraction tasks
         future_to_index = {}
         for index, url in urls_to_extract:
