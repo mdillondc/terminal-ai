@@ -23,28 +23,29 @@ class ExportManager:
             if not current_log_location:
                 return None
 
-            json_file_path = current_log_location + ".json"
-            if not os.path.exists(json_file_path):
+            if not os.path.exists(current_log_location):
                 return None
 
             # Load conversation history from JSON
-            with open(json_file_path, 'r') as file:
-                conversation_history = json.load(file)
+            with open(current_log_location, 'r') as f:
+                conversation_history = json.load(f)
 
             if not conversation_history:
                 return None
 
-            # Create logs-exported directory if it doesn't exist
-            working_dir = self.settings_manager.setting_get("working_dir")
-            export_dir = os.path.join(working_dir, "logs-exported")
+            # Create export subdirectory next to the source log file
+            log_dir = os.path.dirname(current_log_location)
+            export_dir = os.path.join(log_dir, "export")
             if not os.path.exists(export_dir):
                 os.makedirs(export_dir)
 
             # Generate markdown content
             markdown_content = self._convert_conversation_to_markdown(conversation_history)
 
-            # Create export file path with same base name as JSON file
+            # Create export file path with .md extension instead of .json
             base_filename = os.path.basename(current_log_location)
+            if base_filename.endswith('.json'):
+                base_filename = base_filename[:-5] + '.md'
             export_file_path = os.path.join(export_dir, base_filename)
 
             # Write markdown file
@@ -74,13 +75,9 @@ class ExportManager:
             content = message.get('content', '')
 
             if role == 'system':
-                # Format system messages in collapsible HTML details
-                # Truncate long system messages for the summary
-                summary = content[:100] + "..." if len(content) > 100 else content
-                markdown_lines.append("<details>")
-                markdown_lines.append(f"<summary><strong>System:</strong> {summary}</summary>")
-                markdown_lines.append(f"\n{content}")
-                markdown_lines.append("</details>")
+                # Format system messages in pure markdown
+                markdown_lines.append(f"**{role}:**  ")
+                markdown_lines.append(f"{content}")
                 markdown_lines.append("")
             elif role in ['user', 'assistant']:
                 # Format user and assistant messages with bold role labels

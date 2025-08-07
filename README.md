@@ -355,7 +355,7 @@ Terminal-AI uses a JSON-only logging system that provides reliable conversation 
 
 **File Structure:**
 - `logs/` - Contains JSON conversation files (authoritative records)
-- `logs-exported/` - Contains exported markdown files (optional export)
+- `logs/export/` - Contains exported markdown files (optional export)
 
 **How it Works:**
 - All conversations are automatically saved as JSON files in `logs/{instruction-set}/`
@@ -370,7 +370,7 @@ Terminal-AI uses a JSON-only logging system that provides reliable conversation 
 | `--log <filename>` | Resume previous conversation from JSON file |
 | `--logmv [title]` | Rename current conversation |
 | `--logrm` | Delete current conversation |
-| `--export-markdown` | Export current conversation to markdown in logs-exported/ |
+| `--export-markdown` | Export current conversation to markdown |
 | `--incognito` | Toggle private mode (no logging) |
 
 ### Usage Examples

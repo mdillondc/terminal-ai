@@ -830,9 +830,8 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
 
         current_log_file_location = self.settings_manager.setting_get("log_file_location")
         if current_log_file_location:
-            json_file = current_log_file_location + ".json"
-            if os.path.exists(json_file):
-                os.remove(json_file)
+            if os.path.exists(current_log_file_location):
+                os.remove(current_log_file_location)
 
         instructions_file_name = self.settings_manager.setting_get("instructions").rsplit('.', 1)[0] # strip extension
         log_file_name = self.settings_manager.setting_get("log_file_name")
@@ -853,7 +852,7 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
         with open(json_file_location, 'w') as file:
             file.write(conversation_history)
 
-        self.settings_manager.setting_set("log_file_location", log_file_location)
+        self.settings_manager.setting_set("log_file_location", json_file_location)
 
     def _check_and_rename_log_after_first_exchange(self, interrupted: bool = False) -> None:
         """Check if this is the first user-AI exchange and rename log with AI-generated title"""
@@ -1002,13 +1001,13 @@ Generate only the filename focusing on content substance:""".format(context[:100
             new_log_location = os.path.join(log_directory, new_filename)
 
             # Rename JSON file
-            json_current = current_log_location + ".json"
+            json_current = current_log_location
             json_new = new_log_location + ".json"
             if os.path.exists(json_current):
                 os.rename(json_current, json_new)
 
             # Update settings with new location
-            self.settings_manager.setting_set("log_file_location", new_log_location)
+            self.settings_manager.setting_set("log_file_location", new_log_location + ".json")
             self.settings_manager.setting_set("log_file_name", new_filename)
 
             # Adjust spacing based on whether response was interrupted
@@ -1084,13 +1083,12 @@ Generate only the filename focusing on content substance:""".format(context[:100
             new_log_location = os.path.join(log_directory, new_filename)
 
             # Rename JSON file
-            json_current = current_log_location + ".json"
             json_new = new_log_location + ".json"
-            if os.path.exists(json_current):
-                os.rename(json_current, json_new)
+            if os.path.exists(current_log_location):
+                os.rename(current_log_location, json_new)
 
             # Update settings with new location and filename
-            self.settings_manager.setting_set("log_file_location", new_log_location)
+            self.settings_manager.setting_set("log_file_location", new_log_location + ".json")
             self.settings_manager.setting_set("log_file_name", new_filename)
 
             return new_filename
@@ -1110,9 +1108,8 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 return False
 
             # Delete JSON file
-            json_log_location = current_log_location + ".json"
-            if os.path.exists(json_log_location):
-                os.remove(json_log_location)
+            if os.path.exists(current_log_location):
+                os.remove(current_log_location)
 
             # Generate new log file name for next conversation (like start_new_conversation_log)
             new_log_name = self.settings_manager.generate_new_log_filename()
@@ -1145,7 +1142,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 break
 
         if path_to_log_json:
-            self.settings_manager.setting_set("log_file_location", path_to_log_json[:-5]) # strip .json part
+            self.settings_manager.setting_set("log_file_location", path_to_log_json)
 
             with open(path_to_log_json) as file:
                 self.conversation_history = json.load(file)

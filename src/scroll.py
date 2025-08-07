@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.filters import Condition
 from print_helper import print_md
@@ -22,20 +23,26 @@ class ScrollManager:
             log_file_path = self.settings_manager.setting_get("log_file_location")
             if log_file_path and os.path.exists(log_file_path):
                 with open(log_file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    # Split into lines and filter out instructions
-                    lines = content.split('\n')
-                    skip_instructions = False
-                    for i, line in enumerate(lines):
-                        # Start skipping when we encounter system instructions
-                        if line.strip() == '**system:**' and i + 1 < len(lines) and lines[i + 1].strip().startswith('instructions:'):
-                            skip_instructions = True
-                            continue
-                        # Stop skipping when we encounter the next user or assistant message
-                        if skip_instructions and (line.strip().startswith('**user:**') or line.strip().startswith('**assistant:**')):
-                            skip_instructions = False
-                        # Add line if we're not skipping instructions
-                        if not skip_instructions:
+                    conversation_history = json.load(f)
+
+                # Format JSON conversation history for display
+                for msg in conversation_history:
+                    role = msg.get('role', '')
+                    content = msg.get('content', '')
+
+                    # Skip system instructions
+                    if role == 'system' or (role == 'user' and content.startswith('instructions:')):
+                        continue
+
+                    if role == 'user':
+                        user_name = self.settings_manager.setting_get('name_user')
+                        toggles = self.settings_manager.get_enabled_toggles()
+                        self.history_lines.append(f"\n{user_name}{toggles}:")
+                        self.history_lines.append(f"> {content}")
+                    elif role == 'assistant':
+                        ai_name = self.settings_manager.setting_get('name_ai')
+                        self.history_lines.append(f"\n{ai_name}:")
+                        for line in content.split('\n'):
                             self.history_lines.append(line)
             else:
                 # Fallback to in-memory history if no log file
