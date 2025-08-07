@@ -2,6 +2,7 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 logs/
+logs-exported/
 cache/
 rag/
 pdf/
