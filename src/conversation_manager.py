@@ -1205,8 +1205,8 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 content = message.get('content', '')
 
                 if role == 'system':
-                    # Show truncated system messages
-                    summary = content[:100] + "..." if len(content) > 100 else content
+                    # Show full system messages
+                    summary = content
                     markdown_lines.append(f"**System:** {summary}")
                     markdown_lines.append("")
                 elif role in ['user', 'assistant']:
