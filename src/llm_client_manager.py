@@ -11,6 +11,7 @@ from typing import Any, Optional, Dict, List
 from openai import OpenAI
 
 from settings_manager import SettingsManager
+from constants import LLMSettings
 
 
 class LLMClientManager:
@@ -37,7 +38,7 @@ class LLMClientManager:
         self,
         model: str,
         messages: List[Dict[str, str]],
-        temperature: float = 0.7,
+        temperature: float = LLMSettings.DEFAULT_TEMPERATURE,
         max_tokens: Optional[int] = None,
         **kwargs
     ) -> Any:
@@ -72,11 +73,13 @@ class LLMClientManager:
             **kwargs
         }
 
-        # Set temperature for all models (no special OpenAI handling)
-        params["temperature"] = temperature
+        # Set temperature for all models, with GPT-5 specific handling
+        params["temperature"] = LLMSettings.get_temperature_for_model(model, temperature)
 
+        # Handle max_tokens parameter (GPT-5 uses different parameter name)
         if max_tokens is not None:
-            params["max_tokens"] = max_tokens
+            max_tokens_param = LLMSettings.get_max_tokens_param_name(model)
+            params[max_tokens_param] = max_tokens
 
         return client.chat.completions.create(**params)
 
@@ -158,11 +161,14 @@ class LLMClientManager:
 
 
 
+
+
+
     def _create_anthropic_completion(
         self,
         model: str,
         messages: List[Dict[str, str]],
-        temperature: float = 0.7,
+        temperature: float = LLMSettings.DEFAULT_TEMPERATURE,
         max_tokens: Optional[int] = None,
         **kwargs
     ) -> Any:
@@ -190,18 +196,20 @@ class LLMClientManager:
         params = {
             "model": model,
             "messages": anthropic_messages,
-            "temperature": temperature,
+            "temperature": LLMSettings.get_temperature_for_model(model, temperature),
             **kwargs
         }
 
         if system_message:
             params["system"] = system_message
 
+        # Handle max_tokens parameter (GPT-5 uses different parameter name)
+        max_tokens_param = LLMSettings.get_max_tokens_param_name(model)
         if max_tokens is not None:
-            params["max_tokens"] = max_tokens
+            params[max_tokens_param] = max_tokens
         else:
             # Anthropic requires max_tokens to be set
-            params["max_tokens"] = 4096
+            params[max_tokens_param] = 4096
 
         # Enable extended thinking for supported models
         if self._is_claude_extended_thinking_model(model):

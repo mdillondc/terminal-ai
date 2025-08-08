@@ -128,6 +128,44 @@ class UIConstants:
     GRUVBOX_STYLE_MARGIN = 1            # Markdown formatting margin
 
 
+class LLMSettings:
+    """
+    Model-specific API parameter configurations.
+
+    Different model series have varying API parameter requirements and restrictions.
+    GPT-5 models in particular have several parameter changes from earlier models.
+    """
+
+    # Temperature settings
+    DEFAULT_TEMPERATURE = 0.7     # Default for most models (more focused)
+    GPT5_TEMPERATURE = 1.0        # GPT-5 models only support temperature=1.0
+
+    # Token limit parameter names (GPT-5 uses different parameter name)
+    DEFAULT_MAX_TOKENS_PARAM = "max_tokens"              # Standard parameter name
+    GPT5_MAX_TOKENS_PARAM = "max_completion_tokens"      # GPT-5 parameter name
+
+    # GPT-5 model prefix for detection (all GPT-5 models start with "gpt-5")
+    GPT5_MODEL_PREFIX = 'gpt-5'
+
+    @classmethod
+    def get_temperature_for_model(cls, model_name: str, requested_temp: float) -> float:
+        """Get appropriate temperature for model, handling GPT-5 restrictions."""
+        if model_name.lower().startswith(cls.GPT5_MODEL_PREFIX):
+            return cls.GPT5_TEMPERATURE
+        return requested_temp
+
+    @classmethod
+    def get_max_tokens_param_name(cls, model_name: str) -> str:
+        """Get correct max tokens parameter name for model."""
+        if model_name.lower().startswith(cls.GPT5_MODEL_PREFIX):
+            return cls.GPT5_MAX_TOKENS_PARAM
+        return cls.DEFAULT_MAX_TOKENS_PARAM
+
+    @classmethod
+    def is_gpt5_model(cls, model_name: str) -> bool:
+        """Check if model is from GPT-5 series."""
+        return model_name.lower().startswith(cls.GPT5_MODEL_PREFIX)
+
 
 class ModelPricingConstants:
     """
@@ -148,6 +186,7 @@ class ModelPricingConstants:
         'gemini-2.0-flash': {'input': 0.10, 'output': 0.40},
         'gemini-1.5-flash': {'input': 0.075, 'output': 0.30},
         'gemini-1.5-pro': {'input': 1.25, 'output': 5.00},
+
         # GPT-4o models - Latest generation with vision and multimodal capabilities
         'gpt-4o': {'input': 5.00, 'output': 15.00},
         'gpt-4o-2024-11-20': {'input': 2.50, 'output': 10.00},
@@ -169,7 +208,7 @@ class ModelPricingConstants:
         'gpt-3.5-turbo': {'input': 3.00, 'output': 6.00},
         'gpt-3.5-turbo-0125': {'input': 0.50, 'output': 1.50},
 
-        # GPT-5 models (fucking shit models)
+        # GPT-5 models
         'gpt-5': {'input': 2.00, 'output': 8.00},
         'gpt-5-mini': {'input': 0.40, 'output': 1.60},
         'gpt-5-nano': {'input': 0.10, 'output': 0.40},

@@ -1,17 +1,5 @@
 # Terminal AI Assistant
 
-## ⚠️ Important Notice: Why This App Defaults to Google Gemini Instead of OpenAI
-
-**TL;DR: OpenAI has become a bureaucratic nightmare with arbitrary restrictions that make no technical sense.**
-
-As of some damn time in 2025, OpenAI has implemented absurd "organization verification" requirements for basic API features like **streaming responses** with their newer models (GPT-5, etc.). This is fucking ridiculous - streaming vs non-streaming produces the exact same content and uses the same computational resources, but OpenAI decided to gate streaming behind additional verification bureaucracy.
-
-**What this means:**
-- 🚫 **OpenAI is no longer the default** - Google Gemini 2.5 Flash is now the default model. OpenAI is acting in a fucked up, dumbass way that makes no logical sense. Therefore, I conclude they should go fuck themselves and no longer deserve to be the default provider.
-- ✅ **OpenAI models still available** - Use `--model gpt-5` if you want, but expect raw error messages when their bureaucratic systems reject you. As long as OpenAI continues to act like complete dicks, I won't bend over backwards to make this app work with them. If, in the future they decide to behave like reasonable people, I'll be happy to add them back as an option. Until then, triple-fuck-you, OpenAI!
-
-**Bottom line:** OpenAI is acting like a massive dick with these pointless restrictions. This app now defaults to providers that actually respect developers and don't implement arbitrary technical limitations for bureaucratic reasons.
-
 ![Terminal AI Assistant Screenshot](screenshot.png)
 
 A powerful terminal-based AI assistant that combines the best of conversational AI with advanced features like web search, RAG, youtube/article extraction, markdown rendering, multi-provider support and more.
@@ -29,7 +17,6 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Document Analysis (RAG)](#document-analysis-rag)
 - [AI Customization](#ai-customization)
 - [Conversation Management](#conversation-management)
-
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
 - [Troubleshooting](#troubleshooting)
