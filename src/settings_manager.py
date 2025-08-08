@@ -37,8 +37,6 @@ class SettingsManager:
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
         self.nothink = False  # Disable thinking mode on Ollama models that support it
 
-
-
         # Search Settings
         self.search = False  # Enable or disable search by default
         self.search_max_results = 3  # Balance between comprehensive results and API cost/speed

@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from settings_manager import SettingsManager
 from constants import LLMSettings
+from model_manager import ModelManager
 
 
 class LLMClientManager:
@@ -33,6 +34,9 @@ class LLMClientManager:
         self._ollama_client = None
         self._google_client = None
         self._anthropic_client = None
+
+        # Model manager for availability-based detection
+        self.model_manager = ModelManager(original_openai_client)
 
     def create_chat_completion(
         self,
@@ -61,7 +65,7 @@ class LLMClientManager:
 
 
         # Handle Anthropic models differently
-        if self._is_anthropic_model(model):
+        if self._get_provider_for_model(model) == 'anthropic':
             return self._create_anthropic_completion(model, messages, temperature, max_tokens, **kwargs)
 
         client = self._get_client_for_model(model)
@@ -85,7 +89,7 @@ class LLMClientManager:
 
     def _get_client_for_model(self, model_name: str) -> OpenAI:
         """
-        Get the appropriate client for the given model.
+        Get the appropriate client for the given model based on availability.
 
         Args:
             model_name: The model name
@@ -93,17 +97,19 @@ class LLMClientManager:
         Returns:
             OpenAI client configured for the appropriate provider
         """
-        if self._is_ollama_model(model_name):
+        provider = self._get_provider_for_model(model_name)
+
+        if provider == 'ollama':
             client = self._get_ollama_client()
             if not client:
                 raise Exception(f"Ollama client not available for model: {model_name}")
             return client
-        elif self._is_google_model(model_name):
+        elif provider == 'google':
             client = self._get_google_client()
             if not client:
                 raise Exception(f"Google client not available for model: {model_name}")
             return client
-        elif self._is_anthropic_model(model_name):
+        elif provider == 'anthropic':
             client = self._get_anthropic_client()
             if not client:
                 raise Exception(f"Anthropic client not available for model: {model_name}")
@@ -112,40 +118,34 @@ class LLMClientManager:
             # Default to OpenAI
             return self.original_openai_client
 
-    def _is_ollama_model(self, model_name: str) -> bool:
-        """Detect if a model is from Ollama based on naming patterns"""
-        if not self._is_ollama_available():
-            return False
+    def _get_provider_for_model(self, model_name: str) -> str:
+        """Find which provider has this model using availability-based detection"""
+        try:
+            # Get all available models using existing cache system
+            all_models = self.model_manager.get_available_models()
 
-        # Common Ollama model patterns
-        ollama_patterns = [
-            ':',  # Most Ollama models have tags like "llama3.2:latest"
-            'llama', 'mistral', 'qwen', 'codellama', 'phi', 'gemma',
-            'tinyllama', 'vicuna', 'orca', 'openchat', 'starling'
-        ]
+            # Parse the results to find our model
+            for model_info in all_models:
+                if model_info.get('name') == model_name:
+                    source = model_info.get('source', '').lower()
 
-        model_lower = model_name.lower()
-        return any(pattern in model_lower for pattern in ollama_patterns)
+                    # Map source names to our provider names
+                    provider_map = {
+                        'openai': 'openai',
+                        'google': 'google',
+                        'anthropic': 'anthropic',
+                        'ollama': 'ollama'
+                    }
+                    return provider_map.get(source, 'openai')
 
-    def _is_google_model(self, model_name: str) -> bool:
-        """Detect if a model is from Google based on naming patterns"""
-        if not self._is_google_available():
-            return False
+        except Exception:
+            # Graceful fallback if cache system fails
+            pass
 
-        # Common Google model patterns
-        google_patterns = ['gemini', 'palm', 'bard']
-        model_lower = model_name.lower()
-        return any(pattern in model_lower for pattern in google_patterns)
+        # Default to OpenAI if not found or on error
+        return 'openai'
 
-    def _is_anthropic_model(self, model_name: str) -> bool:
-        """Detect if a model is from Anthropic based on naming patterns"""
-        if not self._is_anthropic_available():
-            return False
 
-        # Common Anthropic model patterns
-        anthropic_patterns = ['claude']
-        model_lower = model_name.lower()
-        return any(pattern in model_lower for pattern in anthropic_patterns)
 
     def _is_claude_extended_thinking_model(self, model_name: str) -> bool:
         """Detect if a Claude model supports extended thinking"""
@@ -156,12 +156,6 @@ class LLMClientManager:
             'claude-3-7-sonnet'
         ]
         return any(pattern in model_lower for pattern in extended_thinking_patterns)
-
-
-
-
-
-
 
 
     def _create_anthropic_completion(
@@ -398,14 +392,7 @@ class LLMClientManager:
         Returns:
             Provider name: "ollama", "google", or "openai"
         """
-        if self._is_ollama_model(model_name):
-            return "ollama"
-        elif self._is_google_model(model_name):
-            return "google"
-        elif self._is_anthropic_model(model_name):
-            return "anthropic"
-        else:
-            return "openai"
+        return self._get_provider_for_model(model_name)
 
     def is_model_available(self, model_name: str) -> bool:
         """

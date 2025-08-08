@@ -199,12 +199,12 @@ class ConversationManager:
         return self.llm_client_manager._is_ollama_available()
 
     def _is_ollama_model(self, model_name: str) -> bool:
-        """Detect if a model is from Ollama - delegated to LLMClientManager"""
-        return self.llm_client_manager._is_ollama_model(model_name)
+        """Detect if a model is from Ollama - uses availability detection"""
+        return self.llm_client_manager._get_provider_for_model(model_name) == 'ollama'
 
     def _is_google_model(self, model_name: str) -> bool:
-        """Detect if a model is from Google - delegated to LLMClientManager"""
-        return self.llm_client_manager._is_google_model(model_name)
+        """Detect if a model is from Google - uses availability detection"""
+        return self.llm_client_manager._get_provider_for_model(model_name) == 'google'
 
     def _update_client_for_model(self, model_name: str) -> None:
         """Update client based on model source - delegated to LLMClientManager"""
