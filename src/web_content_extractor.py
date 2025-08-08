@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from print_helper import print_md
 from settings_manager import SettingsManager
 from llm_client_manager import LLMClientManager
+from constants import LLMSettings
 
 
 class WebContentExtractor:
@@ -27,6 +28,19 @@ class WebContentExtractor:
 
         # Store the LLM client manager for content evaluation
         self.llm_client_manager = llm_client_manager
+
+        # JSON schema for GPT-5 structured outputs
+        self.RESTRICTED_ACCESS_DETECTION_SCHEMA = {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "boolean",
+                    "description": "Whether the content is blocked by paywall or access restriction"
+                }
+            },
+            "required": ["blocked"],
+            "additionalProperties": False
+        }
         self.settings_manager = SettingsManager.getInstance()
 
     def extract_content(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
@@ -353,15 +367,45 @@ class WebContentExtractor:
             text = text[:-3]  # Remove trailing ```
         return text.strip()
 
+    def _make_paywall_detection_call(self, prompt: str, max_tokens: int):
+        """Make LLM call for paywall detection with appropriate parameters based on model type"""
+        current_model = self.settings_manager.setting_get("model")
+        messages = [{"role": "user", "content": prompt}]
+
+        try:
+            # Use different API parameters based on model type
+            if LLMSettings.is_gpt5_model(current_model):
+                # GPT-5: Use structured outputs (temperature fixed at 1.0)
+                return self.llm_client_manager.create_chat_completion(
+                    model=current_model,
+                    messages=messages,
+                    max_tokens=max_tokens,  # Limits AI's response output (e.g., {"blocked": false}), NOT input content length
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "paywall_detection",
+                            "schema": self.RESTRICTED_ACCESS_DETECTION_SCHEMA,
+                            "strict": True
+                        }
+                    }
+                )
+            else:
+                # Other models: Use traditional low temperature approach
+                return self.llm_client_manager.create_chat_completion(
+                    model=current_model,
+                    messages=messages,
+                    temperature=0.1,
+                    max_tokens=max_tokens  # Limits AI's response output (e.g., {"blocked": false}), NOT input content length
+                )
+        except Exception as e:
+            raise
+
     def _llm_evaluate_content(self, content: str, verbose: bool = True) -> Optional[str]:
         """Use LLM to evaluate if content is complete or blocked by restrictions."""
         if not content:
             return None
 
         try:
-            # Get current model from settings
-            current_model = self.settings_manager.setting_get("model")
-
             prompt = """Is this web content blocked by a paywall or access restriction?
 
 Content to analyze:
@@ -380,14 +424,7 @@ Respond in JSON format only:
   "blocked": true or false
 }}""".format(content=content)
 
-            messages = [{"role": "user", "content": prompt}]
-
-            response = self.llm_client_manager.create_chat_completion(
-                model=current_model,
-                messages=messages,
-                temperature=0.1,
-                max_tokens=100
-            )
+            response = self._make_paywall_detection_call(prompt, 999)
 
             response_text = response.choices[0].message.content.strip()
 
@@ -429,9 +466,6 @@ Respond in JSON format only:
             original_content = ""
 
         try:
-            # Get current model from settings
-            current_model = self.settings_manager.setting_get("model")
-
             prompt = """Is this web content blocked by a paywall or access restriction?
 
 Content to analyze:
@@ -444,14 +478,7 @@ Respond in JSON format only:
   "blocked": true or false
 }}""".format(content=bypass_content)
 
-            messages = [{"role": "user", "content": prompt}]
-
-            response = self.llm_client_manager.create_chat_completion(
-                model=current_model,
-                messages=messages,
-                temperature=0.1,
-                max_tokens=50
-            )
+            response = self._make_paywall_detection_call(prompt, 999)
 
             response_text = response.choices[0].message.content.strip()
 

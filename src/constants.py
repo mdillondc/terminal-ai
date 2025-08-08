@@ -186,6 +186,10 @@ class ModelPricingConstants:
         'gemini-2.0-flash': {'input': 0.10, 'output': 0.40},
         'gemini-1.5-flash': {'input': 0.075, 'output': 0.30},
         'gemini-1.5-pro': {'input': 1.25, 'output': 5.00},
+        
+        # GPT-3.5 models - Legacy models for cost-sensitive applications
+        'gpt-3.5-turbo': {'input': 3.00, 'output': 6.00},
+        'gpt-3.5-turbo-0125': {'input': 0.50, 'output': 1.50},
 
         # GPT-4o models - Latest generation with vision and multimodal capabilities
         'gpt-4o': {'input': 5.00, 'output': 15.00},
@@ -203,10 +207,6 @@ class ModelPricingConstants:
         'gpt-4-turbo-2024-04-09': {'input': 10.00, 'output': 30.00},
         'gpt-4-0125-preview': {'input': 10.00, 'output': 30.00},
         'gpt-4-1106-preview': {'input': 10.00, 'output': 30.00},
-
-        # GPT-3.5 models - Legacy models for cost-sensitive applications
-        'gpt-3.5-turbo': {'input': 3.00, 'output': 6.00},
-        'gpt-3.5-turbo-0125': {'input': 0.50, 'output': 1.50},
 
         # GPT-5 models
         'gpt-5': {'input': 2.00, 'output': 8.00},
