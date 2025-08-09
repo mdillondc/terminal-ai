@@ -1142,6 +1142,9 @@ class CommandManager:
         """
         import os
 
+        # Expand user home directory (handle tilde paths)
+        file_path = os.path.expanduser(file_path)
+
         # Check if file exists
         if not os.path.exists(file_path):
             print_md(f"Error: File not found: {file_path}")
