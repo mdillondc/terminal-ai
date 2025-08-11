@@ -130,7 +130,7 @@ class SettingsManager:
 
         Args:
             context: Display context - "switch", "simple", or "config"
-            provider: Model provider (openai, google, anthropic, ollama)
+            provider: Model provider (openai, google, ollama)
             llm_client_manager: Optional client manager for Ollama availability checking
         """
         model = self.setting_get("model")
@@ -151,10 +151,7 @@ class SettingsManager:
                 google_text = f"Model: {model}\n"
                 google_text += "    https://ai.google.dev/gemini-api/docs/models"
                 print_md(google_text)
-            elif provider == "anthropic":
-                anthropic_text = f"Model: {model}\n"
-                anthropic_text += "    https://docs.anthropic.com/en/docs/about-claude/models"
-                print_md(anthropic_text)
+
             else:
                 openai_text = f"Model: {model}\n"
                 openai_text += "    https://platform.openai.com/docs/models"

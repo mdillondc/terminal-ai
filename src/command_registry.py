@@ -72,7 +72,7 @@ class CommandRegistry:
             execution_order=1,
             completion_rules=CompletionRules(
                 CompletionType.MODEL_NAME,
-                custom_suggestions=["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "claude-3.5-sonnet"]  # Fallback suggestions prioritizing Google/Anthropic over OpenAI
+                custom_suggestions=["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]  # Fallback suggestions prioritizing Google over OpenAI
             ),
             requires_argument=True
         ))

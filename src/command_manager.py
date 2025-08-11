@@ -709,7 +709,7 @@ class CommandManager:
         """
         Clear the cached model list.
 
-        This is useful when new models have been added to OpenAI, Google, Anthropic,
+        This is useful when new models have been added to OpenAI, Google,
         or Ollama.
         """
         print_md("Clearing model cache...")
@@ -721,7 +721,7 @@ class CommandManager:
         Set the active AI model for conversations.
 
         Validates the model name against available models from OpenAI, Google,
-        Anthropic, and Ollama APIs.
+        and Ollama APIs.
 
         Args:
             arg: Model name to set (e.g., 'gpt-5').
@@ -734,7 +734,7 @@ class CommandManager:
             model_help_text += "    OpenAI (https://platform.openai.com/docs/models)\n"
             model_help_text += f"    Ollama ({ollama_url} if running)\n"
             model_help_text += "    Google (https://ai.google.dev/gemini-api/docs/models)\n"
-            model_help_text += "    Anthropic (https://docs.anthropic.com/en/docs/about-claude/models)"
+
             print_md(model_help_text)
             return
 
@@ -756,7 +756,7 @@ class CommandManager:
                     openai_models = [m["name"] for m in available_models if m["source"] == "OpenAI"]
                     ollama_models = [m["name"] for m in available_models if m["source"] == "Ollama"]
                     google_models = [m["name"] for m in available_models if m["source"] == "Google"]
-                    anthropic_models = [m["name"] for m in available_models if m["source"] == "Anthropic"]
+
 
                     if openai_models:
                         print_md(f"OpenAI: {', '.join(openai_models[:5])}" +
@@ -765,13 +765,12 @@ class CommandManager:
                     if google_models:
                         print_md(f"Google: {', '.join(google_models)}")
 
-                    if anthropic_models:
-                        print_md(f"Anthropic: {', '.join(anthropic_models)}")
+
 
                     if ollama_models:
                         print_md(f"Ollama: {', '.join(ollama_models)}")
 
-                    if not openai_models and not ollama_models and not google_models and not anthropic_models:
+                    if not openai_models and not ollama_models and not google_models:
                         print_md("(No models available - check API keys and network connection)")
                 else:
                     print_md("(Unable to fetch available models)")

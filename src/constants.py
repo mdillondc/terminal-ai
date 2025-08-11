@@ -186,7 +186,7 @@ class ModelPricingConstants:
         'gemini-2.0-flash': {'input': 0.10, 'output': 0.40},
         'gemini-1.5-flash': {'input': 0.075, 'output': 0.30},
         'gemini-1.5-pro': {'input': 1.25, 'output': 5.00},
-        
+
         # GPT-3.5 models - Legacy models for cost-sensitive applications
         'gpt-3.5-turbo': {'input': 3.00, 'output': 6.00},
         'gpt-3.5-turbo-0125': {'input': 0.50, 'output': 1.50},
@@ -217,9 +217,7 @@ class ModelPricingConstants:
         'gpt-5-mini-2024-12-05': {'input': 0.40, 'output': 1.60},
         'gpt-5-nano-2024-12-05': {'input': 0.10, 'output': 0.40},
 
-        # Anthropic Claude models - High quality reasoning
-        'claude-3.5-sonnet': {'input': 3.00, 'output': 15.00},
-        'claude-3.5-haiku': {'input': 0.80, 'output': 4.00},
+
     }
 
     @classmethod

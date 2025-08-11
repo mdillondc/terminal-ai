@@ -7,7 +7,7 @@ clipboard
 openai
 tiktoken
 ollama
-anthropic
+
 pygame
 tavily-python
 pypdf

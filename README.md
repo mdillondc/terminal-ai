@@ -23,7 +23,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 
 ## Features
 
-- **Multi-Provider AI**: OpenAI, Google Gemini, Anthropic, and Ollama (local models)
+- **Multi-Provider AI**: OpenAI, Google Gemini, and Ollama (local models)
 - **Intelligent Web Search**: Real-time information via Tavily API or SearXNG with dynamic intent analysis
 - **Deep Search Mode**: Autonomous research agent with intelligent termination
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
@@ -43,7 +43,6 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - API keys (optional):
   - OpenAI API key
   - Google API key  
-  - Anthropic API key
   - Tavily API key (for web search)
 - [Ollama](https://ollama.com/) (for local models)
 
@@ -53,7 +52,6 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
    ```bash
    export OPENAI_API_KEY="your-openai-key"
    export GOOGLE_API_KEY="your-google-key"
-   export ANTHROPIC_API_KEY="your-anthropic-key"
    export TAVILY_API_KEY="your-tavily-key"
    ```
 

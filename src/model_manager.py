@@ -55,10 +55,7 @@ class ModelManager:
         for model in google_models:
             all_models.append({"name": model, "source": "Google"})
 
-        # Get Anthropic models (with persistent cache)
-        anthropic_models = self._get_anthropic_models_cached()
-        for model in anthropic_models:
-            all_models.append({"name": model, "source": "Anthropic"})
+
 
         # Get Ollama models (always live, no cache)
         ollama_models = self._get_ollama_models()
@@ -196,61 +193,8 @@ class ModelManager:
 
         return []
 
-    def _get_anthropic_models_cached(self) -> List[str]:
-        """Get Anthropic models with persistent file-based caching"""
-        # Try to load from persistent cache first
-        cached_models = self._load_models_from_cache("anthropic")
-        if cached_models:
-            return cached_models
 
-        # If no valid cache, fetch from API
-        models = self._get_anthropic_models()
-        if models:
-            # Save to persistent cache
-            self._save_models_to_cache("anthropic", models)
 
-        return models
-
-    def _get_anthropic_models(self) -> List[str]:
-        """Get available models from Anthropic API"""
-        try:
-            import os
-
-            # Check if API key is available
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
-            if not api_key:
-                return []
-
-            # Get Anthropic models from API
-            url = "https://api.anthropic.com/v1/models"
-
-            # Create request with timeout
-            req = urllib.request.Request(url)
-            req.add_header('x-api-key', api_key)
-            req.add_header('anthropic-version', '2023-06-01')
-            req.add_header('Content-Type', 'application/json')
-
-            with urllib.request.urlopen(req, timeout=3) as response:
-                if response.status == 200:
-                    data = json.loads(response.read().decode('utf-8'))
-
-                    models = []
-                    if 'data' in data:
-                        for model_info in data['data']:
-                            model_id = model_info.get('id', '')
-                            if model_id:
-                                models.append(model_id)
-
-                    return models
-
-        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
-            # Anthropic API not available, connection failed, or invalid response
-            pass
-        except Exception:
-            # Any other error - silently continue to not break the application
-            pass
-
-        return []
 
     def _get_ollama_models(self) -> List[str]:
         """Get available models from Ollama with graceful error handling"""
@@ -298,7 +242,7 @@ class ModelManager:
         # Clear persistent cache files
         cache_dir = os.path.expanduser("~/.terminal-ai/cache")
         if os.path.exists(cache_dir):
-            for provider in ["openai", "google", "anthropic"]:
+            for provider in ["openai", "google"]:
                 cache_file = os.path.join(cache_dir, f"models_{provider}.json")
                 if os.path.exists(cache_file):
                     try:
