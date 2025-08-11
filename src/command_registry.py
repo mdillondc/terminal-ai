@@ -132,6 +132,32 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
+            name="--folder",
+            description="Load and add contents of all supported files from a directory to conversation context. Non-recursive.",
+            usage="--folder path/to/directory/",
+            execution_order=2,
+            completion_rules=CompletionRules(
+                CompletionType.FILE_PATH,
+                file_extensions=True,
+                base_directory=self.working_dir
+            ),
+            requires_argument=True
+        ))
+
+        self.register_command(CommandInfo(
+            name="--folder-recursive",
+            description="Load and add contents of all supported files from a directory and its subdirectories to conversation context. Recursive.",
+            usage="--folder-recursive path/to/directory/",
+            execution_order=2,
+            completion_rules=CompletionRules(
+                CompletionType.FILE_PATH,
+                file_extensions=True,
+                base_directory=self.working_dir
+            ),
+            requires_argument=True
+        ))
+
+        self.register_command(CommandInfo(
             name="--search",
             description="Toggles web search mode on or off. When enabled, user prompts are automatically enhanced with web search results. Search engine (Tavily or SearXNG) can be configured via settings.",
             usage="--search",

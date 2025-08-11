@@ -289,6 +289,18 @@ class CommandManager:
                     else:
                         self.extract_file_content(arg)
                     command_executed = True
+                elif command_name == "--folder":
+                    if arg is None:
+                        print_md("Please specify a directory path")
+                    else:
+                        self.extract_folder_content(arg)
+                    command_executed = True
+                elif command_name == "--folder-recursive":
+                    if arg is None:
+                        print_md("Please specify a directory path")
+                    else:
+                        self.extract_folder_content_recursive(arg)
+                    command_executed = True
                 elif command_name == "--search":
                     if self.settings_manager.setting_get("search"):
                         self.settings_manager.setting_set("search", False)
@@ -1189,6 +1201,123 @@ class CommandManager:
 
         except Exception as e:
             print_md(f"Error loading file: {e}")
+
+    def extract_folder_content(self, folder_path: str) -> None:
+        """
+        Load and process contents of all supported files in a directory.
+        Non-recursive - only processes files in the specified directory.
+
+        Args:
+            folder_path: Path to the directory to process (relative or absolute path)
+        """
+        import os
+
+        # Expand user home directory (handle tilde paths)
+        folder_path = os.path.expanduser(folder_path)
+
+        # Check if directory exists
+        if not os.path.exists(folder_path):
+            print_md(f"Error: Directory not found: {folder_path}")
+            return
+
+        # Check if path is actually a directory
+        if not os.path.isdir(folder_path):
+            print_md(f"Error: Path is not a directory: {folder_path}")
+            return
+
+        print_md(f"Loading files from: {os.path.basename(folder_path)}")
+
+        # Get all files in the directory
+        try:
+            files = os.listdir(folder_path)
+            supported_files = []
+
+            # Filter for supported files
+            for filename in files:
+                file_path = os.path.join(folder_path, filename)
+                if os.path.isfile(file_path) and is_supported_file(file_path):
+                    supported_files.append(file_path)
+
+            if not supported_files:
+                supported_types = get_supported_extensions_display()
+                print_md(f"No supported files found in directory. Supported types: {supported_types}")
+                return
+
+            print_md(f"Found {len(supported_files)} supported file(s)")
+
+            # Process each supported file
+            files_processed = 0
+            for file_path in supported_files:
+                try:
+                    self.extract_file_content(file_path)
+                    files_processed += 1
+                except Exception as e:
+                    print_md(f"Error processing {os.path.basename(file_path)}: {e}")
+
+            print_md(f"Successfully processed {files_processed} file(s) from folder")
+
+        except Exception as e:
+            print_md(f"Error reading directory: {e}")
+
+    def extract_folder_content_recursive(self, folder_path: str) -> None:
+        """
+        Load and process contents of all supported files in a directory and its subdirectories.
+        Recursive - processes files in the specified directory and all subdirectories.
+
+        Args:
+            folder_path: Path to the directory to process recursively (relative or absolute path)
+        """
+        import os
+
+        # Expand user home directory (handle tilde paths)
+        folder_path = os.path.expanduser(folder_path)
+
+        # Check if directory exists
+        if not os.path.exists(folder_path):
+            print_md(f"Error: Directory not found: {folder_path}")
+            return
+
+        # Check if path is actually a directory
+        if not os.path.isdir(folder_path):
+            print_md(f"Error: Path is not a directory: {folder_path}")
+            return
+
+        print_md(f"Loading files recursively from: {os.path.basename(folder_path)}")
+
+        # Walk directory tree recursively
+        try:
+            supported_files = []
+
+            for root, dirs, files in os.walk(folder_path):
+                for filename in files:
+                    file_path = os.path.join(root, filename)
+                    if is_supported_file(file_path):
+                        supported_files.append(file_path)
+
+            if not supported_files:
+                supported_types = get_supported_extensions_display()
+                print_md(f"No supported files found in directory tree. Supported types: {supported_types}")
+                return
+
+            print_md(f"Found {len(supported_files)} supported file(s) recursively")
+
+            # Process each supported file
+            files_processed = 0
+            for file_path in supported_files:
+                try:
+                    # Show relative path for better readability
+                    relative_path = os.path.relpath(file_path, folder_path)
+                    print_md(f"Processing: {relative_path}")
+                    self.extract_file_content(file_path)
+                    files_processed += 1
+                except Exception as e:
+                    relative_path = os.path.relpath(file_path, folder_path)
+                    print_md(f"Error processing {relative_path}: {e}")
+
+            print_md(f"Successfully processed {files_processed} file(s) from folder tree")
+
+        except Exception as e:
+            print_md(f"Error reading directory tree: {e}")
 
     def estimate_tokens_for_text(self, text: str, model: str) -> int:
         """
