@@ -50,7 +50,7 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
         title = results[index].get('title', 'Unknown Source')
         url_list += f"    {title}\n"
 
-    print_md(f"Extracting full content from all URLs (time consuming; set searxng_extract_full_content to False to disable)...\n{url_list.rstrip()}")
+    print_md(f"Extracting full content from all URLs (time consuming)...\n{url_list.rstrip()}")
 
     # Initialize WebContentExtractor
     extractor = WebContentExtractor(llm_client_manager)

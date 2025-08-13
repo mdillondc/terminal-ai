@@ -11,6 +11,7 @@ a thorough answer.
 import json
 from typing import List, Dict, Optional, Any, Tuple, Union
 from datetime import datetime
+from json_repair import repair_json
 from tavily_search import TavilySearch, create_tavily_search
 from searxng_search import SearXNGSearch, create_searxng_search
 from search_utils import extract_full_content_from_search_results
@@ -412,9 +413,15 @@ Only mark as sufficient (is_sufficient: true) if the completeness score is 10/10
 
             eval_text = response.choices[0].message.content.strip()
 
-            # Try to parse JSON
+
+
+            # Try to parse JSON with repair
             try:
-                evaluation = json.loads(eval_text)
+                # First attempt to repair any malformed JSON (handles markdown blocks, etc.)
+                cleaned_json = repair_json(eval_text)
+
+                # Then parse the cleaned JSON
+                evaluation = json.loads(cleaned_json)
 
                 # Validate required fields
                 required_fields = ['completeness_score', 'is_sufficient', 'assessment', 'gaps', 'confidence']
@@ -424,8 +431,8 @@ Only mark as sufficient (is_sufficient: true) if the completeness score is 10/10
 
                 return evaluation
 
-            except (json.JSONDecodeError, ValueError) as e:
-                print_md(f"Warning: Could not parse evaluation JSON: {e}")
+            except Exception as repair_error:
+                print_md(f"Warning: Could not repair/parse evaluation JSON: {repair_error}")
                 # Fallback evaluation
                 return {
                     "completeness_score": 6,
