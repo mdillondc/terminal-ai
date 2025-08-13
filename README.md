@@ -29,7 +29,6 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
 - **Content Extraction**: YouTube transcripts, website content
 - **Conversation Management**: Save, resume, and organize conversations
-
 - **Instruction Templates**: Custom AI behaviors and skills
 - **Clipboard Integration**: Use clipboard content as input
 - **Privacy-First**: Local processing with Ollama for sensitive documents

@@ -188,6 +188,7 @@ def main() -> None:
 
 
 
+
                 exit_commands = ("q", "quit", ":q", ":wq")
                 if user_input.lower().strip() in exit_commands:
                     if confirm_exit():
@@ -200,8 +201,9 @@ def main() -> None:
                     if command_processed and not remaining_text.strip():
                         continue
                     elif command_processed and remaining_text.strip():
-                        # Commands were processed but there's remaining text for AI
-                        user_input = remaining_text.strip()
+                        # Commands were processed and remaining text was handled by CommandManager
+                        # CommandManager already called generate_response(), so continue to next iteration
+                        continue
 
                 # Check if nothink mode is enabled and prepend /nothink prefix
                 final_user_input = user_input
@@ -214,6 +216,7 @@ def main() -> None:
         except KeyboardInterrupt:
             if confirm_exit():
                 break
+
 
 
 if __name__ == "__main__":

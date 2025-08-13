@@ -216,6 +216,7 @@ class ConversationManager:
             self.client = self._original_openai_client
 
     def generate_response(self, instructions: Optional[str] = None) -> None:
+
         # Check if search is enabled and handle search workflow
         if self.settings_manager.setting_get("search") and self.conversation_history:
             self._handle_search_workflow()
@@ -358,6 +359,7 @@ class ConversationManager:
             # Skip extra newline in markdown mode since we already add one for streamdown
             if not self.settings_manager.setting_get("markdown"):
                 print()
+
 
 
 
@@ -681,6 +683,7 @@ class ConversationManager:
         except Exception as e:
             print_md(f"Deep search workflow error: {e}. Continuing without search")
             return
+
 
 
 
