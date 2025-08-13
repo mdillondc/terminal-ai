@@ -160,8 +160,8 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 | **Setup Complexity** | Easy - just API key | Technical - requires self-hosted instance or public instance with JSON API enabled |
 | **Cost** | Pay-per-search (~$0.005/search) | Free |
 | **Privacy** | Commercial service | Fully private/self-hosted |
-| **Content Quality** | AI-optimized results | Raw search engine results |
-| **Speed** | Fast | Slower (especially with searxng_extract_full_content set to True) |
+| **Content Quality** | AI-optimized results | Raw search engine results with full content extraction |
+| **Speed** | Fast | Slower (always extracts full webpage content) |
 
 **Which Should You Choose?**
 - **Choose Tavily** if you want: Easy setup, don't mind costs, want AI-optimized results
@@ -217,16 +217,12 @@ Without JSON support, SearXNG integration will not work.
 **SearXNG Content Extraction Settings** *(SearXNG only - ignored when using Tavily)*:
 
 ```bash
-# Extract full webpage content (not just search snippets)
-searxng_extract_full_content=true
-
 # Limit extracted content to first 2500 words per page (configurable word count to avoid exceeding context limits of whatever LLM your are using)
 searxng_extract_full_content_truncate=2500
 ```
 
 **How Content Extraction Works:**
-- **When `searxng_extract_full_content=true`**: The app downloads and extracts the entire content of each search result webpage, making the process slower but providing much more detailed information. It also uses paywall bypass methods to access full articles when possible. If this setting is `False`, the app only uses the brief snippets returned by SearXNG and does not attempt to download full webpages.
-- **When `searxng_extract_full_content=false`**: Uses only search result snippets (faster but less detailed)
+- **SearXNG content extraction**: The app always downloads and extracts the entire content of each search result webpage, providing detailed information with paywall bypass capabilities. This makes SearXNG searches slower but much more comprehensive than basic snippets.
 - **`searxng_extract_full_content_truncate`**: Sets the maximum number of words from each extracted webpage that will be included in the AI's context. This helps prevent exceeding the LLM's context window limit.
 
 **Note:** Tavily handles content extraction automatically - these settings have no effect when `search_engine=tavily`.

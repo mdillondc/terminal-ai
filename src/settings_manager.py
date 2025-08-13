@@ -46,8 +46,8 @@ class SettingsManager:
         self.search_context_window = 6  # Number of recent messages to include in search context
         self.search_max_queries = 2  # Maximum number of search queries to generate and execute
         self.searxng_base_url = "http://10.13.0.200:8095, https://some.instance"  # URL(s) for SearXNG instance. NB! Instances must have JSON API enabled. System will iterate until it finds an instance that works, or exhaust the list
-        self.searxng_extract_full_content = True  # Extract full page content from SearXNG search result URLs (uses WebContentExtractor with paywall bypass)
-        self.searxng_extract_full_content_truncate = 2500  # Maximum words to keep from each extracted URL content (prevents context window overflow)
+
+        self.searxng_extract_full_content_truncate = 2500  # Maximum words to keep from each extracted URL content (SearXNG always extracts full content, prevents context window overflow)
         self.concurrent_workers = 50  # Number of concurrent threads for URL extraction and search operations
 
         # Markdown streamdown settings

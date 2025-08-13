@@ -559,7 +559,6 @@ class ConversationManager:
 
             # Extract full content if enabled for SearXNG - AFTER all search results are displayed
             if (search_engine == "searxng" and
-                self.settings_manager.searxng_extract_full_content and
                 stored_raw_results):
 
                 # Combine all URLs from all searches for ONE extraction
