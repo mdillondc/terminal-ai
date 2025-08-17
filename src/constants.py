@@ -72,6 +72,17 @@ class ConversationConstants:
     PARTIAL_TAG_MAX_LENGTH = 10  # Maximum partial tag length to buffer
 
 
+class FilenameConstants:
+    """
+    Filename and timestamp formatting constants.
+
+    Standardized formats used across the application for consistent file naming.
+    """
+
+    # Standardized timestamp format: YYYYMMDD-HHMMSS (e.g., 20241229-143022)
+    TIMESTAMP_FORMAT = '%Y%m%d-%H%M%S'
+
+
 class ColorConstants:
     """
     ANSI color codes for terminal output.

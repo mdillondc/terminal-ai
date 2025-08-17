@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from typing import Optional
 from settings_manager import SettingsManager
-
+from constants import FilenameConstants
 
 class ExportManager:
     """Handles exporting conversation JSON files to markdown format"""
@@ -51,7 +51,7 @@ class ExportManager:
             if custom_filename:
                 # Use custom filename with timestamp, replace spaces with hyphens
                 sanitized_filename = custom_filename.replace(" ", "-")
-                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                timestamp = datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)
                 base_filename = f"{sanitized_filename}_{timestamp}.md"
             else:
                 # Use original logic - base filename from current log

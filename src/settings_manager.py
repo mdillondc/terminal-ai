@@ -1,10 +1,8 @@
-
 import os
-import time
 import datetime
 from typing import Optional, Any, ClassVar, Dict, List
-
 from print_helper import print_md
+from constants import FilenameConstants
 
 
 class SettingsManager:
@@ -73,8 +71,8 @@ class SettingsManager:
         self.incognito = False  # Enable or disable conversation logging
 
     def generate_new_log_filename(self) -> str:
-        """Generate a new log filename using date + timestamp format"""
-        return f"{datetime.datetime.now().strftime('%Y-%m-%d')}_{int(time.time())}.md"
+        """Generate a new log filename using standardized YYYYMMDD-HHMMSS format"""
+        return f"{datetime.datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)}.md"
 
     def setting_set(self, key: str, value: Any) -> None:
         if hasattr(self, key):

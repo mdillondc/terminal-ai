@@ -8,7 +8,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Any, List
 from settings_manager import SettingsManager
-
+from constants import FilenameConstants
 from tavily_search import create_tavily_search, TavilySearchError
 from searxng_search import create_searxng_search, SearXNGSearchError
 from search_utils import extract_full_content_from_search_results
@@ -18,7 +18,6 @@ from constants import ColorConstants, ConversationConstants
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines
 from rich.console import Console
-
 
 
 class ConversationManager:
@@ -957,18 +956,10 @@ Generate only the filename focusing on content substance:""".format(context[:100
             if not current_log_location:
                 return
 
-            # Extract date from current filename (base name without extension)
-            current_filename = os.path.basename(current_log_location)
+            timestamp = datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)
 
-            # Extract date part (format: 2025-06-08_timestamp)
-            date_part = current_filename.split('_')[0] if '_' in current_filename else current_filename
-
-            # Add unix timestamp to prevent conflicts
-            import time
-            timestamp = int(time.time())
-
-            # Create new base filename: date_descriptive-title_timestamp
-            new_filename = f"{date_part}_{title}_{timestamp}"
+            # Create new base filename
+            new_filename = f"{title}_{timestamp}"
 
             # Get directory path
             log_directory = os.path.dirname(current_log_location)
@@ -1030,27 +1021,16 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
             current_log_location = self.settings_manager.setting_get("log_file_location")
             if not current_log_location:
-                # If no current log, create filename with current date/timestamp
-                import time
-                import datetime
-                date_part = datetime.datetime.now().strftime('%Y-%m-%d')
-                timestamp = int(time.time())
-                new_filename = f"{date_part}_{title}_{timestamp}"
+                # If no current log, create one
+                timestamp = datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)
+                new_filename = f"{title}_{timestamp}"
                 self.settings_manager.setting_set("log_file_name", new_filename)
                 return new_filename
 
-            # Extract date from current filename (base name without extension)
-            current_filename = os.path.basename(current_log_location)
+            timestamp = datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)
 
-            # Extract date part (format: 2025-06-08_timestamp or 2025-06-08_title_timestamp)
-            date_part = current_filename.split('_')[0] if '_' in current_filename else current_filename
-
-            # Add unix timestamp to prevent conflicts
-            import time
-            timestamp = int(time.time())
-
-            # Create new base filename: date_descriptive-title_timestamp
-            new_filename = f"{date_part}_{title}_{timestamp}"
+            # Create new base filename
+            new_filename = f"{title}_{timestamp}"
 
             # Get directory path
             log_directory = os.path.dirname(current_log_location)
