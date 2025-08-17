@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 from typing import Optional
 from settings_manager import SettingsManager
 
@@ -10,9 +11,13 @@ class ExportManager:
     def __init__(self):
         self.settings_manager = SettingsManager.getInstance()
 
-    def export_current_conversation(self) -> Optional[str]:
+    def export_current_conversation(self, custom_filename: Optional[str] = None) -> Optional[str]:
         """
         Export the current conversation from JSON to markdown format.
+
+        Args:
+            custom_filename: Optional custom filename (without extension).
+                           If provided, exports as {custom_filename}_YYYYMMDD-HHMMSS.md
 
         Returns:
             str: Path to the exported markdown file, or None if export failed
@@ -43,9 +48,16 @@ class ExportManager:
             markdown_content = self._convert_conversation_to_markdown(conversation_history)
 
             # Create export file path with .md extension instead of .json
-            base_filename = os.path.basename(current_log_location)
-            if base_filename.endswith('.json'):
-                base_filename = base_filename[:-5] + '.md'
+            if custom_filename:
+                # Use custom filename with timestamp, replace spaces with hyphens
+                sanitized_filename = custom_filename.replace(" ", "-")
+                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                base_filename = f"{sanitized_filename}_{timestamp}.md"
+            else:
+                # Use original logic - base filename from current log
+                base_filename = os.path.basename(current_log_location)
+                if base_filename.endswith('.json'):
+                    base_filename = base_filename[:-5] + '.md'
             export_file_path = os.path.join(export_dir, base_filename)
 
             # Write markdown file

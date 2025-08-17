@@ -226,7 +226,7 @@ class CommandManager:
                         print_md("No log file to delete or deletion failed")
                     command_executed = True
                 elif command_name == "--export-markdown":
-                    export_path = self.export_manager.export_current_conversation()
+                    export_path = self.export_manager.export_current_conversation(arg)
                     if export_path:
                         print_md(f"Conversation exported to: {export_path}")
                     else:

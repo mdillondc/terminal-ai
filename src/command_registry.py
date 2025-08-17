@@ -289,7 +289,7 @@ class CommandRegistry:
         self.register_command(CommandInfo(
             name="--export-markdown",
             description="Exports the current conversation to markdown format in logs/{instruction-set}/export/ directory.",
-            usage="--export-markdown",
+            usage="--export-markdown (uses log name) | --export-markdown custom-name (uses custom-name_YYYYMMDD-HHMMSS.md)",
             execution_order=2,
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
