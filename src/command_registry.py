@@ -86,6 +86,18 @@ class CommandRegistry:
             requires_argument=False
         ))
 
+        self.register_command(CommandInfo(
+            name="--gpt5-effort",
+            description="Sets the reasoning effort level for GPT-5 models. Controls the trade-off between response speed and thinking depth.",
+            usage="--gpt5-effort medium",
+            execution_order=1,
+            completion_rules=CompletionRules(
+                CompletionType.SIMPLE,
+                custom_suggestions=["minimal", "low", "medium", "high"]
+            ),
+            requires_argument=True
+        ))
+
         # Content processing commands
         self.register_command(CommandInfo(
             name="--instructions",

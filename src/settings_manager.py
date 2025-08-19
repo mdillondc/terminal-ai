@@ -34,6 +34,7 @@ class SettingsManager:
         self.model = "gemini-2.5-flash"  # Default model (Google Gemini - reliable and cheaper than OpenAI)
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
         self.nothink = False  # Disable thinking mode on Ollama models that support it
+        self.gpt5_reasoning_effort = "medium"  # GPT-5 reasoning effort level: minimal, low, medium, high (higher effort = slower, but more intelligent response)
 
         # Search Settings
         self.search = False  # Enable or disable search by default

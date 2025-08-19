@@ -5,6 +5,8 @@ All (dumb) magic numbers and configuration values that affect system behavior
 are defined here with clear documentation and rationale.
 """
 
+from typing import Optional
+
 class CompletionScoringConstants:
     """
     Fuzzy matching score weights for command completion.
@@ -158,6 +160,10 @@ class LLMSettings:
     # GPT-5 model prefix for detection (all GPT-5 models start with "gpt-5")
     GPT5_MODEL_PREFIX = 'gpt-5'
 
+    # GPT-5 reasoning effort levels
+    GPT5_REASONING_EFFORTS = ["minimal", "low", "medium", "high"]
+    GPT5_DEFAULT_REASONING_EFFORT = "medium"
+
     @classmethod
     def get_temperature_for_model(cls, model_name: str, requested_temp: float) -> float:
         """Get appropriate temperature for model, handling GPT-5 restrictions."""
@@ -176,6 +182,18 @@ class LLMSettings:
     def is_gpt5_model(cls, model_name: str) -> bool:
         """Check if model is from GPT-5 series."""
         return model_name.lower().startswith(cls.GPT5_MODEL_PREFIX)
+
+    @classmethod
+    def is_valid_reasoning_effort(cls, effort: str) -> bool:
+        """Check if reasoning effort level is valid for GPT-5."""
+        return effort.lower() in cls.GPT5_REASONING_EFFORTS
+
+    @classmethod
+    def get_reasoning_effort_for_model(cls, model_name: str, requested_effort: str) -> Optional[str]:
+        """Get appropriate reasoning effort for model, defaulting for non-GPT-5 models."""
+        if cls.is_gpt5_model(model_name) and cls.is_valid_reasoning_effort(requested_effort):
+            return requested_effort.lower()
+        return cls.GPT5_DEFAULT_REASONING_EFFORT if cls.is_gpt5_model(model_name) else None
 
 
 class ModelPricingConstants:

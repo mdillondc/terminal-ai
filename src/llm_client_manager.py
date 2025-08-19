@@ -81,6 +81,12 @@ class LLMClientManager:
             max_tokens_param = LLMSettings.get_max_tokens_param_name(model)
             params[max_tokens_param] = max_tokens
 
+        # Handle reasoning_effort parameter (GPT-5 specific)
+        if LLMSettings.is_gpt5_model(model):
+            reasoning_effort = self.settings_manager.setting_get("gpt5_reasoning_effort")
+            if reasoning_effort:
+                params["reasoning_effort"] = reasoning_effort
+
         return client.chat.completions.create(**params)
 
     def _get_client_for_model(self, model_name: str) -> OpenAI:

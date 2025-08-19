@@ -185,6 +185,9 @@ class CommandManager:
                 elif command_name == "--model":
                     self.set_model(arg)
                     command_executed = True
+                elif command_name == "--gpt5-effort":
+                    self.set_gpt5_effort(arg)
+                    command_executed = True
                 elif command_name == "--instructions":
                     self.conversation_manager.apply_instructions(
                         arg, self.settings_manager.setting_get("instructions")
@@ -715,6 +718,44 @@ class CommandManager:
         print_md("Clearing model cache...")
         self.completer.clear_models_cache()
         print_md("Model cache cleared. Fresh models will be fetched on next use")
+
+    def set_gpt5_effort(self, arg: Optional[str]) -> None:
+        """
+        Set the reasoning effort level for GPT-5 models.
+
+        Controls the trade-off between response speed and thinking depth.
+        Only applies to GPT-5 model variants.
+
+        Args:
+            arg: Effort level to set ('minimal', 'low', 'medium', 'high').
+                 If None, displays available effort levels and usage information.
+        """
+        valid_efforts = ["minimal", "low", "medium", "high"]
+
+        if arg is None:
+            effort_help_text = "Please specify the reasoning effort level for GPT-5 models\n"
+            effort_help_text += "Available levels:\n"
+            effort_help_text += "    minimal - Fastest responses, minimal thinking\n"
+            effort_help_text += "    low     - Quick responses with light reasoning\n"
+            effort_help_text += "    medium  - Balanced speed and reasoning (default)\n"
+            effort_help_text += "    high    - Maximum reasoning, longer delays\n\n"
+            effort_help_text += f"Current setting: {self.settings_manager.setting_get('gpt5_reasoning_effort')}"
+
+            print_md(effort_help_text)
+            return
+
+        effort = arg.lower()
+
+        # Validate effort level
+        if effort not in valid_efforts:
+            invalid_effort_text = f"Invalid reasoning effort level: {effort}\n"
+            invalid_effort_text += f"Valid options: {', '.join(valid_efforts)}"
+            print_md(invalid_effort_text)
+            return
+
+        # Set the effort level
+        self.settings_manager.setting_set("gpt5_reasoning_effort", effort)
+        print_md(f"GPT-5 reasoning effort set to: **{effort}**")
 
     def set_model(self, arg: Optional[str]) -> None:
         """
