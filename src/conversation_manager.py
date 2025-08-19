@@ -5,6 +5,7 @@ import sys
 import json
 import re
 import subprocess
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Any, List
 from settings_manager import SettingsManager
@@ -14,7 +15,7 @@ from searxng_search import create_searxng_search, SearXNGSearchError
 from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
-from constants import ColorConstants, ConversationConstants
+from constants import ColorConstants, ConversationConstants, RESPONSE_TIMEOUT_1_SEC, RESPONSE_TIMEOUT_1_MSG, RESPONSE_TIMEOUT_2_SEC, RESPONSE_TIMEOUT_2_MSG
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines
 from rich.console import Console
@@ -240,6 +241,11 @@ class ConversationManager:
         # Display AI name to user
         print(f"\n{self.settings_manager.get_ai_name_with_instructions()}:")
 
+        # Start timeout detection for response delays BEFORE API call
+        response_started = threading.Event()
+        timeout_messages_shown = [False]  # Use list for mutable reference
+        timeout_thread = self._start_timeout_detection(response_started, timeout_messages_shown)
+
         # Setup stream to receive response from AI
         stream = self.llm_client_manager.create_chat_completion(
             model=self.model, messages=self.conversation_history, stream=True
@@ -263,8 +269,16 @@ class ConversationManager:
 
         # Process response stream with interrupt checking between chunks
         interrupted = False
+        first_chunk = True
         try:
             for chunk in stream:
+                # Signal that response has started on first chunk
+                if first_chunk:
+                    # Add newline if timeout messages were shown
+                    if timeout_messages_shown[0]:
+                        print()
+                    response_started.set()
+                    first_chunk = False
                 # Check for 'q + enter' interrupt before processing each chunk
                 if self._check_for_interrupt():
                     print_md("Response interrupted by user")
@@ -759,6 +773,23 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
             return False
         except Exception:
             return False
+
+    def _start_timeout_detection(self, response_started: threading.Event, timeout_messages_shown: list) -> threading.Thread:
+        """Start timeout detection thread for response delays."""
+        def timeout_monitor():
+            # First timeout at 3 seconds
+            if not response_started.wait(timeout=RESPONSE_TIMEOUT_1_SEC):
+                print_md(RESPONSE_TIMEOUT_1_MSG)
+                timeout_messages_shown[0] = True
+
+                # Second timeout at 10 seconds (additional 7 seconds)
+                additional_wait = RESPONSE_TIMEOUT_2_SEC - RESPONSE_TIMEOUT_1_SEC
+                if not response_started.wait(timeout=additional_wait):
+                    print_md(RESPONSE_TIMEOUT_2_MSG)
+
+        thread = threading.Thread(target=timeout_monitor, daemon=True)
+        thread.start()
+        return thread
 
     def apply_instructions(self, file_name: Optional[str], old_file_name: Optional[str] = None) -> None:
         if file_name is None:

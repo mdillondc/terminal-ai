@@ -7,6 +7,13 @@ are defined here with clear documentation and rationale.
 
 from typing import Optional
 
+# Response timeout constants for universal timeout system
+# Intention: Communicate to user that app has not hung, but is working
+RESPONSE_TIMEOUT_1_SEC = 3
+RESPONSE_TIMEOUT_1_MSG = "Model is still processing your request..."
+RESPONSE_TIMEOUT_2_SEC = 6
+RESPONSE_TIMEOUT_2_MSG = "Still working..."
+
 class CompletionScoringConstants:
     """
     Fuzzy matching score weights for command completion.
