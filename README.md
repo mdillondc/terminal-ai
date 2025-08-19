@@ -25,7 +25,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 
 - **Multi-Provider AI**: OpenAI, Google Gemini, and Ollama (local models)
 - **Intelligent Web Search**: Real-time information via Tavily API or SearXNG with dynamic intent analysis
-- **Deep Search Mode**: Autonomous research agent with intelligent termination
+- **Deep Research Mode**: Autonomous research agent with intelligent termination
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
 - **Content Extraction**: YouTube transcripts, website content
 - **Conversation Management**: Save, resume, and organize conversations
@@ -75,9 +75,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 python src/main.py
 
 # Basic usage
-> --model gpt-5
-# Basic conversation (uses Google Gemini 2.5 Flash by default)
-> Hello, how can you help me today?
+> Hello world
 
 # Web search and analysis
 > --search
@@ -91,14 +89,13 @@ python src/main.py
 > --file document.pdf
 > What are the main conclusions?
 
-# Switch to OpenAI model (expect raw errors for restricted features)
-> --model gpt-5
+# Switch to local model
+> --model hf.co/unsloth/Mistral-Small-3.2-24B-Instruct-2506-GGUF:Q6_K_XL
 > Tell me about quantum computing
-
-
 
 # Exit the application
 > quit
+Confirm quitting (Y/n)?
 ```
 
 ## Core Commands
@@ -118,19 +115,22 @@ python src/main.py
 | Command | Description |
 |---------|-------------|
 | `--file <path>` | Load file contents (text, PDF, etc.) |
+| `--folder <path>` | Load all supported files from directory (non-recursive) |
+| `--folder-recursive <path>` | Load all supported files from directory and subdirectories |
 | `--cb` | Use clipboard contents |
 | `--cbl` | Copy latest AI reply to clipboard |
 
 ### URL Content Extraction
 
-Extract content from websites with automatic paywall/access block bypass using multiple methods:
+Extract content from websites/youtube with automatic paywall/access block bypass using multiple methods:
 
 | Command | Description |
 |---------|-------------|
 | `--url <url>` | Extract website content |
+| `--youtube <url>` | Extract website content |
 
 **Bypass Methods:**
-- Search engine bot headers
+- Search engine bot headers (example: imitating Facebook crawler often allows access)
 - Print versions
 - AMP versions
 - Archive.org (Wayback Machine)
@@ -141,7 +141,9 @@ Extract content from websites with automatic paywall/access block bypass using m
 |---------|-------------|
 | `--youtube <url>` | Extract video transcript |
 
-## Search & Research
+Tip! `--url` will redirect to `--youtube` when required, so you really only need to use the `--url` command.
+
+## Search & Deep Research
 
 ### Web Search
 
@@ -151,7 +153,7 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 | Command | Description |
 |---------|-------------|
 | `--search` | Toggle web search mode |
-| `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session. Can be overriden in ~/.config/terminal-ai/config |
+| `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session. Can be overriden in ~/.config/terminal-ai/config (as can any setting) |
 
 **Search Engine Comparison:**
 
@@ -161,18 +163,19 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 | **Cost** | Pay-per-search (~$0.005/search) | Free |
 | **Privacy** | Commercial service | Fully private/self-hosted |
 | **Content Quality** | AI-optimized results | Raw search engine results with full content extraction |
-| **Speed** | Fast | Slower (always extracts full webpage content) |
+| **Speed** | Fast | Slower (because web page content needs to be extracted for every result) |
 
 **Which Should You Choose?**
 - **Choose Tavily** if you want: Easy setup, don't mind costs, want AI-optimized results
 - **Choose SearXNG** if you want: Complete privacy, free operation, full control over search sources
+- **Both** options yield pretty much the same quality/end result because the search agent is optimized for both.
 
 **Example Usage:**
 ```bash
 # Enable web search
 > --search
 
-> what was the real secret behind the dharma initiative
+> What was the real secret behind the dharma initiative?
  • Generating search queries...
    • Dharma Initiative true purpose and secrets explained
    • Real secret behind the Dharma Initiative in Lost TV show
@@ -188,9 +191,8 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 ```
 
 **Smart Features:**
-- Dynamic intent detection via LLM analysis
 - Conversation context awareness
-- Current date awareness in queries
+- Current date awareness
 - Parallel query execution to significantly reduce search response times
 - Multi-query strategy (1-3 optimized searches per request)
 
@@ -203,7 +205,7 @@ search_engine=searxng
 searxng_base_url=http://your-searxng-instance:8080
 ```
 
-**Important:** Your SearXNG instance must have JSON format enabled in its settings. Add this to your SearXNG `settings.yml`:
+**Important:** Your SearXNG instance must have JSON format enabled. Add this to your SearXNG `settings.yml`:
 
 ```yaml
 search:
@@ -218,26 +220,26 @@ Without JSON support, SearXNG integration will not work.
 
 ```bash
 # Limit extracted content to first 2500 words per page (configurable word count to avoid exceeding context limits of whatever LLM your are using)
-searxng_extract_full_content_truncate=2500
+searxng_extract_full_content_truncate = 8000
 ```
 
 **How Content Extraction Works:**
 - **SearXNG content extraction**: The app always downloads and extracts the entire content of each search result webpage, providing detailed information with paywall bypass capabilities. This makes SearXNG searches slower but much more comprehensive than basic snippets.
 - **`searxng_extract_full_content_truncate`**: Sets the maximum number of words from each extracted webpage that will be included in the AI's context. This helps prevent exceeding the LLM's context window limit.
 
-**Note:** Tavily handles content extraction automatically - these settings have no effect when `search_engine=tavily`.
+**Note:** Tavily handles content extraction automatically - these settings have no effect when `search_engine = tavily`.
 
-### Deep Search Mode
+### Deep Research Mode
 
-The `--search-deep` command enables autonomous, intelligent web research that dynamically determines when sufficient information has been gathered to comprehensively answer complex queries.
+The `--search-deep` command enables autonomous, intelligent web research that dynamically determines when sufficient information has been gathered to comprehensively answer complex queries, while still allowing user input to refine or conclude research.
 
 | Command | Description |
 |---------|-------------|
 | `--search-deep` | Toggle autonomous deep search mode |
 
-#### How Deep Search Works
+#### How Deep Research Works
 
-Unlike basic search which performs a fixed number of searches, deep search uses an AI research agent that:
+Unlike basic search which performs a fixed number of searches, deep search uses an AI research agent:
 
 1. **Dynamic Initial Research**: AI determines how many initial search queries are needed based on query complexity
 2. **Autonomous Evaluation**: Analyzes gathered information and scores completeness (1-10 scale)
@@ -246,50 +248,81 @@ Unlike basic search which performs a fixed number of searches, deep search uses 
 5. **Targeted Follow-up**: Generates precise searches to fill identified gaps
 6. **Smart Termination**: Detects diminishing returns to prevent infinite search loops
 
-#### Example Deep Search Session
+#### Example Deep Research Session
 
 ```bash
+User (samantha, markdown, gemini-2.5-flash):
 > --search-deep
-> Write a comprehensive report on the benefits and risks of TMS for OCD treatment
+ • Deep search enabled - AI will autonomously determine research completeness
 
-Deep Search Mode Activated
-AI will autonomously determine when sufficient information has been gathered...
-
-Initial Research Strategy:
-    1. TMS benefits OCD treatment clinical studies
-    2. TMS risks side effects OCD therapy mechanisms
-    3. TMS vs traditional OCD treatments comparison
-    4. Patient selection criteria TMS OCD guidelines
-    5. Long-term outcomes TMS OCD treatment
-
-Search 1: TMS benefits OCD treatment clinical studies
-    Transcranial Magnetic Stimulation for OCD: Latest Clinical Evidence
-    TMS Efficacy in Treatment-Resistant OCD Patients
-    Meta-Analysis: TMS Response Rates in OCD
-
-Research Evaluation (after 5 searches):
-    Completeness: 8/10
-    Assessment: Good coverage of efficacy and safety, missing detailed mechanistic pathways and patient selection nuances
-    Decision: Research quality is good (8/10). Continue searching for higher completeness?
-    Gaps identified: mechanistic explanations, patient selection criteria, cost-effectiveness
-
-[C]ontinue deep search  [S]top and generate response
-Choice: C
-
-Continuing research for higher completeness...
-
-Research Evaluation (after 8 searches):
-    Completeness: 9/10
-    Assessment: Comprehensive coverage achieved with detailed mechanisms and selection criteria
-    Decision: Research complete
-
-Deep Search Complete: 8 searches executed, 35 unique sources analyzed
-Research synthesis complete - generating comprehensive response...
+User (samantha, search-deep, markdown, gemini-2.5-flash):
+> Write comprehensive report on current US climate policies
+ • Deep Search Mode Activated
+ • Search engine: Tavily
+ • AI will autonomously determine when sufficient information has been gathered...
+ • Initial Research Strategy:
+   • 1. Current US federal climate policies legislation
+   • 2. US climate regulations executive orders agencies
+   • 3. Inflation Reduction Act climate provisions impact
+   • 4. US clean energy and transportation climate policies
+   • 5. US climate finance and investment initiatives
+   • 6. US climate policy challenges and future outlook
+ • Search 1: Current US federal climate policies legislation
+   • Biden Sets Goal of Cutting Greenhouse Gases by More Than 60% - Newsweek
+   • Climate policy outlook: 4 stories to know this week - GreenBiz
+   • Florida braces for potential double-digit billion-dollar insurance losses after Hurricane Milton - The Daily Climate
+   • Climate and environment updates: US generated record solar and wind energy - ABC News
+ • Search 2: US climate regulations executive orders agencies
+   • What to know about Trump's first executive actions on climate and environment - Idaho State Journal
+   • EPA undertakes deregulatory actions, WOTUS revision - WaterWorld Magazine
+   • Additional Recissions of Harmful Executive Orders and Actions - The White House
+   • Navigating the Trump Administration’s Pause on IIJA and IRA Funding: Key Implications for Infrastructure Stakeholders - Crowell & Moring LLP
+   • The Beginning of the End for the Climate-Industrial Complex - substack.com
+ • Search 3: Inflation Reduction Act climate provisions impact
+   • One Big Beautiful Bill – The Cost Of Climate Inaction - Forbes
+   • If Trump Destroys Inflation Reduction Act, Economic Fallout May Come
+   • Inflation Reduction Act Two Years Later: Clean Manufacturing ...
+   • Project 2025 Offers A False Choice: Climate Action Vs. Economic ...
+   • Death, Destruction—And Distraction: New Study On Media's Climate ...
+ • Search 4: US clean energy and transportation climate policies
+   • Will the success of Biden’s clean energy policies impede Trump’s agenda? - Utility Dive
+   • California Democrats scale back climate goals amid cost-of-living backlash - The Daily Climate
+ • Search 5: US climate finance and investment initiatives
+   • The Sudden Shift in Big Banks' Stance on Fighting Climate Change
+   • Bloom Energy (BE): Among the Best Climate Change Stocks to Buy ...
+   • The $9 Trillion Climate Opportunity Hiding In Plain Sight - Forbes
+   • Biggest Climate Fund Approves Record Allocations as US Withdraws
+ • Search 6: US climate policy challenges and future outlook
+   • What is the Future of U.S. Climate Policy? - Yahoo! Voices
+   • Everyone Is Asking What The Future of U.S. Climate Policy Will Be - TIME
+   • The Road to Belém: COP30 President on Trump, Trade, and What Comes Next - TIME
+   • Investors bet on carbon removal technologies despite hurdles - The Daily Climate
+ • Research Evaluation (after 6 searches):
+   • Completeness: 7/10
+   • Assessment: The gathered information provides a good overview of major US climate policy initiatives (like the IRA and Biden's NDC targets) and significant challenges,
+     particularly the potential for policy shifts under a new administration. However, it suffers from a critical temporal ambiguity, presenting hypothetical future events
+     (early 2025 under a Trump presidency) as current facts, which undermines its ability to comprehensively describe 'current' US climate policies as of the present moment
+     (mid-2024). It also lacks granular detail on specific regulations and a broader perspective on state/local actions.
+ • Decision: Research quality is good (7/10). Continue searching for higher completeness?
+ • Gaps identified: Temporal Clarity: The information heavily features events and executive orders from early 2025 under Trump, assuming a specific outcome of the 2024 presidential election. A comprehensive report on 'current' policies needs to clearly distinguish between policies currently in effect under the Biden administration and potential
+   or projected changes under a future administration. The current data blurs this distinction., Depth of Policy Detail: While major legislation (IRA, IIJA) and broad targets
+   are mentioned, the report lacks specific details on the mechanisms, programs, and regulations within these policies. For example, specific EPA regulations for different
+   sectors (e.g., power plants, vehicles, industry) are not detailed., Comprehensive Coverage of Current Administration's Policies: Before discussing potential rollbacks, a
+   comprehensive report should thoroughly detail the existing climate policies, initiatives, and regulatory actions implemented by the Biden administration and its agencies
+   (EPA, DOE, etc.) as they stand currently., Role of State and Local Policies: While California's efforts are briefly noted, a 'comprehensive report on US climate policies'
+   should include a more detailed discussion of the significant role and variety of climate actions undertaken at the state and local levels, and how they interact with federal
+   policy., Challenges and Effectiveness of Existing Policies: Beyond the future political challenges, a comprehensive report should also address the implementation challenges,
+   economic hurdles, and effectiveness of the current climate policies in meeting their stated goals., International Context (beyond Paris Agreement): While the NDC is
+   mentioned, a more comprehensive report could briefly touch upon other international climate diplomacy efforts or global pressures influencing US policy.
+ • [C]ontinue deep search or [S]top and generate response
+    Choice:
 ```
 
-#### Deep Search vs Regular Search
+The user can choose to continue research or write a report based on the findings so far.
 
-| Feature | Regular Search | Deep Search |
+#### Deep Research vs Regular Search
+
+| Feature | Regular Search | Deep Research |
 |---------|---------------|-------------|
 | **Search Strategy** | Fixed queries | Dynamic queries |
 | **Evaluation** | None | AI evaluates completeness |
@@ -297,7 +330,7 @@ Research synthesis complete - generating comprehensive response...
 | **Termination** | After initial searches | When 10/10 or user stops |
 | **Deduplication** | Basic | Advanced content deduplication |
 | **Best For** | Quick facts | Complex research |
-| **Sources** | 3-6 sources | many more sources |
+| **Sources** | 3-6 sources | many more sources (dynamic) |
 
 ## Document Analysis (RAG)
 
@@ -306,12 +339,14 @@ RAG allows you to query your own documents with intelligent, temporal retrieval.
 ### Setup
 
 ```bash
-# Create document collection
-mkdir -p rag/my-docs
-# Add your documents to the directory
+# Create and add documents to RAG directory
+mkdir -p ~/path/to/terminal-ai/rag/personal
+mkdir -p ~/path/to/terminal-ai/rag/work
+mkdir -p ~/path/to/terminal-ai/rag/whatever
 
 # Activate collection (builds automatically)
-> --rag my-docs
+# See settings_manager.py for default RAG embedding models (cloud and local), override in ~/.terminal-ai/config
+> --rag personal
 > Detail my latest visit to the doctor
 ```
 
@@ -322,35 +357,33 @@ mkdir -p rag/my-docs
 | `--rag [collection]` | Activate specific collection |
 | `--rag-rebuild <collection>` | Rebuild embeddings index (smart rebuild by default) |
 | `--rag-rebuild <collection> --force-full` | Force complete rebuild from scratch |
-| `--rag-show <filename>` | View relevant chunks from file |
+| `--rag-show <filename>` | View relevant chunks from file given as source post RAG query |
 | `--rag-status` | Show RAG configuration |
 | `--rag-test` | Test embedding provider connection |
 | `--rag-deactivate` | Deactivate RAG |
 
 ### Smart Rebuild
 
-RAG collections now use smart rebuild by default, which only processes changed files instead of rebuilding everything from scratch. This provides significant performance improvements:
-- **7-12x faster** for typical use cases
-- Only processes new/modified files
-- Preserves embeddings for unchanged documents
-- Automatic fallback to full rebuild if needed (e.g. if index is corrupted)
+RAG collections use smart rebuild by default, which only processes changed files instead of rebuilding everything from scratch. This makes rebuilding even large RAG collections very fast (after initial build).
 
-Use `--rag-rebuild collection --force-full` to force a complete rebuild when troubleshooting or after changing embedding settings.
+Use `--rag-rebuild collection --force-full` to force a complete rebuild if desired.
 
 ### Embedding Providers
 
 - **OpenAI**: High quality, cloud-based (requires API key)
-- **Ollama**: Local, private, free (install: `ollama pull snowflake-arctic-embed2:latest`)
+- **Ollama**: Local, private, free (e.g. `ollama pull snowflake-arctic-embed2:latest`) (also good quality)
 
-## AI Customization
+## AI Customization (think "GPTs")
 
 ### Instruction Templates
 
-Create custom AI behaviors/prompts in `instructions/`:
+Create custom AI behaviors in `instructions/`:
 
 | Command | Description |
 |---------|-------------|
 | `--instructions <file>` | Apply instruction template |
+
+See default in `settings_manager.py`. Override in `~/.config/terminal-ai/config`.
 
 **Example Usage:**
 ```bash
@@ -368,7 +401,7 @@ Create custom AI behaviors/prompts in `instructions/`:
 
 ## Conversation Management
 
-Terminal-AI uses a JSON-only logging system that provides reliable conversation storage and optional markdown export.
+Terminal-AI uses a JSON logging system that provides reliable conversation storage and optional markdown export.
 
 ### Logging System Overview
 
@@ -378,6 +411,7 @@ Terminal-AI uses a JSON-only logging system that provides reliable conversation 
 
 **How it Works:**
 - All conversations are automatically saved as JSON files in `logs/{instruction-set}/`
+    - Use `--incognito` to disable logging
 - JSON files contain complete conversation history including system messages
 - Markdown files are only created when explicitly exported using `--export-markdown`
 - JSON files are the single source of truth for all conversation data
@@ -389,23 +423,23 @@ Terminal-AI uses a JSON-only logging system that provides reliable conversation 
 | `--log <filename>` | Resume previous conversation from JSON file |
 | `--logmv [title]` | Rename current conversation |
 | `--logrm` | Delete current conversation |
-| `--export-markdown` | Export current conversation to markdown |
+| `--export-markdown [title]` | Export current conversation to markdown ([title] is optional) |
 | `--incognito` | Toggle private mode (no logging) |
 
 ### Usage Examples
 
 ```bash
 # Resume a conversation (works with or without file extension)
+# Will display a list of available conversations sorted by date
 --log my-conversation
---log my-conversation.json
---log my-conversation.md  # also works for compatibility
 
 # Export current conversation to markdown
 --export-markdown
+--export-markdown custom-title
 
 # Rename current conversation
---logmv "project-discussion"
---logmv  # AI will suggest a title
+--logmv project-discussion
+--logmv  # AI will suggest title based on conversation content
 
 # Delete current conversation
 --logrm
@@ -417,18 +451,16 @@ Conversations are organized by instruction set:
 ```
 logs/
 ├── samantha/
-│   ├── 2025-01-15_conversation_1736982847.json
-│   ├── 2025-01-15_project-discussion_1736983156.json
+│   ├── conversation_20250818-193240.json
+│   ├── project-discussion_20250817-133240.json
 │   └── export/
-│       ├── 2025-01-15_conversation_1736982847.md
-│       └── 2025-01-15_project-discussion_1736983156.md
+│       ├── conversation_20250818-193240.md
+│       └── project-discussion_20250817-133240.md
 └── rewrite/
-    ├── 2025-01-15_code-review_1736983892.json
+    ├── code-review_20250810-203240.json
     └── export/
-        └── 2025-01-15_code-review_1736983892.md
+        └── code-review_20250810-203240.md
 ```
-
-
 
 ## Configuration
 
@@ -439,7 +471,6 @@ Settings follow a three-tier priority system: `--input` commands override config
 ### Configuration Features
 
 - Simple `setting = value` format
-- Comments supported with `#`
 - Automatic type conversion (booleans, numbers, strings)
 - Graceful fallback to defaults for missing settings
 - Invalid setting warnings
@@ -450,7 +481,7 @@ Key settings in `src/settings_manager.py`:
 
 ```python
 # Default model and provider settings
-self.default_model = "gpt-5"
+self.default_model = "gpt-5-mini"
 self.embedding_provider = "ollama"  # or "openai"
 self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
 self.openai_embedding_model = "text-embedding-3-small"
@@ -459,29 +490,110 @@ self.chunk_overlap = 200
 self.rag_batch_size = 16
 
 # MORE...
-# 
-# see settings_manager.py for all settings (there are many more)
+# MUCH MORE...
+# see settings_manager.py for all settings
 ```
 
 ## Shell Integration
 
-Create powerful AI workflows with shell aliases:
+Terminal AI becomes incredibly powerful when integrated into your shell workflow. Instead of starting the app and typing the same thing over and over for common tasks, you can create short, memorable aliases that handle complex AI operations.
 
+### Helper Script Pattern
+
+The most effective approach is to create a helper script with AI workflow functions, then source it in your shell profile.
+
+Example; perform a web search for "latest AI developments"
 ```bash
-# Basic alias
-alias ai='python ~/terminal-ai/src/main.py'
-
-# Article / Youtube summarizer
-# --url command will automatically redirect to --youtube command when needed
-summarize() {
-    python ~/terminal-ai/src/main.py \
-        --input "--model gpt-5 --instructions summary.md --url $1" \
-        --input "summarize this article"
-}
+sw "latest AI developments"  # web search + AI analysis
 ```
 
+### Getting Started
+
+1. **Copy the example script**: Use `shell.example.sh` as your starting point
+2. **Customize models**: Edit the `AI_MODEL` and `AI_MODEL_LOCAL` variables
+3. **Update path**: Change `TERMINAL_AI_PATH=~/Sync/scripts/terminal-ai` to your actual terminal-ai path
+4. **Source in your shell**:
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+source ~/path/to/shell.example.sh
+```
+5. **Get help**: Run `ai` to see all available shortcuts and you will see (example below shows what's included in `shell.example.sh`):
+
+```bash
+Terminal AI Helper Functions:
+=============================
+cb:        Analyze clipboard content
+cbl:       Local (Ollama): Analyze clipboard content
+cli:       CLI/system administration expert mode
+clil:      Local (Ollama): CLI/system administration expert mode
+rewrite:   Rewrite/improve text from clipboard
+rewritel:  Local (Ollama): Rewrite/improve text from clipboard
+s:         Basic AI conversation with cloud model
+sl:        Local (Ollama): Basic AI conversation
+su:        Quick URL summary (3 key bullet points)
+sul:       Local (Ollama): Quick URL summary
+sw:        Web search + AI analysis - great for current events and research
+swl:       Local (Ollama): Web search + AI analysis
+swd:       Deep web search + comprehensive AI analysis - for complex research
+swdl:      Local (Ollama): Deep web search + comprehensive AI analysis
+u:         Summarize URL content (paste URL or use clipboard)
+ul:        Local (Ollama): Summarize URL content
+```
+
+### Example Workflows
+
+The example script includes these common patterns:
+
+**Cloud & Local Model Pairs**: Every function has both cloud and local versions. Local versions (ending with 'l') use your local model and show "Local (Ollama):" in help text.
+
+- **`s`** / **`sl`** - Basic conversation
+    - Example: `s "explain quantum computing"`
+    - Example: `sl "explain quantum computing"`
+- **`sw`** / **`swl`** - Web search + AI analysis
+    - Example: `sw "latest developments in AI"`
+    - Example: `swl "latest developments in AI"`
+- **`swd`** / **`swdl`** - Deep web search + comprehensive AI analysis
+    - Example: `swd "Write report on current climate change policies in the US"`
+    - ...
+- **`cb`** / **`cbl`** - Analyze clipboard content
+    - Example: `cb "explain this code"`
+    - ...
+- **`u`** / **`ul`** - Process URL content (automatic clipboard detection)
+    - Example: `u "https://ubuntu.com/download/desktop"` (adds page content to conversation)
+    - Example: `u "https://ubuntu.com/download/desktop" "what's the latest version?"`
+    - ...
+- **`su`** / **`sul`** - Quick URL summary (3 key bullet points)
+    - Example: `su "https://www.youtube.com/watch?v=6mp_CGzx6p4"`
+    - Example: `su` (automatically uses URL from clipboard)
+    - ...
+- **`cli`** / **`clil`** - Return specific CLI commands
+    - Example: `cli "how to restart apache"`
+    - ...
+- **`rewrite`** / **`rewritel`** - Rewrite/improve clipboard text
+    - Example: `rewrite` (improves text from clipboard)
+    - ...
+
+You can easily rename functions, add new ones, or do whatever you want.
+
+### Advanced Usage
+
+The helper script pattern scales to any workflow:
+- **Model switching**: Every function has cloud/local versions (e.g., `s`/`sl`, `cb`/`cbl`)
+- **Clipboard automation**: URL functions automatically detect clipboard URLs when no URL provided
+- **Specialized modes**: Custom instructions for different domains (CLI, rewriting)
+
+### Zsh Tip
+
+Add `setopt nonomatch` to your `~/.zshrc` to enable unquoted arguments:
+```bash
+s hello world        # Instead of s "hello world"
+sw latest AI news    # Instead of sw "latest AI news"
+```
+
+See `shell.example.sh` for detailed implementation examples.
+
 ### Exit Methods
-- `quit`, `q`, `:q`, `:wq`
+- Type `quit`, `q`, `:q`, `:wq` in prompt to exit application
 - Press `q` + `Enter` during AI responses to interrupt (not exit)
 
 ---
