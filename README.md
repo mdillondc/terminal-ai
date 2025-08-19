@@ -15,7 +15,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Content Input](#content-input)
 - [Search & Research](#search--research)
 - [Document Analysis (RAG)](#document-analysis-rag)
-- [AI Customization](#ai-customization)
+- [AI Customization](#ai-customization-think-gpts)
 - [Conversation Management](#conversation-management)
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
