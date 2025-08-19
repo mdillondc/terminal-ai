@@ -11,14 +11,14 @@
 #
 #   1. Customize the model variables below for your preferred models
 #   2. Source this script: source ~/path/to/shell.example.sh
-#   3. Run 'ai' to see all available shortcuts (remember to update the ai() function if you add/remove functions)
+#   3. Run 'ai' to see all available shortcuts
 #   4. Use shortcuts like: s "hello", sw "latest AI news", cb "explain this", su "https://www.youtube.com/watch?v=6mp_CGzx6p4" to summarize video, etc
 #
 # Benefits:
-#   - Turn long commands into 1-2 character shortcuts
+#   - Turn long commands into shortcuts
 #   - Consistent model switching without remembering model names
 #   - Reusable workflows for common AI tasks
-#   - Quick access to specialized AI modes (search, clipboard, instructions)
+#   - Quick access to specialized AI modes (search, clipboard, url, youtube, etc)
 #
 # Zsh Tip: Add 'setopt nonomatch' to your ~/.zshrc to enable unquoted arguments:
 #   s hello world        # Instead of s "hello world"
