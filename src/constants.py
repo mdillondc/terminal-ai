@@ -11,8 +11,11 @@ from typing import Optional
 # Intention: Communicate to user that app has not hung, but is working
 RESPONSE_TIMEOUT_1_SEC = 3
 RESPONSE_TIMEOUT_1_MSG = "Model is still processing your request..."
-RESPONSE_TIMEOUT_2_SEC = 6
-RESPONSE_TIMEOUT_2_MSG = "Still working..."
+RESPONSE_TIMEOUT_2_SEC = 10
+RESPONSE_TIMEOUT_2_MSG = "Still working... (complex queries take longer / some models are slower than others)"
+
+# Model name display constants (only applies to user prompt display)
+USER_PROMPT_MODEL_MAX_CHARS = 20
 
 class CompletionScoringConstants:
     """

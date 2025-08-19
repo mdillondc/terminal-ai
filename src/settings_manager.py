@@ -2,7 +2,7 @@ import os
 import datetime
 from typing import Optional, Any, ClassVar, Dict, List
 from print_helper import print_md
-from constants import FilenameConstants
+from constants import FilenameConstants, USER_PROMPT_MODEL_MAX_CHARS
 
 
 class SettingsManager:
@@ -114,6 +114,13 @@ class SettingsManager:
 
         if self.rag_active_collection:
             enabled_toggles.append(f"rag {self.rag_active_collection}")
+
+        # Add model name as the last element
+        if self.model:
+            model_display = self.model
+            if len(model_display) > USER_PROMPT_MODEL_MAX_CHARS:
+                model_display = model_display[:USER_PROMPT_MODEL_MAX_CHARS] + "..."
+            enabled_toggles.append(model_display)
 
         if enabled_toggles:
             return f" ({', '.join(enabled_toggles)})"
