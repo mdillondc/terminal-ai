@@ -64,7 +64,12 @@ Respond with only: YES or NO"""
                 max_tokens=10
             )
 
-            result = response.choices[0].message.content.strip().upper() == "YES"
+            content = response.choices[0].message.content
+            if content is None:
+                # Content is None, fall back to keyword detection
+                return self._fallback_recent_detection(query)
+
+            result = content.strip().upper() == "YES"
 
             # Display transparency information if enabled
             if transparency_enabled:
