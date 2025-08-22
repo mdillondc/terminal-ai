@@ -45,23 +45,6 @@ class CommandManager:
         # Initialize export manager for markdown export functionality
         self.export_manager = ExportManager()
 
-    def _log_command_with_output(self, command: str, captured_output: list) -> None:
-        """
-        Log a command to LLM context and its verbose output to .md only.
-
-        Args:
-            command: The command that was executed (goes to LLM context)
-            captured_output: List of captured print_info messages (goes to .md only)
-        """
-        if self.settings_manager.setting_get("incognito"):
-            return
-
-        # Log the command itself to LLM context (clean, no noise)
-        self.conversation_manager.log_context(command, "user")
-
-        # Verbose output is no longer logged to files (JSON-only system)
-        # Users can export conversations to markdown using --export-markdown if needed
-
     def _extract_valid_commands(self, user_input: str) -> Tuple[List[Dict[str, Any]], str]:
         """
         Extract valid commands from user input using the command registry.
@@ -194,9 +177,7 @@ class CommandManager:
                     )
                     command_executed = True
                 elif command_name == "--logmv":
-                    # Special case: log BEFORE renaming to capture in current log
-                    captured_so_far = stop_capturing_print_info()
-                    self._log_command_with_output(command, captured_so_far)
+                    
 
                     # Now handle the rename
                     start_capturing_print_info()
@@ -411,8 +392,6 @@ class CommandManager:
             finally:
                 # DRY LOGGING: This handles ALL commands automatically
                 if command_executed:
-                    captured_output = stop_capturing_print_info()
-                    self._log_command_with_output(command, captured_output)
                     command_processed = True
                 else:
                     # Command not recognized - don't log it
