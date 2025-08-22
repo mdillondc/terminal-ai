@@ -39,20 +39,29 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 ### Prerequisites
 - Python 3.10+
 - [Conda](https://www.anaconda.com/docs/getting-started/) (Miniconda recommended)
-- API keys (optional):
-  - OpenAI API key
-  - Google API key  
-  - Tavily API key (for web search)
+- API keys (optional, but recommended):
+  - **OpenAI API key** - For GPT models and OpenAI embeddings
+  - **Google API key** - For Gemini models (free tier available)
+  - **Tavily API key** - For web search functionality
 - [Ollama](https://ollama.com/) (for local models)
 
 ### Setup
 
-1. **Set up API keys** (add to your shell profile):
+1. **Set up API keys securely**:
+   
+   Terminal AI uses **environment variables** for secure API key storage - keys are never stored in config files or source code.
+   
+   Add these to your shell profile (`~/.bashrc`, `~/.zshrc`, or equivalent):
    ```bash
-   export OPENAI_API_KEY="your-openai-key"
-   export GOOGLE_API_KEY="your-google-key"
-   export TAVILY_API_KEY="your-tavily-key"
+   export OPENAI_API_KEY="your-openai-key-here"
+   export GOOGLE_API_KEY="your-google-key-here"
+   export TAVILY_API_KEY="your-tavily-key-here"
    ```
+   
+   **Security benefits:**
+   - Keys are kept out of version control
+   - No risk of accidentally sharing keys in config files
+   - Standard security practice
 
 2. **Install Terminal AI**:
    ```bash

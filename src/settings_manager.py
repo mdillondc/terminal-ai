@@ -56,8 +56,8 @@ class SettingsManager:
         self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
 
         # RAG Settings
-        self.embedding_provider = "ollama"  # "openai" or "ollama"
-        self.openai_embedding_model = "text-embedding-3-small"  # Embedding model for OpenAI
+        self.embedding_provider = "openai"  # "openai" or "ollama"
+        self.openai_embedding_model = "text-embedding-3-large"  # Embedding model for OpenAI
         self.ollama_embedding_model = "snowflake-arctic-embed2:latest"  # Embedding model for Ollama
         self.rag_chunk_size = 400   # Number of tokens per document chunk - balance between context and precision
         self.rag_chunk_overlap = 80  # Tokens shared between adjacent chunks to preserve context across boundaries
