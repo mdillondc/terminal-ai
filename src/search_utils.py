@@ -50,7 +50,7 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
         title = results[index].get('title', 'Unknown Source')
         url_list += f"    {title}\n"
 
-    print_md(f"Extracting full content from all URLs (time consuming)...\n{url_list.rstrip()}")
+    print_md(f"Extracting full content from all URLs...\n{url_list.rstrip()}")
 
     # Initialize WebContentExtractor
     extractor = WebContentExtractor(llm_client_manager)
@@ -108,7 +108,7 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
                     failed_extractions += 1
                     extraction_results[index] = {'status': 'failed'}
 
-            except Exception as e:
+            except Exception:
                 # Extraction failed - keep original snippet
                 failed_extractions += 1
                 extraction_results[index] = {'status': 'failed'}

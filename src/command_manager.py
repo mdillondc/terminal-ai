@@ -177,7 +177,7 @@ class CommandManager:
                     )
                     command_executed = True
                 elif command_name == "--logmv":
-                    
+
 
                     # Now handle the rename
                     start_capturing_print_info()

@@ -6,7 +6,7 @@ import re
 import time
 import json
 from datetime import datetime, timedelta
-
+import trafilatura
 from print_helper import print_md
 from settings_manager import SettingsManager
 from llm_client_manager import LLMClientManager
@@ -64,6 +64,29 @@ class WebContentExtractor:
             if not self._is_valid_url(url, verbose):
                 result['error'] = "Invalid URL format"
                 return result
+
+            # Try Trafilatura first
+            try:
+                downloaded = trafilatura.fetch_url(url)
+                if downloaded:
+                    md_content = trafilatura.extract(downloaded, output_format="markdown")
+                    if md_content:
+                        if verbose:
+                            word_count = len(md_content.split())
+                            print_md(f"Extracted {word_count} words")
+                        return {
+                            'title': None,
+                            'content': md_content,
+                            'url': url,
+                            'error': None,
+                            'warning': None
+                        }
+            except Exception:
+                # Ignore Trafilatura errors and fall back to legacy methods
+                pass
+
+            if verbose:
+                print_md("Trafilatura failed, trying other methods...")
 
             # Try normal extraction first
             if verbose:
