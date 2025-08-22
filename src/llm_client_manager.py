@@ -219,6 +219,95 @@ class LLMClientManager:
         """
         return self._get_provider_for_model(model_name)
 
+    def create_responses_stream(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        temperature: float = LLMSettings.DEFAULT_TEMPERATURE,
+        max_tokens: Optional[int] = None,
+        reasoning_effort: Optional[str] = None,
+        include_reasoning_summary: bool = True,
+        **kwargs
+    ) -> Any:
+        """
+        OpenAI Responses API streaming call (for OpenAI models only).
+        Returns the SDK stream iterator (semantic events). This does NOT transform events.
+        Callers who need chat-like deltas should adapt their streaming loop accordingly.
+
+        Args:
+            model: Model name (must be provided by OpenAI)
+            messages: Chat-style messages [{"role": "...", "content": "..."}]
+            temperature: Optional temperature (GPT-5 is effectively fixed to 1.0)
+            max_tokens: Upper bound for visible output tokens (Responses: max_output_tokens)
+            reasoning_effort: minimal|low|medium|high (defaults to configured gpt5_reasoning_effort)
+            include_reasoning_summary: If True, request reasoning summaries ("summary": "auto")
+            **kwargs: Extra params passed through
+
+        Returns:
+            An iterator of Responses API streaming events
+        """
+        # Must route only to OpenAI
+        provider = self._get_provider_for_model(model)
+        if provider != "openai":
+            raise Exception("create_responses_stream is only supported for OpenAI models")
+
+        client = self._get_client_for_model(model)
+
+        # Map chat messages -> Responses input items
+        input_items = self._map_messages_to_responses_input(messages)
+
+        # Reasoning config
+        effort = reasoning_effort or self.settings_manager.setting_get("gpt5_reasoning_effort")
+        reasoning_obj: Dict[str, Any] = {}
+        if effort:
+            reasoning_obj["effort"] = effort
+        if include_reasoning_summary:
+            # Ask API to include reasoning summaries in output
+            reasoning_obj["summary"] = "auto"
+
+        # Build parameters for Responses API
+        params: Dict[str, Any] = {
+            "model": model,
+            "input": input_items,
+            "stream": True,
+            # Avoid server-side storage unless explicitly desired elsewhere
+            "store": False,
+        }
+
+        # Set temperature (GPT-5 uses 1.0)
+        params["temperature"] = LLMSettings.get_temperature_for_model(model, temperature)
+
+        # Map max tokens -> Responses param name
+        if max_tokens is not None:
+            # Responses uses max_output_tokens for the visible output limit
+            params["max_output_tokens"] = max_tokens
+
+        if reasoning_obj:
+            params["reasoning"] = reasoning_obj
+
+        # Pass through any additional kwargs (e.g., top_p, etc.) if provided
+        params.update(kwargs or {})
+
+        # Return the streaming iterator from the Responses API
+        return client.responses.create(**params)
+
+    def _map_messages_to_responses_input(self, messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """
+        Convert Chat Completions-style messages to Responses 'input' items.
+        - Map 'system' role to 'developer' to align with Responses semantics.
+        - Preserve 'user' and 'assistant' as-is.
+        """
+        input_items: List[Dict[str, str]] = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                mapped_role = "developer"
+            else:
+                mapped_role = role
+            input_items.append({"role": mapped_role, "content": content})
+        return input_items
+
     def is_model_available(self, model_name: str) -> bool:
         """
         Check if a model is available from its provider.

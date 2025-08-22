@@ -255,8 +255,6 @@ class ModelPricingConstants:
         'gpt-5-preview': {'input': 2.00, 'output': 8.00},
         'gpt-5-mini-2024-12-05': {'input': 0.40, 'output': 1.60},
         'gpt-5-nano-2024-12-05': {'input': 0.10, 'output': 0.40},
-
-
     }
 
     @classmethod

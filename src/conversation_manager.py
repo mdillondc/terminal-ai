@@ -246,10 +246,20 @@ class ConversationManager:
         timeout_messages_shown = [False]  # Use list for mutable reference
         timeout_thread = self._start_timeout_detection(response_started, timeout_messages_shown)
 
-        # Setup stream to receive response from AI
-        stream = self.llm_client_manager.create_chat_completion(
-            model=self.model, messages=self.conversation_history, stream=True
-        )
+        # Setup stream to receive response from AI (OpenAI uses Responses API for reasoning summaries)
+        provider = self.llm_client_manager.get_provider_for_model(self.model)
+        if provider == "openai":
+            stream = self.llm_client_manager.create_responses_stream(
+                model=self.model,
+                messages=self.conversation_history,
+                include_reasoning_summary=True
+            )
+            responses_streaming = True
+        else:
+            stream = self.llm_client_manager.create_chat_completion(
+                model=self.model, messages=self.conversation_history, stream=True
+            )
+            responses_streaming = False
 
         # Init variable to hold AI response in its entirety
         ai_response = ""
@@ -270,6 +280,14 @@ class ConversationManager:
         # Process response stream with interrupt checking between chunks
         interrupted = False
         first_chunk = True
+        summary_printed = False
+        need_separation_after_summary = False
+        # Honor display_full_reasoning setting; default True if missing
+        try:
+            display_full_reasoning = self.settings_manager.setting_get("display_full_reasoning")
+        except KeyError:
+            display_full_reasoning = True
+        reasoning_placeholder_shown = False
         try:
             for chunk in stream:
                 # Signal that response has started on first chunk
@@ -285,21 +303,92 @@ class ConversationManager:
                     interrupted = True
                     break
 
-                if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
-                    delta = chunk.choices[0].delta
-                    if hasattr(delta, 'content') and delta.content is not None:
-                        ai_response_chunk = delta.content
-                        ai_response += ai_response_chunk
-                        if markdown_enabled and streamdown_process and streamdown_process.stdin:
-                            # Adjust headers for streamdown display and send chunk
-                            adjusted_chunk = self._adjust_markdown_headers_for_streamdown(ai_response_chunk)
-                            streamdown_process.stdin.write(adjusted_chunk)
-                            streamdown_process.stdin.flush()
+                if responses_streaming:
+                    # OpenAI Responses API semantic events
+                    event = chunk
+                    event_type = getattr(event, "type", None)
+
+                    # Stream visible assistant text
+                    if event_type == "response.output_text.delta":
+                        delta_obj = getattr(event, "delta", None)
+                        text_piece = None
+                        if isinstance(delta_obj, dict):
+                            text_piece = delta_obj.get("text") or delta_obj.get("value")
+                        elif isinstance(delta_obj, str):
+                            text_piece = delta_obj
                         else:
-                            # Normal processing for non-markdown mode
-                            self._process_and_print_chunk(ai_response_chunk)
+                            text_piece = getattr(delta_obj, "text", None) or getattr(delta_obj, "value", None)
+                        if text_piece:
+                            ai_response_chunk = text_piece
+                            ai_response += ai_response_chunk
+                            if not markdown_enabled and need_separation_after_summary:
+                                print()
+                                need_separation_after_summary = False
+                            if markdown_enabled and streamdown_process and streamdown_process.stdin:
+                                if need_separation_after_summary:
+                                    streamdown_process.stdin.write('\n')
+                                    streamdown_process.stdin.flush()
+                                    need_separation_after_summary = False
+                                adjusted_chunk = self._adjust_markdown_headers_for_streamdown(ai_response_chunk)
+                                streamdown_process.stdin.write(adjusted_chunk)
+                                streamdown_process.stdin.flush()
+                            else:
+                                self._process_and_print_chunk(ai_response_chunk)
+
+                    else:
+                        # Print reasoning summaries inline in gray (no label, not logged)
+                        try:
+                            GRAY = ColorConstants.THINKING_GRAY
+                            RESET = ColorConstants.RESET
+
+                            # Ignore item-based reasoning summaries to avoid duplication; rely on delta events instead
+                            item = getattr(event, "item", None)
+                            # no-op for item-based reasoning summaries
+
+                            # Generic summary delta-style events (best-effort)
+                            if isinstance(event_type, str) and ("reasoning" in event_type and "summary" in event_type):
+                                delta_obj = getattr(event, "delta", None) or getattr(event, "summary", None)
+                                text_val = None
+                                if isinstance(delta_obj, dict):
+                                    text_val = delta_obj.get("text")
+                                elif isinstance(delta_obj, str):
+                                    text_val = delta_obj
+                                else:
+                                    text_val = getattr(delta_obj, "text", None)
+                                if text_val:
+                                    if display_full_reasoning:
+                                        print(GRAY + text_val + RESET, end="", flush=True)
+                                    else:
+                                        if not reasoning_placeholder_shown:
+                                            print(GRAY + " ✦ Reasoning..." + RESET + "\n", end="", flush=True)
+                                            reasoning_placeholder_shown = True
+                                    summary_printed = True
+                                    need_separation_after_summary = True
+                        except Exception:
+                            # Never fail the stream due to summary printing issues
+                            pass
+                else:
+                    # Chat Completions streaming (existing behavior)
+                    if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
+                        delta = chunk.choices[0].delta
+                        if hasattr(delta, 'content') and delta.content is not None:
+                            ai_response_chunk = delta.content
+                            ai_response += ai_response_chunk
+                            if markdown_enabled and streamdown_process and streamdown_process.stdin:
+                                # Adjust headers for streamdown display and send chunk
+                                adjusted_chunk = self._adjust_markdown_headers_for_streamdown(ai_response_chunk)
+                                streamdown_process.stdin.write(adjusted_chunk)
+                                streamdown_process.stdin.flush()
+                            else:
+                                # Normal processing for non-markdown mode
+                                self._process_and_print_chunk(ai_response_chunk)
         except Exception as e:
             print_md(f"Error processing response stream: {e}")
+
+        # If only reasoning summaries were printed (no visible text), ensure newline separation
+        if responses_streaming and not markdown_enabled and summary_printed and not ai_response:
+            print()
+
 
         # Close streamdown process if it was used
         if markdown_enabled and streamdown_process and streamdown_process.stdin:

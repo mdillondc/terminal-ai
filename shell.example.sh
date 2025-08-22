@@ -32,7 +32,7 @@
 
 # Configure your preferred models here
 export AI_MODEL=gemini-2.5-flash       # Fast, cost-effective model for general use
-export AI_MODEL_LOCAL=llama3.2:latest  # Local model for privacy-sensitive tasks
+export AI_MODEL_LOCAL=hf.co/unsloth/Mistral-Small-3.2-24B-Instruct-2506-GGUF:Q6_K_XL  # Local model for privacy-sensitive tasks
 export TERMINAL_AI_PATH=~/Sync/scripts/terminal-ai  # Update this to your actual terminal-ai path
 
 # Display all available AI shortcuts with descriptions (auto-detected)

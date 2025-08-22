@@ -35,6 +35,7 @@ class SettingsManager:
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
         self.nothink = False  # Disable thinking mode on Ollama models that support it
         self.gpt5_reasoning_effort = "medium"  # GPT-5 reasoning effort level: minimal, low, medium, high (higher effort = slower, but more intelligent response)
+        self.display_full_reasoning = False  # Whether to display full reasoning summaries during OpenAI Responses streaming. If False, show truncated reasoning in gray to indicate progress without exposing full details.
 
         # Search Settings
         self.search = False  # Enable or disable search by default

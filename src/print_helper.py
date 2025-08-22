@@ -67,7 +67,7 @@ def print_lines():
     print()
     print("=" * 50)
     print()
-
+    
 def print_md(markdown_content: str):
     """
     Print markdown content using streamdown.
