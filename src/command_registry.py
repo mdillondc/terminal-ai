@@ -93,7 +93,12 @@ class CommandRegistry:
             execution_order=1,
             completion_rules=CompletionRules(
                 CompletionType.SIMPLE,
-                custom_suggestions=["minimal", "low", "medium", "high"]
+                custom_suggestions=[
+                    ("minimal", "Fastest responses; minimal reasoning"),
+                    ("low", "Quick responses; light reasoning"),
+                    ("medium", "Balanced speed and reasoning (default)"),
+                    ("high", "Maximum reasoning; slower replies")
+                ]
             ),
             requires_argument=True
         ))

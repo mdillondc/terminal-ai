@@ -234,6 +234,8 @@ class CommandCompleter(Completer):
         if not completion_rules:
             return
 
+
+
         completion_type = completion_rules.completion_type
 
         if completion_type == CompletionType.NONE:
@@ -462,6 +464,8 @@ class CommandCompleter(Completer):
 
 
 
+
+
     def _complete_rag_collections(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete RAG collection names using VectorStore with fuzzy matching"""
         try:
@@ -542,24 +546,56 @@ class CommandCompleter(Completer):
             return
 
     def _complete_simple_suggestions(self, partial_text: str, rules: CompletionRules) -> Generator[Completion, None, None]:
-        """Complete with simple static suggestions using fuzzy matching"""
+        """Complete with simple static suggestions using fuzzy matching, with optional per-option descriptions"""
         if not rules.custom_suggestions:
             return
 
         matches = []
+
         for suggestion in rules.custom_suggestions:
-            is_match, score = self._fuzzy_match(partial_text, suggestion)
+            value = None
+            description = None
+
+            # Support multiple suggestion shapes:
+            # - "value"
+            # - ("value", "description")
+            # - {"value": "...", "description": "..."} or similar keys
+            if isinstance(suggestion, (tuple, list)) and len(suggestion) >= 1:
+                value = str(suggestion[0])
+                if len(suggestion) > 1:
+                    description = str(suggestion[1])
+            elif isinstance(suggestion, dict):
+                value = suggestion.get("value") or suggestion.get("text") or suggestion.get("name") or suggestion.get("option")
+                description = suggestion.get("description") or suggestion.get("meta") or suggestion.get("help")
+                if value is not None:
+                    value = str(value)
+                if description is not None:
+                    description = str(description)
+            else:
+                value = str(suggestion)
+
+            if not value:
+                continue
+
+            is_match, score = self._fuzzy_match(partial_text, value)
             if is_match:
-                matches.append((score, suggestion))
+                matches.append((score, value, description))
 
         # Sort by score (higher is better), then alphabetically
         matches.sort(key=lambda x: (-x[0], x[1]))
 
-        for score, suggestion in matches:
-            yield Completion(
-                text=suggestion,
-                start_position=-len(partial_text)
-            )
+        for score, value, description in matches:
+            if description:
+                yield Completion(
+                    text=value,
+                    start_position=-len(partial_text),
+                    display_meta=description
+                )
+            else:
+                yield Completion(
+                    text=value,
+                    start_position=-len(partial_text)
+                )
 
     @lru_cache(maxsize=UIConstants.MAX_COMPLETION_CACHE_ENTRIES)
     def _get_files_in_directory(self, directory: str, prefix: str, filter_supported: bool = False) -> List[str]:
