@@ -15,7 +15,7 @@ from searxng_search import create_searxng_search, SearXNGSearchError
 from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
-from constants import ColorConstants, ConversationConstants, RESPONSE_TIMEOUT_1_SEC, RESPONSE_TIMEOUT_1_MSG, RESPONSE_TIMEOUT_2_SEC, RESPONSE_TIMEOUT_2_MSG
+from constants import ColorConstants, ConversationConstants, RESPONSE_TIMEOUT_1_SEC, RESPONSE_TIMEOUT_1_MSG, RESPONSE_TIMEOUT_2_SEC, RESPONSE_TIMEOUT_2_MSG, LLMSettings
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines
 from rich.console import Console
@@ -248,7 +248,7 @@ class ConversationManager:
 
         # Setup stream to receive response from AI (OpenAI uses Responses API for reasoning summaries)
         provider = self.llm_client_manager.get_provider_for_model(self.model)
-        if provider == "openai":
+        if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
             stream = self.llm_client_manager.create_responses_stream(
                 model=self.model,
                 messages=self.conversation_history,
