@@ -315,7 +315,7 @@ Respond with only the search queries, one per line, no explanations or numbering
                 error_text += f"    Search failed: {e}"
                 print_md(error_text)
 
-        # Extract full content if enabled for SearXNG - AFTER all search results are displayed
+        # Extract content if enabled for SearXNG - AFTER all search results are displayed
         if (self.settings_manager.search_engine == "searxng" and
             stored_raw_results):
 

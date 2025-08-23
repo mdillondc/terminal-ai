@@ -171,7 +171,7 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 | **Setup Complexity** | Easy - just API key | Technical - requires self-hosted instance or public instance with JSON API enabled |
 | **Cost** | Pay-per-search (~$0.005/search) | Free |
 | **Privacy** | Commercial service | Fully private/self-hosted |
-| **Content Quality** | AI-optimized results | Raw search engine results with full content extraction |
+| **Content Quality** | AI-optimized results | Raw search engine results with content extraction |
 | **Speed** | Fast | Slower (because web page content needs to be extracted for every result) |
 
 **Which Should You Choose?**

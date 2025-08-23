@@ -2,7 +2,7 @@
 Search utility functions
 
 This module provides shared utilities for search result processing,
-including full content extraction from search result URLs.
+including content extraction from search result URLs.
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,7 +25,7 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
         llm_client_manager: LLM client manager for WebContentExtractor
 
     Returns:
-        Modified raw_results with full content extracted where possible
+        Modified raw_results with content extracted where possible
     """
     if not raw_results or 'results' not in raw_results:
         return raw_results
@@ -50,7 +50,7 @@ def extract_full_content_from_search_results(raw_results: Dict[str, Any], settin
         title = results[index].get('title', 'Unknown Source')
         url_list += f"    {title}\n"
 
-    print_md(f"Extracting full content from all URLs...\n{url_list.rstrip()}")
+    print_md(f"Extracting content from URLs...\n{url_list.rstrip()}")
 
     # Initialize WebContentExtractor
     extractor = WebContentExtractor(llm_client_manager)

@@ -209,7 +209,7 @@ class SearXNGSearch:
             formatted_output.append(f"\n**{i}. {result.get('title', 'No Title')}**")
             formatted_output.append(f"- URL: {result.get('url', 'No URL')}")
 
-            # Add full content if available
+            # Add content if available
             content = result.get('content', '')
             if content:
                 formatted_output.append(f"- Content: {content}")

@@ -659,7 +659,7 @@ class ConversationManager:
                         # Always print error sections
                         print_md(search_section)
 
-            # Extract full content if enabled for SearXNG - AFTER all search results are displayed
+            # Extract content if enabled for SearXNG - AFTER all search results are displayed
             if (search_engine == "searxng" and
                 stored_raw_results):
 
@@ -750,7 +750,7 @@ class ConversationManager:
             for message in recent_messages:
                 if message.get("role") in ["user", "assistant"]:
                     content = message.get("content", "")
-                    # No truncation - pass full content to LLM
+                    # No truncation - pass content to LLM
                     context_parts.append(f"{message['role']}: {content}")
 
             context_text = "\n".join(context_parts) if context_parts else ""
