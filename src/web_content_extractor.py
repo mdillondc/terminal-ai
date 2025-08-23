@@ -113,6 +113,25 @@ class WebContentExtractor:
                     else:
                         if verbose:
                             print_md("All bypass methods failed - returning original error")
+                        # Jina Reader last-resort fallback (opt-in due to privacy)
+                        try:
+                            if self.settings_manager.setting_get("jina_reader_fallback"):
+                                if verbose:
+                                    print_md("Attempting bypass using Jina Reader...")
+                                jr_session = requests.Session()
+                                jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+                                if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
+                                    if verbose:
+                                        print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
+                                    return {
+                                        'title': "Web Content",
+                                        'content': jr_resp.text,
+                                        'url': url,
+                                        'error': None,
+                                        'warning': "Content via Jina Reader"
+                                    }
+                        except Exception:
+                            pass
                         return normal_result
                 else:
                     return normal_result
@@ -134,6 +153,25 @@ class WebContentExtractor:
                             print_md(bypass_error_text)
                         normal_result['warning'] = "Content may be incomplete due to access restrictions"
                         normal_result['bypass_failed'] = True
+                        # Jina Reader last-resort fallback (opt-in due to privacy)
+                        try:
+                            if self.settings_manager.setting_get("jina_reader_fallback"):
+                                if verbose:
+                                    print_md("Attempting bypass using Jina Reader...")
+                                jr_session = requests.Session()
+                                jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+                                if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
+                                    if verbose:
+                                        print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
+                                    return {
+                                        'title': "Web Content",
+                                        'content': jr_resp.text,
+                                        'url': url,
+                                        'error': None,
+                                        'warning': "Content via Jina Reader"
+                                    }
+                        except Exception:
+                            pass
                         return normal_result
             else:
                 # No content to evaluate
@@ -148,6 +186,25 @@ class WebContentExtractor:
                         print_md(bypass_error_text)
                     normal_result['warning'] = "Content may be incomplete due to access restrictions"
                     normal_result['bypass_failed'] = True
+                    # Jina Reader last-resort fallback (opt-in due to privacy)
+                    try:
+                        if self.settings_manager.setting_get("jina_reader_fallback"):
+                            if verbose:
+                                print_md("Attempting bypass using Jina Reader...")
+                            jr_session = requests.Session()
+                            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+                            if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
+                                if verbose:
+                                    print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
+                                return {
+                                    'title': "Web Content",
+                                    'content': jr_resp.text,
+                                    'url': url,
+                                    'error': None,
+                                    'warning': "Content via Jina Reader"
+                                }
+                    except Exception:
+                        pass
                     return normal_result
 
             return normal_result

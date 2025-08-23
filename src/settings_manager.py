@@ -49,6 +49,10 @@ class SettingsManager:
 
         self.searxng_extract_full_content_truncate = 10000  # Maximum words to keep from each extracted URL content (SearXNG always extracts full content, prevents context window overflow)
         self.concurrent_workers = 50  # Number of concurrent threads for URL extraction and search operations
+        # Jina Reader last-resort fallback for URL extraction (third-party, privacy risk). When True,
+        # WebContentExtractor may fetch content via https://r.jina.ai as a final fallback after all local methods fail.
+        # Disabled by default. Enabling this will send target URLs to Jina AI infrastructure.
+        self.jina_reader_fallback = False
 
         # Markdown streamdown settings
         self.markdown = True  # Enable markdown parsing and rendering
