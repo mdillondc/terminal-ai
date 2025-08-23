@@ -121,6 +121,14 @@ class SettingsManager:
             model_display = self.model
             if len(model_display) > USER_PROMPT_MODEL_MAX_CHARS:
                 model_display = model_display[:USER_PROMPT_MODEL_MAX_CHARS] + "..."
+            # If using GPT-5, show reasoning effort next to model
+            try:
+                if model_display.lower().startswith('gpt-5'):
+                    effort = getattr(self, 'gpt5_reasoning_effort', None)
+                    if effort:
+                        model_display = f"{model_display} {effort}"
+            except Exception:
+                pass
             enabled_toggles.append(model_display)
 
         if enabled_toggles:
