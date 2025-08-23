@@ -140,8 +140,28 @@ class SettingsManager:
         return ""
 
     def get_ai_name_with_instructions(self) -> str:
-        """Get AI name (instructions now displayed in user prompt via get_enabled_toggles)"""
-        return self.name_ai
+        """Get AI name and append current model (with GPT-5 effort) similar to user toggles."""
+        ai_name = self.name_ai
+
+        try:
+            model = self.setting_get("model")
+            if model:
+                model_display = model
+                if len(model_display) > USER_PROMPT_MODEL_MAX_CHARS:
+                    model_display = model_display[:USER_PROMPT_MODEL_MAX_CHARS] + "..."
+                # If using GPT-5, show reasoning effort next to model
+                try:
+                    if model_display.lower().startswith('gpt-5'):
+                        effort = getattr(self, 'gpt5_reasoning_effort', None)
+                        if effort:
+                            model_display = f"{model_display} {effort}"
+                except Exception:
+                    pass
+                ai_name = f"{ai_name} ({model_display})"
+        except Exception:
+            pass
+
+        return ai_name
 
     def display_model_info(self, context: str = "simple", provider: str = None, llm_client_manager = None) -> None:
         """
