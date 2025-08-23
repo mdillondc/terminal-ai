@@ -174,6 +174,9 @@ def main() -> None:
 
                     # Custom completion class
                     'completion': 'bg:#282828 #ebdbb2',
+                    # Scrollbar styling (dark track, light thumb)
+                    'scrollbar.background': 'bg:#282828',
+                    'scrollbar.button': 'bg:#bdae93',
                 })
 
                 user_input = prompt(
