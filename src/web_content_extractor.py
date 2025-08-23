@@ -356,6 +356,39 @@ class WebContentExtractor:
             response = self.session.get(url, timeout=self.timeout)
             response.raise_for_status()
 
+            # PDF handling: detect and extract text via DocumentProcessor using a temp file
+            content_type = response.headers.get('Content-Type', '').lower()
+            if 'application/pdf' in content_type or url.lower().endswith('.pdf'):
+                try:
+                    import tempfile
+                    import os
+                    from document_processor import DocumentProcessor
+
+                    tmp_path = None
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+                    try:
+                        tmp.write(response.content)
+                        tmp.flush()
+                        tmp_path = tmp.name
+                    finally:
+                        tmp.close()
+
+                    dp = DocumentProcessor()
+                    pdf_text = dp.load_pdf_file(tmp_path)
+                finally:
+                    try:
+                        if tmp_path:
+                            os.remove(tmp_path)
+                    except Exception:
+                        pass
+
+                if pdf_text:
+                    if verbose:
+                        print_md(f"Extracted {len(pdf_text.split())} words")
+                    result['title'] = "PDF Document"
+                    result['content'] = pdf_text
+                    return result
+
             soup = BeautifulSoup(response.text, 'html.parser')
             result['title'] = self._extract_title(soup)
             result['content'] = self._extract_main_content(soup)
