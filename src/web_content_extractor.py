@@ -115,7 +115,10 @@ class WebContentExtractor:
                             print_md("All bypass methods failed - returning original error")
                         # Jina Reader last-resort fallback (opt-in due to privacy)
                         try:
-                            if self.settings_manager.setting_get("jina_reader_fallback"):
+                            current_model = self.settings_manager.setting_get("model")
+                            provider = self.llm_client_manager.get_provider_for_model(current_model)
+                            allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
+                            if self.settings_manager.setting_get("jina_reader_fallback") and (provider != "ollama" or allow_ollama):
                                 if verbose:
                                     print_md("Attempting bypass using Jina Reader...")
                                 jr_session = requests.Session()
@@ -155,7 +158,10 @@ class WebContentExtractor:
                         normal_result['bypass_failed'] = True
                         # Jina Reader last-resort fallback (opt-in due to privacy)
                         try:
-                            if self.settings_manager.setting_get("jina_reader_fallback"):
+                            current_model = self.settings_manager.setting_get("model")
+                            provider = self.llm_client_manager.get_provider_for_model(current_model)
+                            allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
+                            if self.settings_manager.setting_get("jina_reader_fallback") and (provider != "ollama" or allow_ollama):
                                 if verbose:
                                     print_md("Attempting bypass using Jina Reader...")
                                 jr_session = requests.Session()
@@ -188,7 +194,10 @@ class WebContentExtractor:
                     normal_result['bypass_failed'] = True
                     # Jina Reader last-resort fallback (opt-in due to privacy)
                     try:
-                        if self.settings_manager.setting_get("jina_reader_fallback"):
+                        current_model = self.settings_manager.setting_get("model")
+                        provider = self.llm_client_manager.get_provider_for_model(current_model)
+                        allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
+                        if self.settings_manager.setting_get("jina_reader_fallback") and (provider != "ollama" or allow_ollama):
                             if verbose:
                                 print_md("Attempting bypass using Jina Reader...")
                             jr_session = requests.Session()
@@ -629,6 +638,7 @@ Respond in JSON format only:
             ("alternative user agents", self._try_bot_user_agent),
             ("print version URL", self._try_print_version),
             ("AMP version URL", self._try_amp_version),
+            ("Jina Reader", self._try_jina_reader),
             ("Archive.org (Wayback Machine)", self._try_archive_org)
         ]
 
@@ -668,6 +678,34 @@ Respond in JSON format only:
         return {'content': None, 'error': 'All bypass methods failed'}
 
 
+
+    def _try_jina_reader(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
+        """Use Jina Reader to fetch Markdown as a bypass method (cloud providers by default)."""
+        try:
+            # Respect local privacy: skip when provider is Ollama unless explicitly allowed
+            current_model = self.settings_manager.setting_get("model")
+            provider = self.llm_client_manager.get_provider_for_model(current_model)
+            allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
+            if provider == "ollama" and not allow_ollama:
+                return {'content': None, 'error': 'Jina disabled for Ollama'}
+
+            jr_session = requests.Session()
+            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+            if jr_resp.status_code == 200 and jr_resp.text:
+                content = jr_resp.text
+                if content and len(content.split()) > 50:
+                    title = "Web Content"
+                    return {
+                        'title': title,
+                        'content': content,
+                        'url': url,
+                        'error': None,
+                        'warning': "Content via Jina Reader",
+                        'method': "Jina Reader"
+                    }
+            return {'content': None, 'error': 'Jina Reader failed'}
+        except Exception:
+            return {'content': None, 'error': 'Jina Reader exception'}
 
     def _try_archive_org(self, url: str, verbose: bool = True) -> Dict[str, Optional[str]]:
         """Try to fetch content from Archive.org (Wayback Machine)."""

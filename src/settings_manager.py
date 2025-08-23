@@ -49,10 +49,10 @@ class SettingsManager:
 
         self.searxng_extract_full_content_truncate = 10000  # Maximum words to keep from each extracted URL content (SearXNG always extracts full content, prevents context window overflow)
         self.concurrent_workers = 50  # Number of concurrent threads for URL extraction and search operations
-        # Jina Reader last-resort fallback for URL extraction (third-party, privacy risk). When True,
-        # WebContentExtractor may fetch content via https://r.jina.ai as a final fallback after all local methods fail.
-        # Disabled by default. Enabling this will send target URLs to Jina AI infrastructure.
-        self.jina_reader_fallback = False
+        # Control Jina extraction when using local Ollama models:
+        # If False (default), Jina will NOT be used when the active provider is Ollama (preserves local-only privacy).
+        # Set to True to allow Jina fallback even with Ollama models (you accept the third‑party privacy tradeoff).
+        self.allow_jina_with_ollama = False
 
         # Markdown streamdown settings
         self.markdown = True  # Enable markdown parsing and rendering
