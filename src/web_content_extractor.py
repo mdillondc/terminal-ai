@@ -118,7 +118,7 @@ class WebContentExtractor:
                             current_model = self.settings_manager.setting_get("model")
                             provider = self.llm_client_manager.get_provider_for_model(current_model)
                             allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
-                            if self.settings_manager.setting_get("jina_reader_fallback") and (provider != "ollama" or allow_ollama):
+                            if (provider != "ollama" or allow_ollama):
                                 if verbose:
                                     print_md("Attempting bypass using Jina Reader...")
                                 jr_session = requests.Session()
@@ -161,7 +161,7 @@ class WebContentExtractor:
                             current_model = self.settings_manager.setting_get("model")
                             provider = self.llm_client_manager.get_provider_for_model(current_model)
                             allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
-                            if self.settings_manager.setting_get("jina_reader_fallback") and (provider != "ollama" or allow_ollama):
+                            if (provider != "ollama" or allow_ollama):
                                 if verbose:
                                     print_md("Attempting bypass using Jina Reader...")
                                 jr_session = requests.Session()
@@ -197,7 +197,7 @@ class WebContentExtractor:
                         current_model = self.settings_manager.setting_get("model")
                         provider = self.llm_client_manager.get_provider_for_model(current_model)
                         allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
-                        if self.settings_manager.setting_get("jina_reader_fallback") and (provider != "ollama" or allow_ollama):
+                        if (provider != "ollama" or allow_ollama):
                             if verbose:
                                 print_md("Attempting bypass using Jina Reader...")
                             jr_session = requests.Session()
@@ -691,18 +691,38 @@ Respond in JSON format only:
 
             jr_session = requests.Session()
             jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
-            if jr_resp.status_code == 200 and jr_resp.text:
-                content = jr_resp.text
-                if content and len(content.split()) > 50:
-                    title = "Web Content"
-                    return {
-                        'title': title,
-                        'content': content,
-                        'url': url,
-                        'error': None,
-                        'warning': "Content via Jina Reader",
-                        'method': "Jina Reader"
-                    }
+
+            # Reject non-200s immediately
+            if jr_resp.status_code != 200:
+                return {'content': None, 'error': f'Jina Reader HTTP {jr_resp.status_code}'}
+
+            # Detect JSON error payloads even with HTTP 200
+            ct = (jr_resp.headers.get('Content-Type') or '').lower()
+            body_text = jr_resp.text or ""
+            if 'json' in ct or (body_text.lstrip().startswith('{') and body_text.rstrip().endswith('}')):
+                try:
+                    data = jr_resp.json()
+                    if isinstance(data, dict):
+                        # Common error fields from Jina: name/code/status/message/data
+                        if data.get('name') or data.get('code') or data.get('status') or data.get('message'):
+                            if verbose:
+                                print_md("Jina Reader returned error JSON; treating as failure")
+                            return {'content': None, 'error': 'Jina Reader JSON error'}
+                except Exception:
+                    # If JSON parsing fails, treat as non-markdown and continue checks below
+                    pass
+
+            # Treat body as Markdown only if it's sufficiently long and not JSON-looking
+            if body_text.strip() and not body_text.lstrip().startswith('{'):
+                return {
+                    'title': "Web Content",
+                    'content': body_text,
+                    'url': url,
+                    'error': None,
+                    'warning': "Content via Jina Reader",
+                    'method': "Jina Reader"
+                }
+
             return {'content': None, 'error': 'Jina Reader failed'}
         except Exception:
             return {'content': None, 'error': 'Jina Reader exception'}
