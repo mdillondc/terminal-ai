@@ -48,6 +48,7 @@ class SettingsManager:
         self.searxng_base_url = "http://10.13.0.200:8095, https://some.instance"  # URL(s) for SearXNG instance. NB! Instances must have JSON API enabled. System will iterate until it finds an instance that works, or exhaust the list
 
         self.searxng_extract_full_content_truncate = 10000  # Maximum words to keep from each extracted URL content (SearXNG always extracts full content, prevents context window overflow)
+        self.extraction_method_timeout_seconds = 5  # Maximum seconds each extraction method is allowed before moving to the next one
         self.concurrent_workers = 50  # Number of concurrent threads for URL extraction and search operations
         # Control Jina extraction when using local Ollama models:
         # If False (default), Jina will NOT be used when the active provider is Ollama (preserves local-only privacy).

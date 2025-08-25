@@ -19,7 +19,6 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Conversation Management](#conversation-management)
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
-- [Troubleshooting](#troubleshooting)
 
 ## Features
 
@@ -230,6 +229,11 @@ Without JSON support, SearXNG integration will not work.
 ```bash
 # Limit extracted content to first 2500 words per page (configurable word count to avoid exceeding context limits of whatever LLM your are using)
 searxng_extract_full_content_truncate = 8000
+
+# Cap each extraction method (Trafilatura, basic fetch, bypass attempts).
+# 5s is typically fine on stable broadband. Consider 8–10s on slower or mobile networks,
+# high-latency links, or when sites slow-walk bots.
+extraction_method_timeout_seconds = 5
 ```
 
 **How Content Extraction Works:**

@@ -5,8 +5,8 @@ from typing import Dict, Optional
 import re
 import time
 import json
-from datetime import datetime, timedelta
 import trafilatura
+from datetime import datetime, timedelta
 from print_helper import print_md
 from settings_manager import SettingsManager
 from llm_client_manager import LLMClientManager
@@ -65,11 +65,14 @@ class WebContentExtractor:
                 result['error'] = "Invalid URL format"
                 return result
 
-            # Try Trafilatura first
+            # Try Trafilatura first with explicit timeout
+            method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+            if verbose:
+                print_md(f"Trying Trafilatura ({method_timeout}s timeout)...")
             try:
-                downloaded = trafilatura.fetch_url(url)
+                downloaded = self._run_with_timeout(trafilatura.fetch_url, method_timeout, url)
                 if downloaded:
-                    md_content = trafilatura.extract(downloaded, output_format="markdown")
+                    md_content = self._run_with_timeout(trafilatura.extract, method_timeout, downloaded, output_format="markdown")
                     if md_content:
                         if verbose:
                             word_count = len(md_content.split())
@@ -90,53 +93,53 @@ class WebContentExtractor:
 
             # Try normal extraction first
             if verbose:
-                print_md("Fetching webpage...")
+                method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+                effective_timeout = min(self.timeout, method_timeout)
+                print_md(f"Fetching webpage ({effective_timeout}s timeout)...")
             normal_result = self._basic_extraction(url, verbose)
 
-            # Check if we got an error that might be bypassed (403, 429, etc.)
+            # Check if we got an error - attempt bypass for any fetch failure (timeout, HTTP errors, etc.)
             if normal_result['error']:
                 error_msg = normal_result['error'].lower()
-                if any(code in error_msg for code in ['403', '429', 'forbidden', 'blocked', 'bot']):
-                    if verbose:
-                        if '403' in error_msg:
-                            print_md("Access denied (HTTP 403) - attempting bypass methods...")
-                        elif '429' in error_msg:
-                            print_md("Rate limited (HTTP 429) - attempting bypass methods...")
-                        elif 'bot' in error_msg:
-                            print_md("Bot detection triggered - attempting bypass methods...")
-                        else:
-                            print_md("Access blocked - attempting bypass methods...")
-
-                    bypass_result = self._try_access_bypass(url, "", verbose)
-                    if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
-                        return bypass_result
+                if verbose:
+                    status_code = normal_result.get('status_code')
+                    if 'http error' in error_msg and status_code:
+                        print_md(f"HTTP {status_code} — attempting bypass methods...")
+                    elif 'timeout' in error_msg:
+                        print_md("Request timed out — attempting bypass methods...")
+                    elif 'could not connect' in error_msg or 'connect' in error_msg:
+                        print_md("Connection error — attempting bypass methods...")
                     else:
-                        if verbose:
-                            print_md("All bypass methods failed - returning original error")
-                        # Jina Reader last-resort fallback (opt-in due to privacy)
-                        try:
-                            current_model = self.settings_manager.setting_get("model")
-                            provider = self.llm_client_manager.get_provider_for_model(current_model)
-                            allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
-                            if (provider != "ollama" or allow_ollama):
-                                if verbose:
-                                    print_md("Attempting bypass using Jina Reader...")
-                                jr_session = requests.Session()
-                                jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
-                                if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
-                                    if verbose:
-                                        print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
-                                    return {
-                                        'title': "Web Content",
-                                        'content': jr_resp.text,
-                                        'url': url,
-                                        'error': None,
-                                        'warning': "Content via Jina Reader"
-                                    }
-                        except Exception:
-                            pass
-                        return normal_result
+                        print_md("Request failed — attempting bypass methods...")
+
+                bypass_result = self._try_access_bypass(url, "", verbose)
+                if bypass_result['content'] and len(bypass_result['content'].split()) > 100:
+                    return bypass_result
                 else:
+                    if verbose:
+                        print_md("All bypass methods failed - returning original error")
+                    # Jina Reader last-resort fallback (opt-in due to privacy)
+                    try:
+                        current_model = self.settings_manager.setting_get("model")
+                        provider = self.llm_client_manager.get_provider_for_model(current_model)
+                        allow_ollama = self.settings_manager.setting_get("allow_jina_with_ollama")
+                        if (provider != "ollama" or allow_ollama):
+                            if verbose:
+                                print_md("Attempting bypass using Jina Reader...")
+                            jr_session = requests.Session()
+                            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+                            if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
+                                if verbose:
+                                    print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
+                                return {
+                                    'title': "Web Content",
+                                    'content': jr_resp.text,
+                                    'url': url,
+                                    'error': None,
+                                    'warning': "Content via Jina Reader"
+                                }
+                    except Exception:
+                        pass
                     return normal_result
 
             # Check for access restrictions in content using LLM
@@ -419,7 +422,9 @@ class WebContentExtractor:
         }
 
         try:
-            response = self.session.get(url, timeout=self.timeout)
+            method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+            effective_timeout = min(self.timeout, method_timeout)
+            response = self.session.get(url, timeout=effective_timeout)
             response.raise_for_status()
 
             # PDF handling: detect and extract text via DocumentProcessor using a temp file
@@ -472,10 +477,28 @@ class WebContentExtractor:
             result['error'] = "Could not connect to the website"
         except requests.exceptions.HTTPError as e:
             result['error'] = f"HTTP error: {e}"
+            try:
+                result['status_code'] = e.response.status_code if e.response is not None else None
+            except Exception:
+                pass
         except requests.exceptions.RequestException as e:
             result['error'] = f"Request failed: {e}"
 
         return result
+
+    def _run_with_timeout(self, func, timeout_seconds, *args, **kwargs):
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(func, *args, **kwargs)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except FuturesTimeout:
+            raise TimeoutError(f"Operation timed out after {timeout_seconds}s")
+        finally:
+            try:
+                executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
 
     def _strip_markdown_json(self, text: str) -> str:
         """Strip markdown code block formatting from JSON responses."""
@@ -645,7 +668,11 @@ Respond in JSON format only:
         for method_name, method_func in bypass_methods:
             try:
                 if verbose:
-                    print_md(f"Attempting bypass using {method_name}...")
+                    method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+                    if method_name == "alternative user agents":
+                        print_md(f"Attempting bypass using {method_name} ({method_timeout}s timeout per agent)...")
+                    else:
+                        print_md(f"Attempting bypass using {method_name} ({method_timeout}s timeout)...")
                 result = method_func(url, verbose)
 
                 # Check if we got content
@@ -659,7 +686,6 @@ Respond in JSON format only:
                         content_length = len(result.get('content', '').split())
                         if verbose:
                             print_md(f"Success: Bypassed using {specific_method} - extracted {content_length} words")
-                        result['warning'] = f"Access restriction bypassed using {specific_method}"
                         return result
                     else:
                         # Failed validation
@@ -690,7 +716,8 @@ Respond in JSON format only:
                 return {'content': None, 'error': 'Jina disabled for Ollama'}
 
             jr_session = requests.Session()
-            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+            method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=min(20, method_timeout))
 
             # Reject non-200s immediately
             if jr_resp.status_code != 200:
@@ -752,7 +779,7 @@ Respond in JSON format only:
                     'User-Agent': 'Mozilla/5.0 (compatible; Archive-Request/1.0)'
                 })
 
-                response = archive_session.get(archive_url, timeout=15)
+                response = archive_session.get(archive_url, timeout=min(15, getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)))
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -841,8 +868,10 @@ Respond in JSON format only:
             try:
                 bot_session = requests.Session()
                 bot_session.headers.update(headers)
+                if verbose:
+                    print_md(f"Trying user agent: {agent_name}")
 
-                response = bot_session.get(url, timeout=self.timeout)
+                response = bot_session.get(url, timeout=min(self.timeout, getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)))
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -877,7 +906,7 @@ Respond in JSON format only:
 
         for variation_desc, print_url in print_variations:
             try:
-                response = self.session.get(print_url, timeout=self.timeout)
+                response = self.session.get(print_url, timeout=min(self.timeout, getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)))
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -913,7 +942,7 @@ Respond in JSON format only:
 
         for variation_desc, amp_url in amp_variations:
             try:
-                response = self.session.get(amp_url, timeout=self.timeout)
+                response = self.session.get(amp_url, timeout=min(self.timeout, getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)))
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, 'html.parser')
