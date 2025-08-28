@@ -44,14 +44,6 @@ ai() {
   export AI_MODEL_LOCAL=hf.co/unsloth/Mistral-Small-3.2-24B-Instruct-2506-GGUF:Q6_K_XL
   # export AI_MODEL_LOCAL=gpt-oss:20b
 
-  # Help function that extracts usage from actual functions
-  ai() {
-    for func in s sl sw swl swd swdl cb cbl u ul su sul cli clil rewrite rewritel us24 us24l auditArch auditArchl auditAuth auditAuthl; do
-      local help=$(declare -f "$func" | grep -o 'help="[^"]*"' | cut -d'"' -f2)
-      printf "%-8s %s\n" "$func:" "$help"
-    done
-  }
-
   # Helper function to handle common AI operations
   _ai() {
     local model="$1"
@@ -83,7 +75,7 @@ ai() {
   }
 
   # Get all function names and group cloud/local pairs together
-  local all_funcs=($(typeset -f | grep -E '^[a-z][a-z0-9]*[[:space:]]*\(\)' | grep -v '^ai[[:space:]]*\(\)' | grep -v '^_' | sed 's/[[:space:]]*().*$//' | sort))
+  local all_funcs=($(typeset -f | grep -E '^[a-zA-Z][a-zA-Z0-9]*[[:space:]]*\(\)' | grep -v '^ai[[:space:]]*\(\)' | grep -v '^_' | sed 's/[[:space:]]*().*$//' | sort))
 
   # Group functions by base name (cloud first, then local)
   local funcs=()
