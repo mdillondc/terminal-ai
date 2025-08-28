@@ -222,6 +222,16 @@ swdl() {
   _ai "$AI_MODEL_LOCAL" "--search-deep" "$*"
 }
 
+sa() {
+  local help="Basic AI conversation with cloud model with auto web search"
+  _ai "$AI_MODEL" "--search-auto" "$*"
+}
+
+sa5() {
+  local help="Basic AI conversation with cloud model with auto web search gpt-5"
+  _ai "gpt-5" "--search-auto" "$*"
+}
+
 cb() {
   local help="Analyze clipboard content"
   _ai "$AI_MODEL" "--cb" "$*"

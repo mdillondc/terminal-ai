@@ -294,8 +294,27 @@ class CommandManager:
                         if self.settings_manager.setting_get("search_deep"):
                             self.settings_manager.setting_set("search_deep", False)
                             print_md("Deep search disabled")
+                        # Disable search-auto if it's currently enabled
+                        if self.settings_manager.setting_get("search_auto"):
+                            self.settings_manager.setting_set("search_auto", False)
+                            print_md("Auto web search disabled")
                         self.settings_manager.setting_set("search", True)
                         print_md("Web search enabled")
+                    command_executed = True
+                elif command_name == "--search-auto":
+                    if self.settings_manager.setting_get("search_auto"):
+                        self.settings_manager.setting_set("search_auto", False)
+                        print_md("Auto web search disabled")
+                    else:
+                        # Disable regular search and deep search if currently enabled
+                        if self.settings_manager.setting_get("search"):
+                            self.settings_manager.setting_set("search", False)
+                            print_md("Web search disabled")
+                        if self.settings_manager.setting_get("search_deep"):
+                            self.settings_manager.setting_set("search_deep", False)
+                            print_md("Deep search disabled")
+                        self.settings_manager.setting_set("search_auto", True)
+                        print_md("Auto web search enabled")
                     command_executed = True
                 elif command_name == "--search-deep":
                     if self.settings_manager.setting_get("search_deep"):
@@ -306,6 +325,10 @@ class CommandManager:
                         if self.settings_manager.setting_get("search"):
                             self.settings_manager.setting_set("search", False)
                             print_md("Web search disabled")
+                        # Ensure auto web search is disabled when enabling deep search
+                        if self.settings_manager.setting_get("search_auto"):
+                            self.settings_manager.setting_set("search_auto", False)
+                            print_md("Auto web search disabled")
                         self.settings_manager.setting_set("search_deep", True)
                         print_md("Deep search enabled - AI will autonomously determine research completeness")
                     command_executed = True

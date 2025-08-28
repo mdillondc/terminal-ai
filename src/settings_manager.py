@@ -39,6 +39,7 @@ class SettingsManager:
 
         # Search Settings
         self.search = False  # Enable or disable search by default
+        self.search_auto = False  # Auto web search toggle (LLM-gated). When enabled, the AI decides per prompt whether to run a regular web search.
         self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
         self.search_engine = "tavily"  # "tavily" or "searxng"
         self.search_deep = False  # Enable or disable deep search
@@ -109,6 +110,8 @@ class SettingsManager:
 
         if self.search:
             enabled_toggles.append("search")
+        if self.search_auto:
+            enabled_toggles.append("search-auto")
         if self.search_deep:
             enabled_toggles.append("search-deep")
         if self.nothink:

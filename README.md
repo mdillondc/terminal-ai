@@ -161,6 +161,7 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 | Command | Description |
 |---------|-------------|
 | `--search` | Toggle web search mode |
+| `--search-auto` | AI decides per prompt whether to run a regular web search (not deep) |
 | `--search-engine <engine>` | Switch search engine (tavily/searxng) for current session. Can be overriden in ~/.config/terminal-ai/config (as can any setting) |
 
 **Search Engine Comparison:**
@@ -203,6 +204,33 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 - Current date awareness
 - Parallel query execution to significantly reduce search response times
 - Multi-query strategy (1-3 optimized searches per request)
+
+### Auto Web Search (--search-auto)
+
+- Lets the AI decide per prompt whether to run a regular web search.
+- Uses recent conversation context for the decision and to optimize queries.
+- Avoids unnecessary browsing for simple, timeless questions (e.g., 2 + 2).
+- If SEARCH is chosen, it reuses the regular --search flow (not deep search).
+- Transparency: prints “Auto-search decision: SEARCH” or “Auto-search decision: NO_SEARCH”.
+
+Mutual exclusivity
+- Enabling `--search-auto` disables `--search` and `--search-deep`.
+- Enabling `--search` or `--search-deep` disables `--search-auto`.
+
+Examples
+```bash
+> --search-auto
+Auto web search enabled
+
+> what is 2 + 2?
+Auto-search decision: NO_SEARCH
+4
+
+> what happened in US politics over the past 24 hours?
+Auto-search decision: SEARCH
+ • Generating search queries...
+ ...
+```
 
 **SearXNG Configuration:**
 

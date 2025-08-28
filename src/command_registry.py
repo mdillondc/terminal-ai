@@ -184,6 +184,15 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
+            name="--search-auto",
+            description="Toggles automatic web search mode. The AI evaluates each prompt (with recent conversation context) and decides whether to run a regular web search (not deep). Use --search-engine to select the engine.",
+            usage="--search-auto",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
+        self.register_command(CommandInfo(
             name="--search-deep",
             description="Toggles autonomous deep search mode. AI intelligently evaluates research completeness and continues searching until comprehensive coverage is achieved. Search engine (Tavily or SearXNG) can be configured via settings.",
             usage="--search-deep",
