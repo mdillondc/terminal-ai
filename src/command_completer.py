@@ -255,6 +255,8 @@ class CommandCompleter(Completer):
             yield from self._complete_rag_collection_files(argument_part, completion_rules)
         elif completion_type == CompletionType.SEARCH_ENGINE:
             yield from self._complete_search_engines(argument_part, completion_rules)
+        elif completion_type == CompletionType.IMAGE_ENGINE:
+            yield from self._complete_image_engines(argument_part, completion_rules)
         elif completion_type == CompletionType.SIMPLE:
             yield from self._complete_simple_suggestions(argument_part, completion_rules)
 
@@ -466,6 +468,28 @@ class CommandCompleter(Completer):
 
 
 
+    def _complete_image_engines(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
+        """Complete image engine names with fuzzy matching"""
+        image_engines = [
+            ("nano-banana", "Google Gemini - image generation")
+        ]
+
+        matches = []
+        for engine_name, description in image_engines:
+            is_match, score = self._fuzzy_match(partial_name, engine_name)
+            if is_match:
+                matches.append((score, engine_name, description))
+
+        # Sort by score (higher is better), then alphabetically
+        matches.sort(key=lambda x: (-x[0], x[1]))
+
+        for score, engine_name, description in matches:
+            yield Completion(
+                text=engine_name,
+                start_position=-len(partial_name),
+                display_meta=description
+            )
+
     def _complete_rag_collections(self, partial_name: str, rules: CompletionRules) -> Generator[Completion, None, None]:
         """Complete RAG collection names using VectorStore with fuzzy matching"""
         try:
@@ -633,8 +657,21 @@ class CommandCompleter(Completer):
                 matches.sort(key=lambda x: (-x[0], x[1]))
                 return [item_path for score, item_path in matches]
             else:
-                # No prefix - return all candidates sorted
-                return sorted([item_path for item_path, is_dir in candidates])
+                # No prefix - return all candidates sorted by modification time (newest first)
+                try:
+                    candidates_with_mtime = []
+                    for item_path, is_dir in candidates:
+                        try:
+                            mtime = os.path.getmtime(item_path.rstrip("/"))
+                        except Exception:
+                            mtime = 0
+                        candidates_with_mtime.append((mtime, item_path))
+                    # Sort by mtime descending (newest first)
+                    candidates_with_mtime.sort(key=lambda x: (-x[0], x[1]))
+                    return [item_path for mtime, item_path in candidates_with_mtime]
+                except Exception:
+                    # Fallback to alphabetical if mtime lookup fails
+                    return sorted([item_path for item_path, is_dir in candidates])
 
         except (OSError, PermissionError):
             return []

@@ -17,6 +17,7 @@ from document_processor import DocumentProcessor
 from rag_config import is_supported_file, get_supported_extensions_display
 from print_helper import print_md, start_capturing_print_info, stop_capturing_print_info
 from constants import NetworkConstants, ModelPricingConstants
+from image_engine_manager import ImageEngineManager, ImageEngineNotSupportedError
 
 
 class CommandManager:
@@ -44,6 +45,11 @@ class CommandManager:
 
         # Initialize export manager for markdown export functionality
         self.export_manager = ExportManager()
+        # Pending image action state (for two-step image generate/edit)
+        self._pending_image_action = None
+        # Current working image for editing
+        self._current_working_image = None
+
 
     def _extract_valid_commands(self, user_input: str) -> Tuple[List[Dict[str, Any]], str]:
         """
@@ -93,12 +99,24 @@ class CommandManager:
                             arg_end = closing_quote + 1
                             end_pos = end_pos + len(remaining_text[end_pos:]) - len(rest_of_text) + arg_end
                     else:
-                        # Handle unquoted argument - take first word
-                        words = rest_of_text.split()
-                        if words:
-                            argument = words[0]
-                            # Update end position to include the argument and any whitespace after it
-                            arg_end = rest_of_text.find(argument) + len(argument)
+                        # Handle unquoted argument
+                        if command_name == "--image-generate":
+                            # Greedy capture: everything until the next command token (" --") or end of line
+                            next_cmd_idx = rest_of_text.find(" --")
+                            if next_cmd_idx != -1:
+                                argument = rest_of_text[:next_cmd_idx].rstrip()
+                                arg_end = next_cmd_idx
+                            else:
+                                argument = rest_of_text.strip()
+                                arg_end = len(rest_of_text)
+                        else:
+                            # Default behavior - take first word
+                            words = rest_of_text.split()
+                            if words:
+                                argument = words[0]
+                                # Position end at the end of the first word
+                                arg_end = rest_of_text.find(argument) + len(argument)
+                        if argument is not None:
                             end_pos = end_pos + len(remaining_text[end_pos:]) - len(rest_of_text) + arg_end
 
                 extracted_commands.append({
@@ -141,6 +159,13 @@ class CommandManager:
         extracted_commands, remaining_text = self._extract_valid_commands(user_input)
 
         command_processed = False
+
+        # If a pending image action exists and user entered a new command, cancel it
+        if (hasattr(self, '_pending_image_action') and
+            self._pending_image_action is not None and
+            extracted_commands):
+            print_md("Canceled pending image operation")
+            self._pending_image_action = None
 
         # Process each extracted command
         for cmd_info in extracted_commands:
@@ -335,6 +360,86 @@ class CommandManager:
                 elif command_name == "--search-engine":
                     self.set_search_engine(arg)
                     command_executed = True
+                elif command_name == "--image-engine":
+                    self.set_image_engine(arg)
+                    command_executed = True
+                elif command_name == "--image-generate":
+                    if arg:
+                        # Inline prompt - generate immediately and don't enter mode
+                        self._pending_image_action = {"type": "generate", "engine": self.settings_manager.setting_get("image_engine")}
+                        self._handle_pending_image_action(arg)
+                        self._pending_image_action = None
+                    else:
+                        # Toggle image-generate mode
+                        generate_mode = self.settings_manager.setting_get("image_generate_mode")
+                        if generate_mode:
+                            self.settings_manager.setting_set("image_generate_mode", False)
+                            print_md("Image generate mode disabled")
+                        else:
+                            # Disable edit mode first
+                            self.settings_manager.setting_set("image_edit_mode", False)
+                            # Back-compat: clear legacy revision flag if present
+
+                            self.settings_manager.setting_set("image_generate_mode", True)
+                            print_md("Image generate mode enabled - plain text will generate new images")
+                    command_executed = True
+                elif command_name == "--image-edit":
+                    if arg is None:
+                        if self._current_working_image and os.path.isfile(self._current_working_image):
+                            # Enter persistent edit mode using current working image
+                            self.settings_manager.setting_set("image_generate_mode", False)
+                            self.settings_manager.setting_set("image_edit_mode", True)
+                            # Back-compat: set legacy revision flag so plain text routes correctly
+
+                            if not getattr(self, "_edit_base_image", None):
+                                self._edit_base_image = self._current_working_image
+                            print_md(f"Image edit mode enabled - plain text will edit: {self._current_working_image}")
+                        else:
+                            print_md("No image to edit. Generate an image first (--image-generate) or provide a path: --image-edit /path/to/image")
+                    else:
+                        # Validate file path
+                        image_path = os.path.expanduser(arg)
+                        if not os.path.isfile(image_path):
+                            print_md(f"Invalid image path: {arg}")
+                        else:
+                            # Activate edit mode for this image and request first prompt (two-step)
+                            self.settings_manager.setting_set("image_generate_mode", False)
+                            self.settings_manager.setting_set("image_edit_mode", True)
+
+                            self._current_working_image = image_path
+                            self._edit_base_image = image_path
+                            self.settings_manager.setting_set("image_current_working_file", image_path)
+                            self._pending_image_action = {"type": "edit", "engine": self.settings_manager.setting_get("image_engine"), "image_path": image_path, "use_working_image": True}
+                            print_md(f"Enter edit prompt for file: {image_path}")
+                    command_executed = True
+                elif command_name == "--image-revision":
+                    if arg:
+                        # Inline prompt - enter revision mode and handle immediately
+                        if not self._current_working_image:
+                            print_md("No current working image for revision. Use --image-generate first to create an image.")
+                        else:
+                            # Disable other modes
+                            self.settings_manager.setting_set("image_generate_mode", False)
+                            self.settings_manager.setting_set("image_revision_active", True)
+                            # Create revision action and handle it
+                            self._pending_image_action = {"type": "edit", "engine": self.settings_manager.setting_get("image_engine"), "image_path": self._current_working_image, "use_working_image": True}
+                            self._handle_pending_image_action(arg)
+                            self._pending_image_action = None
+                    else:
+                        # Toggle image-revision mode
+                        revision_active = self.settings_manager.setting_get("image_revision_active")
+                        if revision_active:
+                            self.settings_manager.setting_set("image_revision_active", False)
+                            print_md("Image revision mode disabled")
+                        else:
+                            if not self._current_working_image:
+                                print_md("No current working image for revision. Use --image-generate first to create an image.")
+                            else:
+                                # Disable other modes first
+                                self.settings_manager.setting_set("image_generate_mode", False)
+                                self.settings_manager.setting_set("image_revision_active", True)
+                                print_md("Image revision mode enabled - plain text will edit the current working image")
+                    command_executed = True
 
                 elif command_name == "--nothink":
                     nothink = self.settings_manager.setting_get("nothink")
@@ -419,6 +524,38 @@ class CommandManager:
                 else:
                     # Command not recognized - don't log it
                     stop_capturing_print_info()  # Clean up capture
+
+        # Handle pending image action prompt (consume remaining_text instead of sending to chat)
+        if hasattr(self, '_pending_image_action') and self._pending_image_action and remaining_text.strip():
+            self._handle_pending_image_action(remaining_text.strip())
+            remaining_text = ""
+            command_processed = True
+
+        # Handle image-generate mode - route plain text to image generation
+        elif self.settings_manager.setting_get("image_generate_mode") and remaining_text.strip():
+            # Create a temporary generate action and handle it
+            self._pending_image_action = {"type": "generate", "engine": self.settings_manager.setting_get("image_engine")}
+            self._handle_pending_image_action(remaining_text.strip())
+            remaining_text = ""
+            command_processed = True
+
+        # Handle image-edit mode - route plain text to always edit latest working image
+        elif self.settings_manager.setting_get("image_edit_mode") and remaining_text.strip():
+            if self._current_working_image and os.path.isfile(self._current_working_image):
+                # Always edit from the latest iteration
+                self._pending_image_action = {
+                    "type": "edit",
+                    "engine": self.settings_manager.setting_get("image_engine"),
+                    "image_path": self._current_working_image,
+                    "use_working_image": True
+                }
+                self._handle_pending_image_action(remaining_text.strip())
+                remaining_text = ""
+                command_processed = True
+            else:
+                print_md("No image to edit. Generate an image first (--image-generate) or provide a path with --image-edit /path/to/image")
+                remaining_text = ""
+                command_processed = True
 
         # Send remaining text to AI if there's any non-command content
         if remaining_text.strip():
@@ -871,6 +1008,129 @@ class CommandManager:
         else:  # searxng
             searxng_url = self.settings_manager.searxng_base_url
             print_md(f"Search engine: SearXNG (privacy-focused, using {searxng_url})")
+
+    def set_image_engine(self, arg: Optional[str]) -> None:
+        """
+        Set the active image engine for current session.
+        Args:
+            arg: Image engine name to set. Currently supports 'nano-banana'.
+                 If None, displays current engine and available options.
+        """
+        if arg is None:
+            current_engine = self.settings_manager.setting_get("image_engine")
+            print_md(f"Current image engine: {current_engine}")
+            engine_help_text = "Available image engines:\n"
+            engine_help_text += "    nano-banana  - Google Gemini image generation\n"
+            engine_help_text += "Usage: --image-engine nano-banana"
+            print_md(engine_help_text)
+            return
+
+        image_engine = arg.lower()
+        valid_engines = ["nano-banana"]
+        if image_engine not in valid_engines:
+            invalid_engine_text = f"Invalid image engine: {image_engine}\n"
+            invalid_engine_text += f"    Valid options: {', '.join(valid_engines)}"
+            print_md(invalid_engine_text)
+            return
+
+        self.settings_manager.setting_set("image_engine", image_engine)
+        print_md(f"Image engine: {image_engine}")
+
+
+
+    def has_pending_image_action(self) -> bool:
+        return bool(getattr(self, "_pending_image_action", None))
+
+    def _handle_pending_image_action(self, prompt: str) -> None:
+        """
+        Execute pending image action using ImageEngineManager and save the result.
+        """
+        action = getattr(self, "_pending_image_action", None)
+        if not action:
+            return
+
+        action_type = action.get("type")
+        engine = action.get("engine")
+        image_path = action.get("image_path")
+
+        manager = ImageEngineManager(self.settings_manager)
+
+        try:
+            if action_type == "generate":
+                print_md(f"Generating image with {engine}: \"{prompt}\"")
+                result = manager.generate(prompt)
+
+                # Derive short description if provider didn't return one
+                desc = result.description
+                if not desc:
+                    try:
+                        model = self.conversation_manager.model
+                        sys_prompt = "Return a concise description (max 5 words) suitable for a filename. Lowercase, no punctuation."
+                        messages = [
+                            {"role": "system", "content": sys_prompt},
+                            {"role": "user", "content": prompt}
+                        ]
+                        completion = self.conversation_manager.llm_client_manager.create_chat_completion(
+                            model=model,
+                            messages=messages,
+                            temperature=0.2,
+                            max_tokens=16
+                        )
+                        desc = (completion.choices[0].message.content or "").strip()
+                    except Exception:
+                        desc = prompt  # Fallback
+
+                saved = manager.save_image(result, engine_name=engine)
+                print_md(f"Saved image: [{saved.saved_path}](file://{saved.saved_path})")
+                # Update current working image to enable future edits
+                self._current_working_image = saved.saved_path
+                self.settings_manager.setting_set("image_current_working_file", saved.saved_path)
+
+            elif action_type == "edit":
+                # Always edit from the latest iteration if available
+                actual_image_path = self._current_working_image if (self._current_working_image and action.get("use_working_image", True)) else image_path
+                print_md(f"Editing image with {engine}: file={actual_image_path}, prompt=\"{prompt}\"")
+
+                result = manager.edit_from_path(actual_image_path, prompt)
+
+                # Derive short description if provider didn't return one
+                desc = result.description
+                if not desc:
+                    try:
+                        model = self.conversation_manager.model
+                        sys_prompt = "Return a concise description of the edited image (max 5 words). Lowercase, no punctuation."
+                        messages = [
+                            {"role": "system", "content": sys_prompt},
+                            {"role": "user", "content": prompt}
+                        ]
+                        completion = self.conversation_manager.llm_client_manager.create_chat_completion(
+                            model=model,
+                            messages=messages,
+                            temperature=0.2,
+                            max_tokens=16
+                        )
+                        desc = (completion.choices[0].message.content or "").strip()
+                    except Exception:
+                        desc = prompt  # Fallback
+
+                saved = manager.save_image(result, engine_name=engine)
+                print_md(f"Saved edited image: [{saved.saved_path}](file://{saved.saved_path})")
+
+                # Always update current working image after edits
+                self._current_working_image = saved.saved_path
+                self.settings_manager.setting_set("image_current_working_file", saved.saved_path)
+
+            # Image action handled
+
+        except ImageEngineNotSupportedError as e:
+            print_md(str(e))
+        except FileNotFoundError as e:
+            print_md(str(e))
+        except Exception as e:
+            print_md(f"Image operation failed: {e}")
+        finally:
+            # Clear pending state
+            self._pending_image_action = None
 
     def extract_youtube_content(self, arg: str) -> None:
         """

@@ -194,8 +194,6 @@ class ModelManager:
         return []
 
 
-
-
     def _get_ollama_models(self) -> List[str]:
         """Get available models from Ollama with graceful error handling"""
         try:

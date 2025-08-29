@@ -56,6 +56,13 @@ class SettingsManager:
         # Set to True to allow Jina fallback even with Ollama models (you accept the third‑party privacy tradeoff).
         self.allow_jina_with_ollama = False
 
+        # Image Settings
+        self.image_engine = "nano-banana"  # Default image engine for image generation/editing
+        self.image_revision_mode = "original"  # "original" or "iterative" - how image edits build on each other
+        self.image_generate_mode = False  # True when --image-generate mode is active
+        self.image_edit_mode = False  # True when --image-edit mode is active
+        self.image_current_working_file = None  # Current working image file path for iterative mode
+
         # Markdown streamdown settings
         self.markdown = True  # Enable markdown parsing and rendering
         self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']  # Gruvbox theme for streamdown/markdown formatting
@@ -123,6 +130,21 @@ class SettingsManager:
 
         if self.rag_active_collection:
             enabled_toggles.append(f"rag {self.rag_active_collection}")
+
+        # Image mode indicators
+        if getattr(self, 'image_edit_mode', False):
+            # Show current working image basename if available
+            try:
+                import os
+                filename = os.path.basename(self.image_current_working_file) if self.image_current_working_file else None
+            except Exception:
+                filename = None
+            if filename:
+                enabled_toggles.append(f"image-edit ({filename})")
+            else:
+                enabled_toggles.append("image-edit")
+        elif getattr(self, 'image_generate_mode', False):
+            enabled_toggles.append("image-generate")
 
         # Add model name as the last element
         if self.model:

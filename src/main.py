@@ -199,22 +199,32 @@ def main() -> None:
                     else:
                         continue
 
+                # If a pending image action exists, treat the input as the image prompt
+                if command_manager.has_pending_image_action():
+                    command_processed, remaining_text = command_manager.process_commands(user_input)
+                    continue
+
+                # Process explicit commands
                 if "--" in user_input:
                     command_processed, remaining_text = command_manager.process_commands(user_input)
                     if command_processed and not remaining_text.strip():
                         continue
                     elif command_processed and remaining_text.strip():
                         # Commands were processed and remaining text was handled by CommandManager
-                        # CommandManager already called generate_response(), so continue to next iteration
                         continue
 
-                # Check if nothink mode is enabled and prepend /nothink prefix
+                # Route plain text to image modes if active
+                if settings_manager.setting_get("image_generate_mode") or settings_manager.setting_get("image_edit_mode"):
+                    command_processed, remaining_text = command_manager.process_commands(user_input)
+                    # CommandManager will handle image generate/edit modes and consume the text
+                    continue
+
+                # Fallback: normal chat
                 final_user_input = user_input
                 if settings_manager.setting_get("nothink"):
                     final_user_input = "/nothink " + user_input
 
                 conversation_manager.log_context(final_user_input, "user")
-
                 conversation_manager.generate_response()
         except KeyboardInterrupt:
             if confirm_exit():

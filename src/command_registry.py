@@ -23,6 +23,7 @@ class CompletionType(Enum):
     RAG_COLLECTION = "rag_collection"  # RAG collection name suggestions
     RAG_COLLECTION_FILE = "rag_collection_file"  # Files in active RAG collection
     SEARCH_ENGINE = "search_engine"  # Search engine suggestions
+    IMAGE_ENGINE = "image_engine"  # Image engine suggestions
     NONE = "none"  # No additional completion after command name
 
 
@@ -212,6 +213,44 @@ class CommandRegistry:
             ),
             requires_argument=True
         ))
+
+        # Image commands
+        self.register_command(CommandInfo(
+            name="--image-engine",
+            description="Switch image generation engine for current session.",
+            usage="--image-engine nano-banana",
+            execution_order=1,
+            completion_rules=CompletionRules(
+                CompletionType.IMAGE_ENGINE,
+                custom_suggestions=["nano-banana"]
+            ),
+            requires_argument=True
+        ))
+
+        self.register_command(CommandInfo(
+            name="--image-generate",
+            description="Generate an image from a text prompt. Supports inline and two-step prompting.",
+            usage="--image-generate your prompt",
+            execution_order=2,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
+        self.register_command(CommandInfo(
+            name="--image-edit",
+            description="Edit an existing image with a text prompt (two-step flow). In iterative mode, can edit current working image without specifying path.",
+            usage="--image-edit path/to/image (or just --image-edit in iterative mode)",
+            execution_order=2,
+            completion_rules=CompletionRules(
+                CompletionType.FILE_PATH,
+                base_directory=self.working_dir
+            ),
+            requires_argument=False
+        ))
+
+
+
+
 
         self.register_command(CommandInfo(
             name="--nothink",

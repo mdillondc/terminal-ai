@@ -19,6 +19,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Conversation Management](#conversation-management)
 - [Configuration](#configuration)
 - [Shell Integration](#shell-integration)
+- [Experimental: Image Generation & Editing](#experimental-image-generation--editing)
 
 ## Features
 
@@ -115,6 +116,29 @@ Confirm quitting (Y/n)?
 | `--model-clear-cache` | Force refresh of available models |
 | `--clear` | Clear conversation history |
 | `--usage` | Show token usage and costs |
+
+## Experimental: Image Generation & Editing
+
+Create and edit images (experimental). Files are saved under `images/` as `model_YYYYMMDD-HHMMSS.png`. Two modes:
+
+- Generate mode (toggle):
+  - `--image-generate`; plain text prompts create new images
+  - One‑shot: `--image-generate a german shepherd is sleeping on a couch`
+
+- Edit mode (persistent, iterative):
+  - `--image-edit images/your.png` → then type edit prompts; header shows `image-edit (your.png)`
+  - `--image-edit` (no path) uses the last generated/edited image
+      - `add a plush toy next to the dogs head`
+  - Each edit builds on the latest result and saves a new file
+
+Examples:
+```
+--image-generate
+cat sleeping on a blanket
+--image-edit
+make the cat bald (no fur)
+make the cat stand on all four legs
+```
 
 ## Content Input
 

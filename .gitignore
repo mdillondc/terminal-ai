@@ -1,10 +1,15 @@
+# Generic
 __pycache__/
 .pytest_cache/
 *.py[cod]
-logs/
-logs-exported/
 cache/
+
+# Personal (this is your personal user data; never commit the following):
+# Conversation logs (use --incognito to not log at all)
+logs/
+# Personal data
 rag/
-pdf/
-audio_output/
+# Images you generate/edit
+images/
+# shell.personal.sh is an extension of shell.example.sh with your personal workflows
 shell.personal.sh
