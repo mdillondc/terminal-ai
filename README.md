@@ -126,18 +126,11 @@ Create and edit images (experimental). Files are saved under `images/` as `model
   - One‑shot: `--image-generate a german shepherd is sleeping on a couch`
 
 - Edit mode (persistent, iterative):
-  - `--image-edit images/your.png` → then type edit prompts; header shows `image-edit (your.png)`
+  - `--image-edit images/your.png`
+    `create 3d mesh around person in image`
   - `--image-edit` (no path) uses the last generated/edited image
       - `add a plush toy next to the dogs head`
   - Each edit builds on the latest result and saves a new file
-
-Examples:
-```
---image-generate
-cat sleeping on a blanket
---image-edit
-make the cat bald (no fur)
-make the cat stand on all four legs
 ```
 
 ## Content Input
