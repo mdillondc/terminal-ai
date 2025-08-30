@@ -21,6 +21,7 @@ from print_helper import print_md, print_lines
 from rich.console import Console
 
 
+
 class ConversationManager:
     def __init__(self, client: Any, model: Optional[str] = None) -> None:
         self.client = client
@@ -252,25 +253,46 @@ class ConversationManager:
         # Display AI name to user
         print(f"\n{self.settings_manager.get_ai_name_with_instructions()}:")
 
-        # Start timeout detection for response delays BEFORE API call
-        response_started = threading.Event()
-        timeout_messages_shown = [False]  # Use list for mutable reference
-        timeout_thread = self._start_timeout_detection(response_started, timeout_messages_shown)
+        # Retry loop for connection errors
+        while True:
+            # Initialize response_started before try block to avoid unbound variable
+            response_started = threading.Event()
+            try:
+                # Start timeout detection for response delays BEFORE API call
+                timeout_messages_shown = [False]  # Use list for mutable reference
+                timeout_thread = self._start_timeout_detection(response_started, timeout_messages_shown)
 
-        # Setup stream to receive response from AI (OpenAI uses Responses API for reasoning summaries)
-        provider = self.llm_client_manager.get_provider_for_model(self.model)
-        if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
-            stream = self.llm_client_manager.create_responses_stream(
-                model=self.model,
-                messages=self.conversation_history,
-                include_reasoning_summary=True
-            )
-            responses_streaming = True
-        else:
-            stream = self.llm_client_manager.create_chat_completion(
-                model=self.model, messages=self.conversation_history, stream=True
-            )
-            responses_streaming = False
+                # Setup stream to receive response from AI (OpenAI uses Responses API for reasoning summaries)
+                provider = self.llm_client_manager.get_provider_for_model(self.model)
+                if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
+                    stream = self.llm_client_manager.create_responses_stream(
+                        model=self.model,
+                        messages=self.conversation_history,
+                        include_reasoning_summary=True
+                    )
+                    responses_streaming = True
+                else:
+                    stream = self.llm_client_manager.create_chat_completion(
+                        model=self.model, messages=self.conversation_history, stream=True
+                    )
+                    responses_streaming = False
+
+                # If we get here, the API call succeeded - break out of retry loop
+                break
+
+            except Exception as e:
+                # Signal response started to stop timeout detection messages
+                response_started.set()
+
+                print_md(f"**Error:** {e}")
+                print_md("This usually happens due to network connectivity issues (like unstable airplane wifi).")
+
+                # Ask user if they want to retry
+                response = input("(Y/n) Resubmit your last message? ").strip().lower()
+                if response in ['n', 'no']:
+                    print_md("Exiting due to error.")
+                    raise e  # Re-raise to exit the application
+                # Any other response (including empty/Enter) will retry
 
         # Init variable to hold AI response in its entirety
         ai_response = ""

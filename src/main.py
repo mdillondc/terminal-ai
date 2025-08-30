@@ -14,6 +14,8 @@ from command_manager import CommandManager
 from print_helper import print_md, print_lines, set_conversation_manager
 from api_key_check import check
 
+
+
 def confirm_exit() -> bool:
     response = input("Confirm quitting (Y/n)? ").strip().lower()
     return response in ['', 'y', 'yes']
