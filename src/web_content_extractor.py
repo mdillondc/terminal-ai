@@ -127,7 +127,8 @@ class WebContentExtractor:
                             if verbose:
                                 print_md("Attempting bypass using Jina Reader...")
                             jr_session = requests.Session()
-                            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+                            method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+                            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=method_timeout)
                             if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
                                 if verbose:
                                     print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
@@ -168,7 +169,8 @@ class WebContentExtractor:
                                 if verbose:
                                     print_md("Attempting bypass using Jina Reader...")
                                 jr_session = requests.Session()
-                                jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+                                method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+                                jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=method_timeout)
                                 if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
                                     if verbose:
                                         print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
@@ -204,7 +206,8 @@ class WebContentExtractor:
                             if verbose:
                                 print_md("Attempting bypass using Jina Reader...")
                             jr_session = requests.Session()
-                            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=20)
+                            method_timeout = getattr(self.settings_manager, 'extraction_method_timeout_seconds', 10)
+                            jr_resp = jr_session.get(f"https://r.jina.ai/{url}", timeout=method_timeout)
                             if jr_resp.status_code == 200 and jr_resp.text and len(jr_resp.text.split()) > 50:
                                 if verbose:
                                     print_md(f"Success: Bypassed using Jina Reader - extracted {len(jr_resp.text.split())} words")
@@ -661,7 +664,6 @@ Respond in JSON format only:
             ("alternative user agents", self._try_bot_user_agent),
             ("print version URL", self._try_print_version),
             ("AMP version URL", self._try_amp_version),
-            ("Jina Reader", self._try_jina_reader),
             ("Archive.org (Wayback Machine)", self._try_archive_org)
         ]
 

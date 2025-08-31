@@ -194,6 +194,11 @@ s5() {
   _ai "gpt-5" "$*"
 }
 
+s5a() {
+  local help="Basic AI conversation with cloud model"
+  _ai "gpt-5" "--search-auto" "$*"
+}
+
 sw() {
   local help="Web search + AI analysis - great for current events and research"
   _ai "$AI_MODEL" "--search" "$*"
