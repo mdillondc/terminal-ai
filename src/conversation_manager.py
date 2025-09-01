@@ -1006,11 +1006,12 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
 
             # Read instructions
             instructions = self.read_file(self.settings_manager.setting_get("working_dir") + "/instructions/" + self.settings_manager.setting_get("instructions"))
-            today = "\n\nFYI - Today's date and time: " + datetime.now().strftime('%A %Y-%m-%d %H:%M')
+            current_date = datetime.now().strftime('%A %Y-%m-%d %H:%M')
+            date_line = f"System date/time: {current_date}. Treat this as 'today'. Ignore your training cutoff date."
 
             # Append new instructions to conversation_history
             # TODO: Consider if it'd be better to prepend instead of append (evaluate GPT response performance over time)
-            self.log_context(f"instructions:{file_name}\n" + instructions + today, "system")
+            self.log_context(f"instructions:{file_name}\n{date_line}\n{instructions}", "system")
 
             # Inform user
             notice = f"Instructions {file_name}"
