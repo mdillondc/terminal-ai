@@ -9,10 +9,23 @@ from typing import Optional
 
 # Response timeout constants for universal timeout system
 # Intention: Communicate to user that app has not hung, but is working
-RESPONSE_TIMEOUT_1_SEC = 3
-RESPONSE_TIMEOUT_1_MSG = "Model is still processing your request..."
-RESPONSE_TIMEOUT_2_SEC = 10
-RESPONSE_TIMEOUT_2_MSG = "Still working... (complex queries take longer / some models are slower than others)"
+# RESPONSE_WAIT_SEC controls how long (in seconds) we wait for visible output from the model
+# before showing a user-facing "working" indicator. Tune this higher if your models usually
+# start streaming quickly (to avoid flicker), or lower if you want feedback to appear sooner.
+RESPONSE_WAIT_SEC = 3
+
+# RESPONSE_WORKING_LABEL is the prefix text used by the animated "working" indicator that appears
+# after RESPONSE_WAIT_SEC with no visible model output yet. Examples (animated):
+#   "Working."
+#   "Working.."
+#   "Working..."
+# Behavior notes:
+# - Applies to all models.
+# - Suppressed for turns where web search or deep-search ran (to avoid noisy output).
+# - In non‑TTY environments, we print a single "Working..." line once (no animation).
+# - If gpt5_display_full_reasoning is True and the model is GPT‑5, we stream the model's
+#   reasoning summary instead of showing this indicator (and we do not log that summary).
+RESPONSE_WORKING_LABEL = "Working"
 
 # Model name display constants (only applies to user prompt display)
 USER_PROMPT_MODEL_MAX_CHARS = 20

@@ -5,6 +5,7 @@ Provides standardized formatting for status, info, error, and success messages.
 
 import threading
 import subprocess
+import sys
 from typing import List, Optional
 
 # Global conversation manager instance for automatic .md logging
@@ -12,6 +13,73 @@ _conversation_manager = None
 
 # Thread-local storage for capturing print_info messages during command execution
 _local = threading.local()
+
+class StatusAnimator:
+    """
+    Simple animated status line utility.
+
+    Usage:
+        animator = get_status_animator()
+        animator.start("✦ Reasoning", frames=[".", "..", "..."], interval=0.4)
+        ...
+        animator.stop()
+    """
+    def __init__(self):
+        self._thread = None
+        self._stop_event = threading.Event()
+        self._active = False
+        self._label = ""
+        self._frames = ["."]
+        self._interval = 0.4
+        self._color_prefix = ""
+        self._color_reset = ""
+
+    def start(self, label: str, frames: Optional[List[str]] = None, interval: float = 0.4, color_prefix: str = "", color_reset: str = "") -> None:
+        if self._active:
+            return
+        self._stop_event.clear()
+        self._label = label
+        self._frames = frames or [".", "..", "..."]
+        self._interval = interval
+        self._color_prefix = color_prefix
+        self._color_reset = color_reset
+
+        # Non-interactive terminals: print once, don't animate
+        if not hasattr(sys.stdout, "isatty") or not sys.stdout.isatty():
+            print(f"{self._label}...", flush=True)
+            self._active = False
+            return
+
+        self._active = True
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self) -> None:
+        i = 0
+        # Initial draw to place the cursor on the line
+        print(f"\r{self._color_prefix}{self._label}{self._frames[0]}{self._color_reset}", end="", flush=True)
+        while not self._stop_event.wait(self._interval):
+            i = (i + 1) % len(self._frames)
+            frame = self._frames[i]
+            print(f"\r{self._color_prefix}{self._label}{frame}{self._color_reset}", end="", flush=True)
+
+    def stop(self, clear_line: bool = True) -> None:
+        if not self._active:
+            return
+        self._stop_event.set()
+        if self._thread:
+            self._thread.join(timeout=0.2)
+        if clear_line:
+            # Clear the current line and return carriage to start
+            clear_width = len(self._label) + max((len(f) for f in self._frames), default=0)
+            print("\r" + " " * (clear_width + 2) + "\r", end="", flush=True)
+        self._active = False
+
+# Module-level singleton
+_status_animator = StatusAnimator()
+
+def get_status_animator() -> StatusAnimator:
+    return _status_animator
 
 def set_conversation_manager(conversation_manager):
     """Set the global conversation manager instance for automatic .md logging."""
@@ -67,7 +135,7 @@ def print_lines():
     print()
     print("=" * 50)
     print()
-    
+
 def print_md(markdown_content: str):
     """
     Print markdown content using streamdown.

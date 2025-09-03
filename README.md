@@ -544,6 +544,7 @@ self.default_model = "gpt-5-mini"
 self.embedding_provider = "ollama"  # or "openai"
 self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
 self.openai_embedding_model = "text-embedding-3-small"
+self.gpt5_display_full_reasoning = False  # If True, GPT‑5 streams full reasoning; if False, show a generic "Working" status until first visible output
 self.chunk_size = 1000
 self.chunk_overlap = 200
 self.rag_batch_size = 16
@@ -552,6 +553,11 @@ self.rag_batch_size = 16
 # MUCH MORE...
 # see settings_manager.py for all settings
 ```
+
+Reasoning vs Working indicator (GPT‑5)
+- gpt5_display_full_reasoning = true: Streams full reasoning summaries (gray) for GPT‑5 models while the model thinks; no generic “Working” indicator.
+- gpt5_display_full_reasoning = false: Shows a generic “✦ Working” status after a short delay and keeps it until the first visible output; no reasoning text is shown.
+- The “Working” indicator is automatically suppressed on turns where web search or deep search runs to avoid noisy output.
 
 ## Shell Integration
 

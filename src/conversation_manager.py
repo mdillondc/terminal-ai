@@ -15,9 +15,9 @@ from searxng_search import create_searxng_search, SearXNGSearchError
 from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
-from constants import ColorConstants, ConversationConstants, RESPONSE_TIMEOUT_1_SEC, RESPONSE_TIMEOUT_1_MSG, RESPONSE_TIMEOUT_2_SEC, RESPONSE_TIMEOUT_2_MSG, LLMSettings
+from constants import ColorConstants, ConversationConstants, RESPONSE_WAIT_SEC, LLMSettings, RESPONSE_WORKING_LABEL
 from llm_client_manager import LLMClientManager
-from print_helper import print_md, print_lines
+from print_helper import print_md, print_lines, get_status_animator
 from rich.console import Console
 
 
@@ -217,12 +217,14 @@ class ConversationManager:
             self.client = self._original_openai_client
 
     def generate_response(self, instructions: Optional[str] = None) -> None:
+        search_or_deep_ran = False
         # Auto web search gating (uses context). If enabled and decision is SEARCH, run regular search workflow.
         if self.settings_manager.setting_get("search_auto") and self.conversation_history:
             try:
                 should_search = self._auto_search_should_search()
                 if should_search:
                     print_md("search-auto decision: SEARCH")
+                    search_or_deep_ran = True
                     self._handle_search_workflow()
                 else:
                     print_md("search-auto decision: NO_SEARCH")
@@ -235,6 +237,7 @@ class ConversationManager:
                 should_deep_search = self._auto_deep_search_should_search()
                 if should_deep_search:
                     print_md("search-deep-auto decision: SEARCH")
+                    search_or_deep_ran = True
                     self._handle_deep_search_workflow()
                 else:
                     print_md("search-deep-auto decision: NO_SEARCH")
@@ -243,8 +246,10 @@ class ConversationManager:
 
         # Check if search is enabled and handle search workflow
         if self.settings_manager.setting_get("search") and self.conversation_history:
+            search_or_deep_ran = True
             self._handle_search_workflow()
         elif self.settings_manager.setting_get("search_deep") and self.conversation_history:
+            search_or_deep_ran = True
             self._handle_deep_search_workflow()
 
         # Check if RAG is active and inject context
@@ -269,13 +274,37 @@ class ConversationManager:
         while True:
             # Initialize response_started before try block to avoid unbound variable
             response_started = threading.Event()
+            visible_output_started = threading.Event()
             try:
-                # Start timeout detection for response delays BEFORE API call
+                # Determine provider and whether to animate BEFORE API call
+                provider = self.llm_client_manager.get_provider_for_model(self.model)
+                try:
+                    gpt5_display_full_reasoning_cfg = self.settings_manager.setting_get("gpt5_display_full_reasoning")
+                except KeyError:
+                    gpt5_display_full_reasoning_cfg = True
+                use_animation = True
+                show_static_reasoning = False
+                anim_label = RESPONSE_WORKING_LABEL
+                if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
+                    if gpt5_display_full_reasoning_cfg:
+                        # Show full reasoning summary (no animation, no static line)
+                        use_animation = False
+                        show_static_reasoning = False
+                    else:
+                        # Use static status line for GPT‑5 (no animation)
+                        use_animation = False
+                        show_static_reasoning = True
+
+                # Start timeout/animation for response delays BEFORE visible output
                 timeout_messages_shown = [False]  # Use list for mutable reference
-                timeout_thread = self._start_timeout_detection(response_started, timeout_messages_shown)
+                status_line_mode = ["none"]  # "anim", "static", or "none"
+                # Suppress working status this turn if search or deep search workflow already ran
+                if search_or_deep_ran:
+                    use_animation = False
+                    show_static_reasoning = False
+                timeout_thread = self._start_timeout_detection(visible_output_started, timeout_messages_shown, anim_label, use_animation, show_static_reasoning, status_line_mode)
 
                 # Setup stream to receive response from AI (OpenAI uses Responses API for reasoning summaries)
-                provider = self.llm_client_manager.get_provider_for_model(self.model)
                 if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
                     stream = self.llm_client_manager.create_responses_stream(
                         model=self.model,
@@ -327,19 +356,17 @@ class ConversationManager:
         first_chunk = True
         summary_printed = False
         need_separation_after_summary = False
-        # Honor display_full_reasoning setting; default True if missing
+        # Honor gpt5_display_full_reasoning setting; default True if missing
         try:
-            display_full_reasoning = self.settings_manager.setting_get("display_full_reasoning")
+            gpt5_display_full_reasoning = self.settings_manager.setting_get("gpt5_display_full_reasoning")
         except KeyError:
-            display_full_reasoning = True
+            gpt5_display_full_reasoning = True
         reasoning_placeholder_shown = False
+        visible_output_marked = False
         try:
             for chunk in stream:
-                # Signal that response has started on first chunk
+                # Signal that response has started on first event (may be meta for GPT‑5)
                 if first_chunk:
-                    # Add newline if timeout messages were shown
-                    if timeout_messages_shown[0]:
-                        print()
                     response_started.set()
                     first_chunk = False
                 # Check for 'q + enter' interrupt before processing each chunk
@@ -364,6 +391,27 @@ class ConversationManager:
                         else:
                             text_piece = getattr(delta_obj, "text", None) or getattr(delta_obj, "value", None)
                         if text_piece:
+                            if timeout_messages_shown[0]:
+                                if status_line_mode[0] == "anim":
+                                    # Stop animation and add newline before first visible output
+                                    try:
+                                        get_status_animator().stop(clear_line=True)
+                                    except Exception:
+                                        pass
+                                    print()
+                                    status_line_mode[0] = "cleared"
+                                elif status_line_mode[0] == "static":
+                                    # Clear static status line and add newline before first visible output
+                                    try:
+                                        clear_width = len(anim_label) + 4  # leading space + label + "..."
+                                        print("\r" + " " * clear_width + "\r", end="", flush=True)
+                                    except Exception:
+                                        pass
+                                    print()
+                                    status_line_mode[0] = "cleared"
+                            if not visible_output_marked:
+                                visible_output_started.set()
+                                visible_output_marked = True
                             ai_response_chunk = text_piece
                             ai_response += ai_response_chunk
                             if not markdown_enabled and need_separation_after_summary:
@@ -401,11 +449,10 @@ class ConversationManager:
                                 else:
                                     text_val = getattr(delta_obj, "text", None)
                                 if text_val:
-                                    if display_full_reasoning:
+                                    if gpt5_display_full_reasoning:
                                         print(GRAY + text_val + RESET, end="", flush=True)
                                     else:
                                         if not reasoning_placeholder_shown:
-                                            print(GRAY + " ✦ Reasoning..." + RESET + "\n", end="", flush=True)
                                             reasoning_placeholder_shown = True
                                     summary_printed = True
                                     need_separation_after_summary = True
@@ -417,6 +464,27 @@ class ConversationManager:
                     if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
                         delta = chunk.choices[0].delta
                         if hasattr(delta, 'content') and delta.content is not None:
+                            if timeout_messages_shown[0]:
+                                if status_line_mode[0] == "anim":
+                                    # Stop animation and add newline before first visible output
+                                    try:
+                                        get_status_animator().stop(clear_line=True)
+                                    except Exception:
+                                        pass
+                                    print()
+                                    status_line_mode[0] = "cleared"
+                                elif status_line_mode[0] == "static":
+                                    # Clear static status line and add newline before first visible output
+                                    try:
+                                        clear_width = len(anim_label) + 4  # leading space + label + "..."
+                                        print("\r" + " " * clear_width + "\r", end="", flush=True)
+                                    except Exception:
+                                        pass
+                                    print()
+                                    status_line_mode[0] = "cleared"
+                            if not visible_output_marked:
+                                visible_output_started.set()
+                                visible_output_marked = True
                             ai_response_chunk = delta.content
                             ai_response += ai_response_chunk
                             if markdown_enabled and streamdown_process and streamdown_process.stdin:
@@ -1056,18 +1124,36 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
         except Exception:
             return False
 
-    def _start_timeout_detection(self, response_started: threading.Event, timeout_messages_shown: list) -> threading.Thread:
+    def _start_timeout_detection(self, visible_output_started: threading.Event, timeout_messages_shown: list, animator_label: str, use_animation: bool, static_reasoning_line: bool, status_line_mode: list) -> threading.Thread:
         """Start timeout detection thread for response delays."""
         def timeout_monitor():
-            # First timeout at 3 seconds
-            if not response_started.wait(timeout=RESPONSE_TIMEOUT_1_SEC):
-                print_md(RESPONSE_TIMEOUT_1_MSG)
+            # Start status after wait threshold if no visible output has started
+            if not visible_output_started.wait(timeout=RESPONSE_WAIT_SEC):
+                if static_reasoning_line:
+                    try:
+                        GRAY = ColorConstants.THINKING_GRAY
+                        RESET = ColorConstants.RESET
+                        # Print a static status line (no newline)
+                        print(GRAY + f" {animator_label}..." + RESET, end="", flush=True)
+                        status_line_mode[0] = "static"
+                    except Exception:
+                        # Never fail due to status printing issues
+                        pass
+                elif use_animation:
+                    try:
+                        status_line_mode[0] = "anim"
+                        animator = get_status_animator()
+                        animator.start(
+                            animator_label,
+                            frames=[".", "..", "..."],
+                            interval=0.4,
+                            color_prefix=ColorConstants.THINKING_GRAY,
+                            color_reset=ColorConstants.RESET
+                        )
+                    except Exception:
+                        # Never fail due to animation issues
+                        pass
                 timeout_messages_shown[0] = True
-
-                # Second timeout at 10 seconds (additional 7 seconds)
-                additional_wait = RESPONSE_TIMEOUT_2_SEC - RESPONSE_TIMEOUT_1_SEC
-                if not response_started.wait(timeout=additional_wait):
-                    print_md(RESPONSE_TIMEOUT_2_MSG)
 
         thread = threading.Thread(target=timeout_monitor, daemon=True)
         thread.start()
