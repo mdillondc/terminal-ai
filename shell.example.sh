@@ -230,6 +230,11 @@ sa5() {
   _ai "gpt-5" "--search-auto" "$*"
 }
 
+sad5() {
+  local help="Basic AI conversation with cloud model with auto deep web search gpt-5"
+  _ai "gpt-5" "--search-deep-auto" "$*"
+}
+
 cb() {
   local help="Analyze clipboard content"
   _ai "$AI_MODEL" "--cb" "$*"

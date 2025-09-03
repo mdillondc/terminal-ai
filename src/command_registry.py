@@ -203,6 +203,15 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
+            name="--search-deep-auto",
+            description="Toggles automatic deep research mode. The AI evaluates each prompt (with recent conversation context) and decides whether to run autonomous deep research (not regular). Use --search-engine to select the engine.",
+            usage="--search-deep-auto",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
+        self.register_command(CommandInfo(
             name="--search-engine",
             description="Switch search engine for current session. Changes take effect immediately for --search and --search-deep commands.",
             usage="--search-engine tavily",

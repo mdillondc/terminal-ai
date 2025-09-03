@@ -228,23 +228,23 @@ Intelligent web search with configurable search engines (Tavily or SearXNG) feat
 - Uses recent conversation context for the decision and to optimize queries.
 - Avoids unnecessary browsing for simple, timeless questions (e.g., 2 + 2).
 - If SEARCH is chosen, it reuses the regular --search flow (not deep search).
-- Transparency: prints “Auto-search decision: SEARCH” or “Auto-search decision: NO_SEARCH”.
+- Transparency: prints "search-auto decision: SEARCH" or "search-auto decision: NO_SEARCH".
 
 Mutual exclusivity
-- Enabling `--search-auto` disables `--search` and `--search-deep`.
-- Enabling `--search` or `--search-deep` disables `--search-auto`.
+- The four modes are mutually exclusive: `--search`, `--search-auto`, `--search-deep`, `--search-deep-auto`.
+- Enabling any one disables the others. `--search-engine` is independent.
 
 Examples
 ```bash
 > --search-auto
-Auto web search enabled
+search-auto enabled
 
 > what is 2 + 2?
-Auto-search decision: NO_SEARCH
+search-auto decision: NO_SEARCH
 4
 
 > what happened in US politics over the past 24 hours?
-Auto-search decision: SEARCH
+search-auto decision: SEARCH
  • Generating search queries...
  ...
 ```
@@ -289,11 +289,12 @@ extraction_method_timeout_seconds = 5
 
 ### Deep Research Mode
 
-The `--search-deep` command enables autonomous, intelligent web research that dynamically determines when sufficient information has been gathered to comprehensively answer complex queries, while still allowing user input to refine or conclude research.
+The `--search-deep` command enables autonomous, intelligent web research that dynamically determines when sufficient information has been gathered to comprehensively answer complex queries, while still allowing user input to refine or conclude research. The `--search-deep-auto` command lets the AI decide per prompt whether to run deep research (or not), printing "search-deep-auto decision: SEARCH" or "search-deep-auto decision: NO_SEARCH" before proceeding.
 
 | Command | Description |
 |---------|-------------|
 | `--search-deep` | Toggle autonomous deep search mode |
+| `--search-deep-auto` | Toggle automatic deep research mode. The AI evaluates each prompt and decides whether to run autonomous deep research (not regular search). |
 
 #### How Deep Research Works
 

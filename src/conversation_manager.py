@@ -222,12 +222,24 @@ class ConversationManager:
             try:
                 should_search = self._auto_search_should_search()
                 if should_search:
-                    print_md("Auto-search decision: SEARCH")
+                    print_md("search-auto decision: SEARCH")
                     self._handle_search_workflow()
                 else:
-                    print_md("Auto-search decision: NO_SEARCH")
+                    print_md("search-auto decision: NO_SEARCH")
             except Exception as e:
-                print_md(f"Auto-search decision failed: {e}")
+                print_md(f"search-auto decision failed: {e}")
+
+        # Auto deep web search gating (uses context). If enabled and decision is SEARCH, run deep search workflow.
+        if self.settings_manager.setting_get("search_deep_auto") and self.conversation_history:
+            try:
+                should_deep_search = self._auto_deep_search_should_search()
+                if should_deep_search:
+                    print_md("search-deep-auto decision: SEARCH")
+                    self._handle_deep_search_workflow()
+                else:
+                    print_md("search-deep-auto decision: NO_SEARCH")
+            except Exception as e:
+                print_md(f"search-deep-auto decision failed: {e}")
 
         # Check if search is enabled and handle search workflow
         if self.settings_manager.setting_get("search") and self.conversation_history:
@@ -550,6 +562,80 @@ class ConversationManager:
             "- If the request is time-sensitive, about current events or fast-changing facts, or you lack sufficient certainty without browsing, output SEARCH.\n"
             "- Do not be influenced by prior queries that required web search; evaluate only the current request's needs.\n"
             "- For simple, timeless questions (e.g., basic math), choose NO_SEARCH even if earlier conversation used search.\n"
+            "Output exactly one of: SEARCH or NO_SEARCH. No explanations."
+        )
+        user_prompt = (
+            f"CONVERSATION CONTEXT:\n{context_text}\n\n"
+            f"CURRENT QUESTION: {last_user_message}\n\n"
+            "Decide now: SEARCH or NO_SEARCH"
+        )
+
+        try:
+            response = self.llm_client_manager.create_chat_completion(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ]
+            )
+            decision = (response.choices[0].message.content or "").strip().upper()
+            return decision == "SEARCH"
+        except Exception:
+            # On any failure, default to NO_SEARCH to avoid unnecessary browsing
+            return False
+
+    def _auto_deep_search_should_search(self) -> bool:
+        """
+        Decide whether to run autonomous deep research for the current user request using LLM gating.
+        Returns True for SEARCH, False for NO_SEARCH. Uses recent and earlier context.
+        """
+        # Get the last user message
+        last_user_message = None
+        for message in reversed(self.conversation_history):
+            if message["role"] == "user":
+                last_user_message = message["content"]
+                break
+
+        if not last_user_message:
+            return False
+
+        # Build full conversation context with recent messages first (mirror _handle_search_workflow)
+        recent_messages = []
+        earlier_messages = []
+
+        recent_window = min(ConversationConstants.RECENT_MESSAGES_WINDOW, len(self.conversation_history))
+        for message in self.conversation_history[-recent_window:]:
+            if message["role"] in ["user", "assistant"]:
+                content = message["content"]
+                recent_messages.append(f"{message['role']}: {content}")
+
+        if len(self.conversation_history) > recent_window:
+            for message in self.conversation_history[:-recent_window]:
+                if message["role"] in ["user", "assistant"]:
+                    content = message["content"]
+                    earlier_messages.append(f"{message['role']}: {content}")
+
+        context_parts = []
+        if recent_messages:
+            context_parts.append("RECENT CONVERSATION:")
+            context_parts.extend(recent_messages)
+
+        if earlier_messages:
+            context_parts.append("\nEARLIER CONVERSATION (for reference resolution):")
+            context_parts.extend(earlier_messages)
+
+        context_text = "\n".join(context_parts) if context_parts else "No prior context."
+
+        # Prompt-only gating (no temperature control); strict output: SEARCH or NO_SEARCH
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        system_prompt = (
+            "You decide whether to run autonomous deep research (multi-step web browsing and synthesis) for the current user request.\n"
+            f"Today's date is {current_date}.\n"
+            "Rules:\n"
+            "- If you are confident you can fully and reliably answer without browsing, output NO_SEARCH.\n"
+            "- If the request requires comprehensive, multi-source synthesis or an in-depth report; involves current events, contested or ambiguous topics; or you lack sufficient certainty without browsing, output SEARCH.\n"
+            "- Do not be influenced by prior queries that required deep research; evaluate only the current request's needs.\n"
+            "- For simple, timeless questions (e.g., basic math), choose NO_SEARCH.\n"
             "Output exactly one of: SEARCH or NO_SEARCH. No explanations."
         )
         user_prompt = (

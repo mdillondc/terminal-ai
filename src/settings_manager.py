@@ -43,6 +43,7 @@ class SettingsManager:
         self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
         self.search_engine = "tavily"  # "tavily" or "searxng"
         self.search_deep = False  # Enable or disable deep search
+        self.search_deep_auto = False  # Auto deep web search toggle (LLM-gated). When enabled, the AI decides per prompt whether to run autonomous deep research.
         self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search
         self.search_context_window = 6  # Number of recent messages to include in search context
         self.search_max_queries = 2  # Maximum number of search queries to generate and execute
@@ -121,6 +122,8 @@ class SettingsManager:
             enabled_toggles.append("search-auto")
         if self.search_deep:
             enabled_toggles.append("search-deep")
+        if self.search_deep_auto:
+            enabled_toggles.append("search-deep-auto")
         if self.nothink:
             enabled_toggles.append("nothink")
         if self.incognito:
