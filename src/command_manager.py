@@ -4,6 +4,8 @@ import requests
 from typing import Optional, Any, Dict, List, Tuple
 import yt_dlp
 import clipboard
+import base64
+import mimetypes
 
 import tiktoken
 from settings_manager import SettingsManager
@@ -1472,6 +1474,7 @@ class CommandManager:
         Load and process file contents for AI analysis.
 
         Supports multiple file formats including PDF, DOCX, TXT, Markdown, and more.
+        Also supports image files (JPG, JPEG, PNG) which are analyzed using vision models.
         Uses the same document processing pipeline as the RAG system to ensure
         consistent text extraction and cleaning. The processed content is added
         to the conversation context with metadata (filename, path, word count).
@@ -1493,10 +1496,16 @@ class CommandManager:
             print_md(f"Error: File not found: {file_path}")
             return
 
+        # Check if this is an image file and route to vision analysis
+        file_ext = os.path.splitext(file_path)[1].lower()
+        if file_ext in ['.jpg', '.jpeg', '.png']:
+            self._analyze_image_with_vision(file_path)
+            return
+
         # Check if file type is supported
         if not is_supported_file(file_path):
             supported_types = get_supported_extensions_display()
-            print_md(f"Error: Unsupported file type. Supported types: {supported_types}")
+            print_md(f"Error: Unsupported file type. Supported types: {supported_types}, JPG, JPEG, PNG")
             return
 
         print_md(f"Loading file: {os.path.basename(file_path)}")
@@ -1532,6 +1541,95 @@ class CommandManager:
 
         except Exception as e:
             print_md(f"Error loading file: {e}")
+
+    def _analyze_image_with_vision(self, file_path: str) -> None:
+        """
+        Analyze an image using the configured vision model and add results to conversation context.
+
+        Args:
+            file_path: Path to the image file to analyze
+        """
+        filename = os.path.basename(file_path)
+
+        try:
+            # Get vision model from settings
+            vision_model = self.settings_manager.setting_get("vision_model")
+
+            print_md(f"Analyzing image: {filename} ({vision_model})")
+
+            # Create data URL for the image
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if mime_type is None:
+                # Fallback based on extension
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext in ('.jpg', '.jpeg'):
+                    mime_type = 'image/jpeg'
+                elif ext == '.png':
+                    mime_type = 'image/png'
+                else:
+                    mime_type = 'image/jpeg'  # Default fallback
+
+            # Read and encode image
+            with open(file_path, 'rb') as f:
+                image_data = base64.b64encode(f.read()).decode('ascii')
+
+            data_url = f"data:{mime_type};base64,{image_data}"
+
+            # Build messages for vision model
+            messages = [
+                {
+                    "role": "system",
+                    "content": "Analyze this image in detail. Provide: 1) Detailed visual description (objects, colors, layout, text visible). 2) All text extracted verbatim. Output plain text only."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                        {"type": "text", "text": "Describe everything you see and extract all text"}
+                    ]
+                }
+            ]
+
+            # Call vision model via LLM client manager
+            response = self.conversation_manager.llm_client_manager.create_chat_completion(
+                model=vision_model,
+                messages=messages,
+                temperature=0,
+                max_tokens=4096
+            )
+
+            # Extract response content
+            analysis_content = response.choices[0].message.content
+
+            # Debug output if enabled
+            if self.settings_manager.setting_get("vision_debug"):
+                print_md(f"DEBUG: Vision model output:\n{analysis_content}")
+
+            if not analysis_content or not analysis_content.strip():
+                print_md("Error: Vision model returned empty response")
+                return
+
+            # Format the content for the conversation (same format as other --file operations)
+            formatted_content = f"File: {filename}\n\nPath: {file_path}\n\n{analysis_content}"
+
+            # Add to conversation history
+            self.conversation_manager.log_context(formatted_content, "user")
+
+            print_md("Image content added to conversation context")
+            print_md("    You can now ask questions about this image")
+
+        except Exception as e:
+            # Check for common vision model errors
+            error_msg = str(e).lower()
+            if "missing data required for image input" in error_msg:
+                print_md(f"Error: Vision model '{vision_model}' does not support image input")
+                print_md("    Check that the model is image-capable and Ollama version >= 0.5.13")
+            elif "connection" in error_msg or "not found" in error_msg:
+                ollama_url = self.settings_manager.setting_get("ollama_base_url")
+                print_md(f"Error: Cannot connect to vision model '{vision_model}'")
+                print_md(f"    Check that Ollama is running at {ollama_url} and the model is pulled")
+            else:
+                print_md(f"Error analyzing image: {e}")
 
     def extract_folder_content(self, folder_path: str) -> None:
         """

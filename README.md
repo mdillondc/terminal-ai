@@ -139,7 +139,7 @@ Create and edit images (experimental). Files are saved under `images/` as `model
 
 | Command | Description |
 |---------|-------------|
-| `--file <path>` | Load file contents (text, PDF, etc.) |
+| `--file <path>` | Load file contents (text, PDF, images, etc.) |
 | `--folder <path>` | Load all supported files from directory (non-recursive) |
 | `--folder-recursive <path>` | Load all supported files from directory and subdirectories |
 | `--cb` | Use clipboard contents |

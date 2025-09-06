@@ -36,6 +36,10 @@ class SettingsManager:
         self.nothink = False  # Disable thinking mode on Ollama models that support it
         self.gpt5_reasoning_effort = "medium"  # GPT-5 reasoning effort level: minimal, low, medium, high (higher effort = slower, but more intelligent response)
         self.gpt5_display_full_reasoning = False  # Whether to display full reasoning summaries during OpenAI Responses streaming for GPT-5 models. If False, show a generic working indicator until visible output starts.
+        
+        # Vision
+        self.vision_model = "gpt-5-mini"  # Ollama (e.g. qwen2.5vl:7b) or OpenAI vision model for image analysis (--file image.jpg)
+        self.vision_debug = True  # Print raw vision model output for debugging image analysis
 
         # Search Settings
         self.search = False  # Enable or disable search by default

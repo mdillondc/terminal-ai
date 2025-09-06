@@ -639,7 +639,10 @@ class CommandCompleter(Completer):
 
                 # Filter by supported file types if specified
                 if filter_supported:
-                    if is_supported_file(item_path):
+                    # Include both supported document types and image files (for --file command)
+                    item_ext = os.path.splitext(item_path)[1].lower()
+                    is_image = item_ext in ['.jpg', '.jpeg', '.png']
+                    if is_supported_file(item_path) or is_image:
                         candidates.append((item_path, False))
                 else:
                     candidates.append((item_path, False))
