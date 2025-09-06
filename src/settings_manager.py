@@ -39,7 +39,7 @@ class SettingsManager:
 
         # Vision Settings
         self.cloud_vision_model = "gpt-5-mini"  # Vision model when using cloud providers (e.g., OpenAI)
-        self.ollama_vision_model = "qwen2.5-vl:7b"  # Vision model when using Ollama locally
+        self.ollama_vision_model = "qwen2.5vl:7b"  # Vision model when using Ollama locally
         self.vision_debug = False  # Print raw vision model output for debugging image analysis
         self.folder_include_images = True  # Include image files (jpg, jpeg, png) when using --folder/--folder-recursive
         self.folder_image_prompt_threshold = 5  # If more than this many images are found, prompt the user to confirm inclusion (Y/n)
