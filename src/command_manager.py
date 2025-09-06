@@ -739,16 +739,19 @@ class CommandManager:
 
         # Show embedding provider information
         try:
-            provider = self.settings_manager.setting_get("embedding_provider")
-            print_md(f"Embedding provider: {provider}")
+            # Determine embedding provider based on active chat model
+            active_model = self.conversation_manager.model
+            provider = self.conversation_manager.llm_client_manager.get_provider_for_model(active_model)
+            provider_display = "ollama" if provider == "ollama" else "openai"
+            print_md(f"Embedding provider: {provider_display}")
 
-            if provider == "openai":
-                model = self.settings_manager.setting_get("openai_embedding_model")
-                print_md(f"OpenAI model: {model}")
-            elif provider == "ollama":
+            if provider_display == "openai":
+                model = self.settings_manager.setting_get("cloud_embedding_model")
+                print_md(f"Cloud embedding model: {model}")
+            elif provider_display == "ollama":
                 model = self.settings_manager.setting_get("ollama_embedding_model")
                 ollama_url = self.settings_manager.setting_get("ollama_base_url")
-                ollama_text = f"    Ollama model: {model}\n"
+                ollama_text = f"    Ollama embedding model: {model}\n"
                 ollama_text += f"    Ollama URL: {ollama_url}"
                 print_md(ollama_text)
         except Exception as e:
@@ -771,14 +774,17 @@ class CommandManager:
             return
 
         try:
-            provider = self.settings_manager.setting_get("embedding_provider")
-            print_md(f"Testing connection to {provider} embedding service...")
+            # Determine embedding provider from active chat model
+            active_model = self.conversation_manager.model
+            provider = self.conversation_manager.llm_client_manager.get_provider_for_model(active_model)
+            provider_display = "ollama" if provider == "ollama" else "openai"
+            print_md(f"Testing connection to {provider_display} embedding service...")
 
             # Test using the embedding service
             success = self.rag_engine.embedding_service.test_connection()
 
             if success:
-                success_text = f"Connection to {provider} successful!\n"
+                success_text = f"Connection to {provider_display} successful!\n"
 
                 # Show additional info
                 model_info = self.rag_engine.embedding_service.get_embedding_model_info()
@@ -1552,8 +1558,12 @@ class CommandManager:
         filename = os.path.basename(file_path)
 
         try:
-            # Get vision model from settings
-            vision_model = self.settings_manager.setting_get("vision_model")
+            # Select vision model based on provider of active chat model
+            provider = self.conversation_manager.llm_client_manager.get_provider_for_model(self.conversation_manager.model)
+            if provider == "ollama":
+                vision_model = self.settings_manager.setting_get("ollama_vision_model")
+            else:
+                vision_model = self.settings_manager.setting_get("cloud_vision_model")
 
             print_md(f"Analyzing image: {filename} ({vision_model})")
 

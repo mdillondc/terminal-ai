@@ -106,8 +106,7 @@ class VectorStore:
                 "collection_name": collection_name,
                 "index_created_at": time.time(),
                 "chunk_count": len(chunks_with_embeddings),
-                "embedding_provider": self.settings_manager.setting_get("embedding_provider"),
-                "embedding_model": self.settings_manager.setting_get("openai_embedding_model"),
+                "embedding_model": self.settings_manager.setting_get("cloud_embedding_model"),
                 "ollama_embedding_model": self.settings_manager.setting_get("ollama_embedding_model"),
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap"),
@@ -250,8 +249,7 @@ class VectorStore:
 
             # Check if settings changed
             current_settings = {
-                "embedding_provider": self.settings_manager.setting_get("embedding_provider"),
-                "embedding_model": self.settings_manager.setting_get("openai_embedding_model"),
+                "embedding_model": self.settings_manager.setting_get("cloud_embedding_model"),
                 "ollama_embedding_model": self.settings_manager.setting_get("ollama_embedding_model"),
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap")
@@ -259,7 +257,6 @@ class VectorStore:
 
             # Compare with cached settings from collection metadata
             cached_settings = {
-                "embedding_provider": collection_meta.get("embedding_provider"),
                 "embedding_model": collection_meta.get("embedding_model"),
                 "ollama_embedding_model": collection_meta.get("ollama_embedding_model"),
                 "chunk_size": collection_meta.get("chunk_size"),
@@ -440,7 +437,6 @@ class VectorStore:
                         index_info = {
                             "chunk_count": int(collection_meta.get("chunk_count", 0)) if pd.notna(collection_meta.get("chunk_count")) else 0,
                             "created_at": float(collection_meta.get("index_created_at", 0)) if pd.notna(collection_meta.get("index_created_at")) else 0,
-                            "embedding_provider": str(collection_meta.get("embedding_provider", "unknown")),
                             "embedding_model": str(collection_meta.get("embedding_model", "unknown")),
                             "ollama_embedding_model": str(collection_meta.get("ollama_embedding_model", "unknown"))
                         }

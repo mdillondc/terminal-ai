@@ -27,11 +27,17 @@ class EmbeddingService:
 
     def _get_provider(self) -> str:
         """Get the current embedding provider from settings"""
-        return self.settings_manager.setting_get("embedding_provider")
+        # Determine embedding provider from active chat model
+        try:
+            active_model = self.settings_manager.setting_get("model")
+            provider = LLMClientManager(self.openai_client).get_provider_for_model(active_model)
+        except Exception:
+            provider = "openai"
+        return "ollama" if provider == "ollama" else "openai"
 
     def _generate_openai_embedding(self, text: str) -> List[float]:
         """Generate embedding using OpenAI"""
-        model = self.settings_manager.setting_get("openai_embedding_model")
+        model = self.settings_manager.setting_get("cloud_embedding_model")
 
         try:
             response = self.openai_client.embeddings.create(
@@ -78,7 +84,7 @@ class EmbeddingService:
 
     def _generate_openai_embeddings_batch(self, texts: List[str], max_batch_size: int = 100) -> List[List[float]]:
         """Generate embeddings using OpenAI in batches"""
-        model = self.settings_manager.setting_get("openai_embedding_model")
+        model = self.settings_manager.setting_get("cloud_embedding_model")
         embeddings = []
 
         # Process in batches to avoid API limits
@@ -325,7 +331,7 @@ class EmbeddingService:
         provider = self._get_provider()
 
         if provider == "openai":
-            model = self.settings_manager.setting_get("openai_embedding_model")
+            model = self.settings_manager.setting_get("cloud_embedding_model")
             openai_dimensions = {
                 "text-embedding-3-small": 1536,
                 "text-embedding-3-large": 3072,
@@ -350,7 +356,7 @@ class EmbeddingService:
         provider = self._get_provider()
 
         if provider == "openai":
-            model = self.settings_manager.setting_get("openai_embedding_model")
+            model = self.settings_manager.setting_get("cloud_embedding_model")
 
             # OpenAI model information
             openai_model_info = {

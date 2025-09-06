@@ -74,20 +74,136 @@ class DocumentProcessor:
             return ""
 
     def load_pdf_file(self, file_path: str) -> str:
-        """Load content from a PDF file"""
+        """Load content from a PDF file with vision fallback for image-only pages"""
         try:
-            content = []
-            with open(file_path, 'rb') as file:
-                pdf_reader = pypdf.PdfReader(file)
+            # Lazy imports to avoid global dependency issues
+            import fitz  # PyMuPDF
+            from openai import OpenAI
+            from llm_client_manager import LLMClientManager
+            from vision_text_extractor import extract_text_from_image_bytes
 
-                for page_num, page in enumerate(pdf_reader.pages):
+            settings = self.settings_manager
+            content = []
+
+            # Settings
+            try:
+                max_vision_pages = int(getattr(settings, "rag_pdf_vision_max_pages", 0) or 0)
+            except Exception:
+                max_vision_pages = 0
+            try:
+                render_dpi = int(getattr(settings, "rag_pdf_vision_dpi", 180) or 180)
+            except Exception:
+                render_dpi = 180
+
+            vision_debug = False
+            try:
+                vision_debug = bool(settings.setting_get("vision_debug"))
+            except Exception:
+                pass
+
+            # Model names for privacy policy
+            # Vision model will be selected based on active chat provider below
+            vision_model_name = None
+
+            # Create LLM manager on demand (same pattern as main.py)
+            llm_client_manager = None
+
+            def _get_llm_manager():
+                nonlocal llm_client_manager
+                if llm_client_manager is not None:
+                    return llm_client_manager
+                try:
+                    client = OpenAI()
+                except Exception:
                     try:
-                        page_text = page.extract_text()
+                        client = OpenAI(api_key="dummy")
+                    except Exception:
+                        client = OpenAI(api_key="dummy", base_url="http://localhost")
+                llm_client_manager = LLMClientManager(client)
+                return llm_client_manager
+
+            # Select vision model based on provider of active chat model
+            try:
+                provider = _get_llm_manager().get_provider_for_model(settings.setting_get("model"))
+            except Exception:
+                provider = "openai"
+            if provider == "ollama":
+                vision_model_name = settings.setting_get("ollama_vision_model")
+            else:
+                vision_model_name = settings.setting_get("cloud_vision_model")
+
+            # Open PDF via pypdf for text extraction and optionally via fitz for rendering
+            fitz_doc = None
+            try:
+                if max_vision_pages > 0:
+                    if max_vision_pages > 0:
+                        try:
+                            fitz_doc = fitz.open(file_path)
+                        except Exception as e:
+                            if vision_debug:
+                                print_md(f"DEBUG: Could not open PDF with PyMuPDF for rendering: {e}")
+                            fitz_doc = None
+
+                vision_pages_used = 0
+
+                with open(file_path, 'rb') as file:
+                    pdf_reader = pypdf.PdfReader(file)
+                    total_pages = len(pdf_reader.pages)
+                    doc_basename = os.path.basename(file_path)
+                    printed_vision_notice = False
+
+                    for page_num, page in enumerate(pdf_reader.pages):
+                        page_text = ""
+                        # Try normal text extraction first
+                        try:
+                            extracted = page.extract_text()
+                            if extracted and extracted.strip():
+                                page_text = extracted
+                        except Exception as e:
+                            print_md(f"Error extracting text from page {page_num + 1} of {file_path}: {e}")
+
+                        # Vision fallback for empty pages (if allowed and within budget)
+                        if (not page_text.strip()
+                            and fitz_doc is not None
+                            and vision_pages_used < max_vision_pages):
+                            try:
+                                if not printed_vision_notice:
+                                    notice = f"Using vision extraction for scanned PDF pages in {doc_basename} ({vision_model_name}). This may take a while…\n"
+                                    notice += f"    Scanning page {page_num + 1}/{total_pages}..."
+                                    print_md(notice)
+                                    printed_vision_notice = True
+                                else:
+                                    print_md(f"    Scanning page {page_num + 1}/{total_pages}...")
+                                fitz_page = fitz_doc.load_page(page_num)
+                                pix = fitz_page.get_pixmap(dpi=render_dpi)
+                                image_bytes = pix.tobytes("png")
+                                vision_text = extract_text_from_image_bytes(
+                                    _get_llm_manager(),
+                                    image_bytes,
+                                    mime_type="image/png",
+                                    vision_model=vision_model_name,
+                                    temperature=0.0,
+                                    max_tokens=4096,
+                                    debug=vision_debug
+                                )
+                                if vision_text and vision_text.strip():
+                                    page_text = vision_text.strip()
+                                    vision_pages_used += 1
+                                    if vision_debug:
+                                        print_md(f"DEBUG: Vision used for page {page_num + 1} ({vision_pages_used}/{max_vision_pages})")
+                            except Exception as e:
+                                if vision_debug:
+                                    print_md(f"DEBUG: Vision extraction failed for page {page_num + 1}: {e}")
+
                         if page_text.strip():
                             content.append(f"--- Page {page_num + 1} ---\n{page_text}")
-                    except Exception as e:
-                        print_md(f"Error extracting text from page {page_num + 1} of {file_path}: {e}")
-                        continue
+
+            finally:
+                if fitz_doc is not None:
+                    try:
+                        fitz_doc.close()
+                    except Exception:
+                        pass
 
             return "\n\n".join(content)
         except Exception as e:

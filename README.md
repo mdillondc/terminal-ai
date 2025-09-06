@@ -154,7 +154,12 @@ Create and edit images (experimental). Files are saved under `images/` as `model
 - `--folder` and `--folder-recursive`:
   - These commands also include image files (.jpg, .jpeg, .png) in addition to regular supported file types.
   - If more than N images are found, you’ll be asked: "More than 5 (147) images found, do you want to include them them? (Y/n)"
-- Configuration: See `settings_manager.py`
+- PDFs:
+  - Image-only (scanned) pages in PDFs are automatically processed with the vision model during `--file` / `--folder` / `--folder-recursive` when no text is extractable.
+  - Uses `cloud_vision_model` or `ollama_vision_model` based on your active chat provider.
+- Configuration:
+  - `rag_pdf_vision_max_pages` (0 disables)
+  - `rag_pdf_vision_dpi`
 
 ### URL Content Extraction
 
@@ -405,6 +410,7 @@ The user can choose to continue research or write a report based on the findings
 ## Document Analysis (RAG)
 
 RAG allows you to query your own documents with intelligent, temporal retrieval.
+Note: PDFs that contain image-only (scanned) pages are automatically processed with the vision model during ingestion. Pages with no extractable text are rendered in-memory and analyzed to extract text verbatim. This uses the provider-specific vision model (cloud_vision_model or ollama_vision_model) and respects `rag_pdf_vision_max_pages` (0 disables) and `rag_pdf_vision_dpi`.
 
 ### Setup
 
@@ -552,9 +558,12 @@ Key settings in `src/settings_manager.py`:
 ```python
 # Default model and provider settings
 self.default_model = "gpt-5-mini"
-self.embedding_provider = "ollama"  # or "openai"
+self.cloud_embedding_model = "text-embedding-3-large"
 self.ollama_embedding_model = "snowflake-arctic-embed2:latest"
-self.openai_embedding_model = "text-embedding-3-small"
+self.cloud_vision_model = "gpt-5-mini"
+self.ollama_vision_model = "qwen2.5-vl:7b"
+self.rag_pdf_vision_max_pages = 30
+self.rag_pdf_vision_dpi = 180
 self.gpt5_display_full_reasoning = False  # If True, GPT‑5 streams full reasoning; if False, show a generic "Working" status until first visible output
 self.chunk_size = 1000
 self.chunk_overlap = 200

@@ -38,8 +38,9 @@ class SettingsManager:
         self.gpt5_display_full_reasoning = False  # Whether to display full reasoning summaries during OpenAI Responses streaming for GPT-5 models. If False, show a generic working indicator until visible output starts.
 
         # Vision Settings
-        self.vision_model = "gpt-5-mini"  # Ollama (e.g. qwen2.5vl:7b) or OpenAI vision model for image analysis (--file image.jpg)
-        self.vision_debug = True  # Print raw vision model output for debugging image analysis
+        self.cloud_vision_model = "gpt-5-mini"  # Vision model when using cloud providers (e.g., OpenAI)
+        self.ollama_vision_model = "qwen2.5-vl:7b"  # Vision model when using Ollama locally
+        self.vision_debug = False  # Print raw vision model output for debugging image analysis
         self.folder_include_images = True  # Include image files (jpg, jpeg, png) when using --folder/--folder-recursive
         self.folder_image_prompt_threshold = 5  # If more than this many images are found, prompt the user to confirm inclusion (Y/n)
 
@@ -77,8 +78,7 @@ class SettingsManager:
         self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
 
         # RAG Settings
-        self.embedding_provider = "openai"  # "openai" or "ollama"
-        self.openai_embedding_model = "text-embedding-3-large"  # Embedding model for OpenAI
+        self.cloud_embedding_model = "text-embedding-3-large"  # Embedding model for cloud providers (e.g., OpenAI)
         self.ollama_embedding_model = "snowflake-arctic-embed2:latest"  # Embedding model for Ollama
         self.rag_chunk_size = 400   # Number of tokens per document chunk - balance between context and precision
         self.rag_chunk_overlap = 80  # Tokens shared between adjacent chunks to preserve context across boundaries
@@ -89,9 +89,13 @@ class SettingsManager:
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
         self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
 
+        # RAG PDF Vision Extraction (scanned/image-only pages)
+        self.rag_pdf_vision_max_pages = 999  # Maximum number of PDF pages per file to process via vision fallback (0 disables)
+        self.rag_pdf_vision_dpi = 180  # Rendering DPI for PDF pages converted to images for vision
+
         # Privacy Settings
         self.incognito = False  # Enable or disable conversation logging
-        
+
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using standardized YYYYMMDD-HHMMSS format"""
         return f"{datetime.datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)}.md"

@@ -505,7 +505,7 @@ class RAGEngine:
             "chunk_count": len(self.active_collection_chunks) if self.active_collection_chunks else 0,
             "available_collections": len(self.vector_store.get_available_collections()),
             "settings": {
-                "embedding_model": self.settings_manager.setting_get("openai_embedding_model"),
+                "embedding_model": self.settings_manager.setting_get("cloud_embedding_model"),
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap"),
                 "top_k": self.settings_manager.setting_get("rag_top_k")
