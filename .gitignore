@@ -4,12 +4,9 @@ __pycache__/
 *.py[cod]
 cache/
 
-# Personal (this is your personal user data; never commit the following):
-# Conversation logs (use --incognito to not log at all)
+# Personal (add any personal stuff you don't want to commit here):
 logs/
-# Personal data
 rag/
-# Images you generate/edit
 images/
-# shell.personal.sh is an extension of shell.example.sh with your personal workflows
 shell.personal.sh
+instructions/doc*
