@@ -22,40 +22,54 @@ class SettingsManager:
             self.assign_defaults()
 
     def assign_defaults(self) -> None:
-        # Global settings
+        # App identity & instructions
         self.working_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         self.name_ai = "AI"  # Name of the AI, example: "Samantha"
         self.name_user = "User"  # Name of the user, example: "John"
         self.instructions = "samantha.md"  # Instructions file for the AI letting it know how to behave
+
+        # Session & logging
         self.log_file_name = self.generate_new_log_filename()  # Keep track of the log file name for the current session
         self.log_file_location = None  # Full path to current JSON log file (including .json extension), set after first AI response
+        self.incognito = False  # Enable or disable conversation logging
 
-        # API Settings
+        # Models & providers
+        # Core conversation model and provider flags
         self.model = "gemini-2.5-flash"  # Default model (Google Gemini - reliable and cheaper than OpenAI)
-        self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
-        self.nothink = False  # Disable thinking mode on Ollama models that support it
         self.gpt5_reasoning_effort = "medium"  # GPT-5 reasoning effort level: minimal, low, medium, high (higher effort = slower, but more intelligent response)
         self.gpt5_display_full_reasoning = False  # Whether to display full reasoning summaries during OpenAI Responses streaming for GPT-5 models. If False, show a generic working indicator until visible output starts.
-
-        # Vision Settings
+        self.nothink = False  # Disable thinking mode on Ollama models that support it
+        self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
         self.cloud_vision_model = "gpt-5-mini"  # Vision model when using cloud providers (e.g., OpenAI)
         self.ollama_vision_model = "qwen2.5vl:7b"  # Vision model when using Ollama locally
         self.vision_debug = False  # Print raw vision model output for debugging image analysis
+        self.cloud_embedding_model = "text-embedding-3-large"  # Embedding model for cloud providers (e.g., OpenAI)
+        self.ollama_embedding_model = "snowflake-arctic-embed2:latest"  # Embedding model for Ollama
+
+        # UI & rendering
+        self.markdown = True  # Enable markdown parsing and rendering
+        self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']  # Gruvbox theme for streamdown/markdown formatting
+
+        # Content ingestion (folder/file behavior)
         self.folder_include_images = True  # Include image files (jpg, jpeg, png) when using --folder/--folder-recursive
         self.folder_image_prompt_threshold = 5  # If more than this many images are found, prompt the user to confirm inclusion (Y/n)
+        # PDF Vision Extraction (scanned/image-only pages)
+        self.pdf_vision_max_pages = 999  # Maximum number of PDF pages per file to process via vision fallback (0 disables)
+        self.pdf_vision_dpi = 180  # Rendering DPI for PDF pages converted to images for vision
 
-        # Search Settings
+        # Web search
+        # Toggles/strategy
         self.search = False  # Enable or disable search by default
         self.search_auto = False  # Auto web search toggle (LLM-gated). When enabled, the AI decides per prompt whether to run a regular web search.
-        self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
-        self.search_engine = "tavily"  # "tavily" or "searxng"
         self.search_deep = False  # Enable or disable deep search
         self.search_deep_auto = False  # Auto deep web search toggle (LLM-gated). When enabled, the AI decides per prompt whether to run autonomous deep research.
-        self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search
+        self.search_engine = "tavily"  # "tavily" or "searxng"
         self.search_context_window = 6  # Number of recent messages to include in search context
         self.search_max_queries = 2  # Maximum number of search queries to generate and execute
+        self.search_max_results = 3  # Balance between comprehensive results and API cost/speed
+        self.search_deep_max_results_per_query = 5  # Maximum number of results per query for deep search
+        # Extraction/runtime
         self.searxng_base_url = "http://10.13.0.200:8095, https://some.instance"  # URL(s) for SearXNG instance. NB! Instances must have JSON API enabled. System will iterate until it finds an instance that works, or exhaust the list
-
         self.searxng_extract_full_content_truncate = 10000  # Maximum words to keep from each extracted URL content (SearXNG always extracts full content, prevents context window overflow)
         self.extraction_method_timeout_seconds = 10  # Maximum seconds each extraction method is allowed before moving to the next one
         self.concurrent_workers = 20  # Number of concurrent threads for URL extraction and search operations
@@ -64,22 +78,17 @@ class SettingsManager:
         # Set to True to allow Jina fallback even with Ollama models (you accept the third‑party privacy tradeoff).
         self.allow_jina_with_ollama = False
 
-        # Image Generation Settings
+        # Image generation & editing
         self.image_engine = "nano-banana"  # Default image engine for image generation/editing
-        self.image_revision_mode = "original"  # "original" or "iterative" - how image edits build on each other
+        self.image_revision_mode = "iterative"  # "original" or "iterative" - how image edits build on each other
         self.image_generate_mode = False  # True when --image-generate mode is active
         self.image_edit_mode = False  # True when --image-edit mode is active
         self.image_current_working_file = None  # Current working image file path for iterative mode
 
-        # Markdown streamdown settings
-        self.markdown = True  # Enable markdown parsing and rendering
-        self.markdown_settings = ['sd', '-b', '0.1,0.5,0.5', '-c', '[style]\nMargin = 1']  # Gruvbox theme for streamdown/markdown formatting
+        # RAG
+        # Core retrieval behavior
         self.rag_enable_hybrid_search = True   # Combine semantic (embedding) and keyword (BM25) search for better document retrieval
         self.rag_temporal_boost_months = 6  # Boost chunks from last N months for recent queries
-
-        # RAG Settings
-        self.cloud_embedding_model = "text-embedding-3-large"  # Embedding model for cloud providers (e.g., OpenAI)
-        self.ollama_embedding_model = "snowflake-arctic-embed2:latest"  # Embedding model for Ollama
         self.rag_chunk_size = 400   # Number of tokens per document chunk - balance between context and precision
         self.rag_chunk_overlap = 80  # Tokens shared between adjacent chunks to preserve context across boundaries
         self.rag_batch_size = 16  # Number of text chunks to process simultaneously for embedding generation
@@ -88,14 +97,7 @@ class SettingsManager:
         self.rag_enable_search_transparency = True  # Show search process information
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
         self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
-
-        # RAG PDF Vision Extraction (scanned/image-only pages)
-        self.rag_pdf_vision_max_pages = 999  # Maximum number of PDF pages per file to process via vision fallback (0 disables)
-        self.rag_pdf_vision_dpi = 180  # Rendering DPI for PDF pages converted to images for vision
-
-        # Privacy Settings
-        self.incognito = False  # Enable or disable conversation logging
-
+        
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using standardized YYYYMMDD-HHMMSS format"""
         return f"{datetime.datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)}.md"

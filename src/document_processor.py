@@ -87,11 +87,11 @@ class DocumentProcessor:
 
             # Settings
             try:
-                max_vision_pages = int(getattr(settings, "rag_pdf_vision_max_pages", 0) or 0)
+                max_vision_pages = int(getattr(settings, "pdf_vision_max_pages", 0) or 0)
             except Exception:
                 max_vision_pages = 0
             try:
-                render_dpi = int(getattr(settings, "rag_pdf_vision_dpi", 180) or 180)
+                render_dpi = int(getattr(settings, "pdf_vision_dpi", 180) or 180)
             except Exception:
                 render_dpi = 180
 
