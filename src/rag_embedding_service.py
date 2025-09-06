@@ -418,6 +418,25 @@ class EmbeddingService:
                 "info": {"dimensions": "unknown"}
             }
 
+    def get_current_embedding_profile(self) -> Dict[str, Any]:
+        """Return current embedding provider, model, and embedding dimensions."""
+        provider = self._get_provider()
+
+        if provider == "openai":
+            model = self.settings_manager.setting_get("cloud_embedding_model")
+        elif provider == "ollama":
+            model = self.settings_manager.setting_get("ollama_embedding_model")
+        else:
+            model = "unknown"
+
+        dimensions = self.get_embedding_dimensions()
+
+        return {
+            "provider": provider,
+            "model": model,
+            "dimensions": dimensions
+        }
+
     def test_connection(self) -> bool:
         """Test connection to the current embedding provider"""
         provider = self._get_provider()

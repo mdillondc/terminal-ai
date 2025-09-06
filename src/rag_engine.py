@@ -26,6 +26,17 @@ class RAGEngine:
         self.embedding_service = EmbeddingService(client, self.ollama_client)
         self.vector_store = VectorStore()
 
+        # Apply current embedding profile to vector store
+        try:
+            profile = self.embedding_service.get_current_embedding_profile()
+            self.vector_store.set_embedding_profile(profile.get("provider"), profile.get("model"))
+        except Exception:
+            pass
+
+        # Track active embedding profile for reloading on provider/model change
+        self.active_profile_provider = None
+        self.active_profile_model = None
+
         # Active collection state
         self.active_collection = None
         self.active_collection_chunks = None
@@ -249,6 +260,10 @@ class RAGEngine:
             return False
 
         # Check if index exists
+        # Ensure vector store points at current embedding profile
+        profile = self.embedding_service.get_current_embedding_profile()
+        self.vector_store.set_embedding_profile(profile.get("provider"), profile.get("model"))
+
         index_exists = os.path.exists(self.vector_store._get_index_file_path(collection_name))
         cache_valid = self.vector_store.is_collection_cache_valid(collection_name)
 
@@ -287,6 +302,15 @@ class RAGEngine:
         self.active_collection = collection_name
         self.active_collection_chunks = chunks
 
+        # Record the active embedding profile for this loaded collection
+        try:
+            profile = self.embedding_service.get_current_embedding_profile()
+            self.active_profile_provider = profile.get("provider")
+            self.active_profile_model = profile.get("model")
+        except Exception:
+            self.active_profile_provider = None
+            self.active_profile_model = None
+
         # Save to settings
         self.settings_manager.setting_set("rag_active_collection", collection_name)
 
@@ -322,6 +346,18 @@ class RAGEngine:
             return []
 
         try:
+            # Ensure vector store uses current embedding profile
+            profile = self.embedding_service.get_current_embedding_profile()
+            self.vector_store.set_embedding_profile(profile.get("provider"), profile.get("model"))
+
+            # If embedding profile changed since activation, reload the collection for the current profile
+            if (self.active_profile_provider and self.active_profile_model) and (
+                self.active_profile_provider != profile.get("provider") or self.active_profile_model != profile.get("model")
+            ):
+                print_md("Embedding provider/model changed since activation; reloading collection for current profile...")
+                if not self.activate_collection(self.active_collection, verbose=True):
+                    return []
+
             # Generate query embedding
             query_embedding = self.embedding_service.generate_embedding(query_text)
 
@@ -335,6 +371,14 @@ class RAGEngine:
 
             return results
 
+        except ValueError as e:
+            # Provide clearer guidance when dimension mismatch occurs
+            if "same length" in str(e).lower():
+                print_md("Error querying collection: Embedding dimension mismatch detected. This usually happens when the index was built with a different embedding provider/model. Rebuild the collection for the current provider/model, or activate a profile-specific index that matches the current provider.")
+                return []
+            else:
+                print_md(f"Error querying collection: {e}")
+                return []
         except Exception as e:
             print_md(f"Error querying collection: {e}")
             return []
@@ -505,7 +549,9 @@ class RAGEngine:
             "chunk_count": len(self.active_collection_chunks) if self.active_collection_chunks else 0,
             "available_collections": len(self.vector_store.get_available_collections()),
             "settings": {
-                "embedding_model": self.settings_manager.setting_get("cloud_embedding_model"),
+                "embedding_provider": self.embedding_service.get_current_embedding_profile().get("provider"),
+                "embedding_model": self.embedding_service.get_current_embedding_profile().get("model"),
+                "embedding_dimensions": self.embedding_service.get_current_embedding_profile().get("dimensions"),
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap"),
                 "top_k": self.settings_manager.setting_get("rag_top_k")

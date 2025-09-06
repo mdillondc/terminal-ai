@@ -19,6 +19,10 @@ class VectorStore:
         # Ensure vectorstore directory exists
         os.makedirs(self.vectorstore_path, exist_ok=True)
 
+        # Active embedding profile (provider/model) for path resolution
+        self._embedding_provider = None
+        self._embedding_model = None
+
     def _get_file_hash(self, file_path: str) -> str:
         """Calculate SHA-256 hash of a file"""
         try:
@@ -64,13 +68,36 @@ class VectorStore:
 
         return metadata
 
+    def _sanitize_model_name(self, name: str) -> str:
+        """Sanitize model name for filesystem safety by replacing disallowed chars with '-'."""
+        import re
+        return re.sub(r'[^A-Za-z0-9_-]+', '-', str(name)).strip('-')
+
+    def set_embedding_profile(self, provider: Optional[str], model: Optional[str]) -> None:
+        """Set active embedding provider/model for path resolution."""
+        self._embedding_provider = provider
+        self._embedding_model = model
+
+    def _get_profile_dir(self) -> str:
+        """Resolve the provider/model-specific directory for vectorstore files."""
+        provider = self._embedding_provider or "openai"
+        if self._embedding_model:
+            model = self._embedding_model
+        else:
+            if provider == "ollama":
+                model = self.settings_manager.setting_get("ollama_embedding_model")
+            else:
+                model = self.settings_manager.setting_get("cloud_embedding_model")
+        model_sanitized = self._sanitize_model_name(model)
+        return os.path.join(self.vectorstore_path, provider, model_sanitized)
+
     def _get_index_file_path(self, collection_name: str) -> str:
         """Get path to index file for a collection"""
-        return os.path.join(self.vectorstore_path, f"{collection_name}_index.parquet")
+        return os.path.join(self._get_profile_dir(), f"{collection_name}_index.parquet")
 
     def _get_meta_file_path(self, collection_name: str) -> str:
         """Get path to metadata file for a collection"""
-        return os.path.join(self.vectorstore_path, f"{collection_name}_meta.parquet")
+        return os.path.join(self._get_profile_dir(), f"{collection_name}_meta.parquet")
 
     def save_collection_index(self, collection_name: str, chunks_with_embeddings: List[Dict[str, Any]]) -> bool:
         """
@@ -87,6 +114,9 @@ class VectorStore:
             index_file_path = self._get_index_file_path(collection_name)
             meta_file_path = self._get_meta_file_path(collection_name)
 
+            # Ensure provider/model-specific directory exists
+            os.makedirs(os.path.dirname(index_file_path), exist_ok=True)
+
             # Prepare chunks data for Parquet storage
             chunks_data = []
             for chunk in chunks_with_embeddings:
@@ -102,12 +132,28 @@ class VectorStore:
 
             # Prepare and save metadata
             file_metadata = self._get_collection_file_metadata(collection_name)
+
+            # Determine current embedding profile and dimensions
+            provider = self._embedding_provider or "openai"
+            if self._embedding_model:
+                model = self._embedding_model
+            else:
+                model = self.settings_manager.setting_get("ollama_embedding_model") if provider == "ollama" else self.settings_manager.setting_get("cloud_embedding_model")
+
+            embedding_dimensions = 0
+            for c in chunks_with_embeddings:
+                emb = c.get("embedding")
+                if isinstance(emb, (list, tuple)):
+                    embedding_dimensions = len(emb)
+                    break
+
             meta_data = {
                 "collection_name": collection_name,
                 "index_created_at": time.time(),
                 "chunk_count": len(chunks_with_embeddings),
-                "embedding_model": self.settings_manager.setting_get("cloud_embedding_model"),
-                "ollama_embedding_model": self.settings_manager.setting_get("ollama_embedding_model"),
+                "embedding_provider": provider,
+                "embedding_model": model,
+                "embedding_dimensions": embedding_dimensions,
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap"),
             }
@@ -247,18 +293,18 @@ class VectorStore:
                     current_info["hash"] != cached_info["hash"]):
                     return False
 
-            # Check if settings changed
+            # Check if settings changed (provider/model-specific cache directory used)
             current_settings = {
-                "embedding_model": self.settings_manager.setting_get("cloud_embedding_model"),
-                "ollama_embedding_model": self.settings_manager.setting_get("ollama_embedding_model"),
+                "embedding_provider": getattr(self, "_embedding_provider", None),
+                "embedding_model": getattr(self, "_embedding_model", None),
                 "chunk_size": self.settings_manager.setting_get("rag_chunk_size"),
                 "chunk_overlap": self.settings_manager.setting_get("rag_chunk_overlap")
             }
 
             # Compare with cached settings from collection metadata
             cached_settings = {
+                "embedding_provider": collection_meta.get("embedding_provider"),
                 "embedding_model": collection_meta.get("embedding_model"),
-                "ollama_embedding_model": collection_meta.get("ollama_embedding_model"),
                 "chunk_size": collection_meta.get("chunk_size"),
                 "chunk_overlap": collection_meta.get("chunk_overlap")
             }
@@ -437,8 +483,9 @@ class VectorStore:
                         index_info = {
                             "chunk_count": int(collection_meta.get("chunk_count", 0)) if pd.notna(collection_meta.get("chunk_count")) else 0,
                             "created_at": float(collection_meta.get("index_created_at", 0)) if pd.notna(collection_meta.get("index_created_at")) else 0,
+                            "embedding_provider": str(collection_meta.get("embedding_provider", "unknown")),
                             "embedding_model": str(collection_meta.get("embedding_model", "unknown")),
-                            "ollama_embedding_model": str(collection_meta.get("ollama_embedding_model", "unknown"))
+                            "embedding_dimensions": int(collection_meta.get("embedding_dimensions", 0)) if pd.notna(collection_meta.get("embedding_dimensions")) else 0
                         }
                 except Exception as e:
                     print_md(f"Error reading index info: {e}")
@@ -451,6 +498,8 @@ class VectorStore:
                 "files": list(file_metadata.keys()),
                 "has_index": has_index,
                 "cache_valid": cache_valid,
+                "profile_provider": self._embedding_provider,
+                "profile_model": self._embedding_model,
                 "index_info": index_info
             }
 

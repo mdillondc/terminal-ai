@@ -409,8 +409,29 @@ The user can choose to continue research or write a report based on the findings
 
 ## Document Analysis (RAG)
 
-RAG allows you to query your own documents with intelligent, temporal retrieval.
-Note: PDFs that contain image-only (scanned) pages are automatically processed with the vision model during ingestion. Pages with no extractable text are rendered in-memory and analyzed to extract text verbatim. This uses the provider-specific vision model (cloud_vision_model or ollama_vision_model) and respects `pdf_vision_max_pages` (0 disables) and `pdf_vision_dpi`.
+RAG lets you query your own documents with hybrid retrieval:
+- Semantic search (vector embeddings)
+- Optional keyword/BM25 signals for result diversity and recency boosting
+
+Ingestion flow: files are discovered in `rag/<collection>/` → chunked → embedded → stored → searched at query time. The active embedding provider (OpenAI vs Ollama) is selected automatically based on your current chat model/provider to ensure privacy.
+
+Note: PDFs with scanned/image-only pages are automatically processed with the provider-specific vision model during ingestion and respect `pdf_vision_max_pages` (0 disables) and `pdf_vision_dpi`.
+
+### Provider-Specific Indexes (Profiles)
+
+Each collection maintains a separate index per embedding provider/model (“profile”). This avoids rebuild churn when you switch providers. The vectorstore layout is:
+
+```
+rag/vectorstore/openai/text-embedding-3-large/<collection>_index.parquet
+rag/vectorstore/openai/text-embedding-3-large/<collection>_meta.parquet
+
+rag/vectorstore/ollama/snowflake-arctic-embed2-latest/<collection>_index.parquet
+rag/vectorstore/ollama/snowflake-arctic-embed2-latest/<collection>_meta.parquet
+```
+
+- The provider folder reflects the embedding provider: `openai` or `ollama`
+- The model folder is the embedding model name, sanitized (non [A-Za-z0-9_-] replaced with `-`)
+- Switching chat models switches the embedding provider and RAG automatically uses the matching profile. If a profile hasn’t been built yet, the first activation will build it. Subsequent runs use smart rebuild within that profile.
 
 ### Setup
 
@@ -420,8 +441,8 @@ mkdir -p ~/path/to/terminal-ai/rag/personal
 mkdir -p ~/path/to/terminal-ai/rag/work
 mkdir -p ~/path/to/terminal-ai/rag/whatever
 
-# Activate collection (builds automatically)
-# See settings_manager.py for default RAG embedding models (cloud and local), override in ~/.terminal-ai/config
+# Activate collection (auto-selects provider/model profile and builds if needed)
+# See settings_manager.py for default embedding models (cloud and local), override in ~/.config/terminal-ai/config
 > --rag personal
 > Detail my latest visit to the doctor
 ```
@@ -430,24 +451,35 @@ mkdir -p ~/path/to/terminal-ai/rag/whatever
 
 | Command | Description |
 |---------|-------------|
-| `--rag [collection]` | Activate specific collection |
-| `--rag-rebuild <collection>` | Rebuild embeddings index (smart rebuild by default) |
-| `--rag-rebuild <collection> --force-full` | Force complete rebuild from scratch |
-| `--rag-show <filename>` | View relevant chunks from file given as source post RAG query |
-| `--rag-status` | Show RAG configuration |
-| `--rag-test` | Test embedding provider connection |
+| `--rag [collection]` | Activate collection (uses the active provider/model profile) |
+| `--rag-rebuild <collection>` | Rebuild the active profile’s index (smart rebuild by default) |
+| `--rag-rebuild <collection> --force-full` | Force a full rebuild for the active profile |
+| `--rag-show <filename>` | Show relevant chunks from a specific source file (active profile) |
+| `--rag-status` | Show RAG status including provider, model, and embedding dimensions |
+| `--rag-test` | Test connectivity for the current embedding provider |
 | `--rag-deactivate` | Deactivate RAG |
 
 ### Smart Rebuild
 
-RAG collections use smart rebuild by default, which only processes changed files instead of rebuilding everything from scratch. This makes rebuilding even large RAG collections very fast (after initial build).
+Smart rebuild runs within the active provider/model profile and only re-embeds changed files. This makes iterative updates fast even for large collections.
 
-Use `--rag-rebuild collection --force-full` to force a complete rebuild if desired.
+- First build happens once per profile (e.g., once for OpenAI, once for Ollama)
+- Switching providers does not trigger a rebuild unless the target profile has never been built
 
-### Embedding Providers
+Use `--rag-rebuild <collection> --force-full` to force a complete rebuild for the active profile.
 
-- **OpenAI**: High quality, cloud-based (requires API key)
-- **Ollama**: Local, private, free (e.g. `ollama pull snowflake-arctic-embed2:latest`) (also good quality)
+### Status & Configuration
+
+`--rag-status` includes:
+- `embedding_provider` (e.g., `openai`, `ollama`)
+- `embedding_model` (e.g., `text-embedding-3-large`, `snowflake-arctic-embed2:latest`)
+- `embedding_dimensions` (e.g., 3072, 1024)
+- Chunking and retrieval settings (size/overlap/top_k)
+
+Defaults live in `settings_manager.py`:
+- `cloud_embedding_model` for OpenAI
+- `ollama_embedding_model` for Ollama
+Override in `~/.config/terminal-ai/config` if desired.
 
 ## AI Customization (think "GPTs")
 
