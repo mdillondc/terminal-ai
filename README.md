@@ -145,6 +145,17 @@ Create and edit images (experimental). Files are saved under `images/` as `model
 | `--cb` | Use clipboard contents |
 | `--cbl` | Copy latest AI reply to clipboard |
 
+### Image & Vision Support
+
+- Image files with .jpg, .jpeg, .png are supported with the same commands you use for documents.
+- `--file`:
+  - When you pass an image, it’s analyzed using your configured vision model
+  - The analysis (detailed description and extracted text) is added to the conversation context like document content.
+- `--folder` and `--folder-recursive`:
+  - These commands also include image files (.jpg, .jpeg, .png) in addition to regular supported file types.
+  - If more than N images are found, you’ll be asked: "More than 5 (147) images found, do you want to include them them? (Y/n)"
+- Configuration: See `settings_manager.py`
+
 ### URL Content Extraction
 
 Extract content from websites/youtube with automatic paywall/access block bypass using multiple methods:

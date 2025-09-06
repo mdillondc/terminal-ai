@@ -36,10 +36,12 @@ class SettingsManager:
         self.nothink = False  # Disable thinking mode on Ollama models that support it
         self.gpt5_reasoning_effort = "medium"  # GPT-5 reasoning effort level: minimal, low, medium, high (higher effort = slower, but more intelligent response)
         self.gpt5_display_full_reasoning = False  # Whether to display full reasoning summaries during OpenAI Responses streaming for GPT-5 models. If False, show a generic working indicator until visible output starts.
-        
-        # Vision
+
+        # Vision Settings
         self.vision_model = "gpt-5-mini"  # Ollama (e.g. qwen2.5vl:7b) or OpenAI vision model for image analysis (--file image.jpg)
         self.vision_debug = True  # Print raw vision model output for debugging image analysis
+        self.folder_include_images = True  # Include image files (jpg, jpeg, png) when using --folder/--folder-recursive
+        self.folder_image_prompt_threshold = 5  # If more than this many images are found, prompt the user to confirm inclusion (Y/n)
 
         # Search Settings
         self.search = False  # Enable or disable search by default
@@ -61,7 +63,7 @@ class SettingsManager:
         # Set to True to allow Jina fallback even with Ollama models (you accept the third‑party privacy tradeoff).
         self.allow_jina_with_ollama = False
 
-        # Image Settings
+        # Image Generation Settings
         self.image_engine = "nano-banana"  # Default image engine for image generation/editing
         self.image_revision_mode = "original"  # "original" or "iterative" - how image edits build on each other
         self.image_generate_mode = False  # True when --image-generate mode is active
@@ -89,7 +91,7 @@ class SettingsManager:
 
         # Privacy Settings
         self.incognito = False  # Enable or disable conversation logging
-
+        
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using standardized YYYYMMDD-HHMMSS format"""
         return f"{datetime.datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)}.md"

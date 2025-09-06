@@ -1659,13 +1659,41 @@ class CommandManager:
         # Get all files in the directory
         try:
             files = os.listdir(folder_path)
-            supported_files = []
 
-            # Filter for supported files
+            # Separate supported docs and image files
+            doc_files = []
+            image_files = []
+
             for filename in files:
                 file_path = os.path.join(folder_path, filename)
-                if os.path.isfile(file_path) and is_supported_file(file_path):
-                    supported_files.append(file_path)
+                if not os.path.isfile(file_path):
+                    continue
+
+                if is_supported_file(file_path):
+                    doc_files.append(file_path)
+                    continue
+
+                # Include image files (jpg, jpeg, png)
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext in ['.jpg', '.jpeg', '.png']:
+                    image_files.append(file_path)
+
+            # Decide whether to include images based on settings and threshold
+            include_images = False
+            try:
+                if self.settings_manager.setting_get("folder_include_images"):
+                    include_images = True
+                    threshold = self.settings_manager.setting_get("folder_image_prompt_threshold")
+                    image_count = len(image_files)
+                    if image_count > threshold:
+                        resp = input(f"More than {threshold} ({image_count}) images found, do you want to include them them? (Y/n)").strip().lower()
+                        if resp in ['n', 'no']:
+                            include_images = False
+            except Exception:
+                # If settings not available for any reason, default to include images without prompt
+                include_images = True
+
+            supported_files = doc_files + (image_files if include_images else [])
 
             if not supported_files:
                 supported_types = get_supported_extensions_display()
@@ -1715,13 +1743,37 @@ class CommandManager:
 
         # Walk directory tree recursively
         try:
-            supported_files = []
+            # Collect supported docs and image files recursively
+            doc_files = []
+            image_files = []
 
             for root, dirs, files in os.walk(folder_path):
                 for filename in files:
                     file_path = os.path.join(root, filename)
                     if is_supported_file(file_path):
-                        supported_files.append(file_path)
+                        doc_files.append(file_path)
+                        continue
+
+                    ext = os.path.splitext(filename)[1].lower()
+                    if ext in ['.jpg', '.jpeg', '.png']:
+                        image_files.append(file_path)
+
+            # Decide whether to include images based on settings and threshold
+            include_images = False
+            try:
+                if self.settings_manager.setting_get("folder_include_images"):
+                    include_images = True
+                    threshold = self.settings_manager.setting_get("folder_image_prompt_threshold")
+                    image_count = len(image_files)
+                    if image_count > threshold:
+                        resp = input(f"More than {threshold} ({image_count}) images found, do you want to include them them? Y/n ").strip().lower()
+                        if resp in ['n', 'no']:
+                            include_images = False
+            except Exception:
+                # If settings not available for any reason, default to include images without prompt
+                include_images = True
+
+            supported_files = doc_files + (image_files if include_images else [])
 
             if not supported_files:
                 supported_types = get_supported_extensions_display()
