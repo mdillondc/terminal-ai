@@ -87,6 +87,20 @@ class LLMClientManager:
             if reasoning_effort:
                 params["reasoning_effort"] = reasoning_effort
 
+        # Ollama-only: pass context window via extra_body.options.num_ctx
+        if self._get_provider_for_model(model) == "ollama":
+            try:
+                num_ctx = int(self.settings_manager.setting_get("ollama_context_window"))
+                # Merge with any provided extra_body/options
+                extra_body = dict(params.get("extra_body") or {})
+                options = dict(extra_body.get("options") or {})
+                options["num_ctx"] = num_ctx
+                extra_body["options"] = options
+                params["extra_body"] = extra_body
+            except Exception:
+                # Silently ignore if setting missing or invalid; fall back to model default
+                pass
+
         return client.chat.completions.create(**params)
 
     def _get_client_for_model(self, model_name: str) -> OpenAI:

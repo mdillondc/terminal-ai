@@ -40,6 +40,7 @@ class SettingsManager:
         self.gpt5_display_full_reasoning = False  # Whether to display full reasoning summaries during OpenAI Responses streaming for GPT-5 models. If False, show a generic working indicator until visible output starts.
         self.nothink = False  # Disable thinking mode on Ollama models that support it
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
+        self.ollama_context_window = 4096  # Default context window (tokens) for Ollama chat models
         self.cloud_vision_model = "gpt-5-mini"  # Vision model when using cloud providers (e.g., OpenAI)
         self.ollama_vision_model = "qwen2.5vl:7b"  # Vision model when using Ollama locally
         self.vision_debug = False  # Print raw vision model output for debugging image analysis
@@ -97,7 +98,7 @@ class SettingsManager:
         self.rag_enable_search_transparency = True  # Show search process information
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
         self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
-        
+
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using standardized YYYYMMDD-HHMMSS format"""
         return f"{datetime.datetime.now().strftime(FilenameConstants.TIMESTAMP_FORMAT)}.md"

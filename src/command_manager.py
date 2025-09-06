@@ -391,6 +391,30 @@ class CommandManager:
                 elif command_name == "--search-engine":
                     self.set_search_engine(arg)
                     command_executed = True
+                elif command_name == "--ollama-context-window":
+                    # Validate and set Ollama context window (num_ctx). Only affects Ollama models.
+                    if arg is None or not str(arg).strip():
+                        current = self.settings_manager.setting_get("ollama_context_window")
+                        print_md(f"Current Ollama context window (num_ctx): {current}")
+                        print_md("Usage: --ollama-context-window 8192")
+                    else:
+                        try:
+                            value = int(str(arg).strip())
+                            if value <= 0:
+                                raise ValueError("Context window must be a positive integer")
+                            # Clamp to a conservative upper bound
+                            if value > 131072:
+                                print_md("Warning: Values above 131072 may not be supported by the model or your hardware. Clamping to 131072.")
+                                value = 131072
+                            self.settings_manager.setting_set("ollama_context_window", value)
+                            provider = self.conversation_manager.llm_client_manager.get_provider_for_model(self.conversation_manager.model)
+                            if provider != "ollama":
+                                print_md(f"Ollama context window set to: {value} (note: current model provider is '{provider}'. This setting only affects Ollama models.)")
+                            else:
+                                print_md(f"Ollama context window set to: {value}")
+                        except ValueError:
+                            print_md("Invalid value for --ollama-context-window. Please provide a positive integer, e.g., 8192.")
+                    command_executed = True
                 elif command_name == "--image-engine":
                     self.set_image_engine(arg)
                     command_executed = True

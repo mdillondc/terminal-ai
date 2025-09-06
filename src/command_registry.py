@@ -271,6 +271,15 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
+            name="--ollama-context-window",
+            description="Set the context window (num_ctx tokens) for Ollama chat models for this session. Only affects Ollama models.",
+            usage="--ollama-context-window 8192",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=True
+        ))
+
+        self.register_command(CommandInfo(
             name="--markdown",
             description="Toggle markdown rendering for AI responses.",
             usage="--markdown",
