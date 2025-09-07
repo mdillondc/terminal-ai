@@ -5,30 +5,11 @@ All (dumb) magic numbers and configuration values that affect system behavior
 are defined here with clear documentation and rationale.
 """
 
-from typing import Optional
+from typing import Optional, List
+import re
+from datetime import datetime
 
-# Response timeout constants for universal timeout system
-# Intention: Communicate to user that app has not hung, but is working
-# RESPONSE_WAIT_SEC controls how long (in seconds) we wait for visible output from the model
-# before showing a user-facing "working" indicator. Tune this higher if your models usually
-# start streaming quickly (to avoid flicker), or lower if you want feedback to appear sooner.
-RESPONSE_WAIT_SEC = 3
 
-# RESPONSE_WORKING_LABEL is the prefix text used by the animated "working" indicator that appears
-# after RESPONSE_WAIT_SEC with no visible model output yet. Examples (animated):
-#   "Working."
-#   "Working.."
-#   "Working..."
-# Behavior notes:
-# - Applies to all models.
-# - Suppressed for turns where web search or deep-search ran (to avoid noisy output).
-# - In non‑TTY environments, we print a single "Working..." line once (no animation).
-# - If gpt5_display_full_reasoning is True and the model is GPT‑5, we stream the model's
-#   reasoning summary instead of showing this indicator (and we do not log that summary).
-RESPONSE_WORKING_LABEL = "Working"
-
-# Model name display constants (only applies to user prompt display)
-USER_PROMPT_MODEL_MAX_CHARS = 20
 
 class CompletionScoringConstants:
     """
@@ -293,3 +274,26 @@ class ModelPricingConstants:
             'total_cost': total_cost,
             'currency': 'USD'
         }
+
+# Response timeout constants for universal timeout system
+# Intention: Communicate to user that app has not hung, but is working
+# RESPONSE_WAIT_SEC controls how long (in seconds) we wait for visible output from the model
+# before showing a user-facing "working" indicator. Tune this higher if your models usually
+# start streaming quickly (to avoid flicker), or lower if you want feedback to appear sooner.
+RESPONSE_WAIT_SEC = 3
+
+# RESPONSE_WORKING_LABEL is the prefix text used by the animated "working" indicator that appears
+# after RESPONSE_WAIT_SEC with no visible model output yet. Examples (animated):
+#   "Working."
+#   "Working.."
+#   "Working..."
+# Behavior notes:
+# - Applies to all models.
+# - Suppressed for turns where web search or deep-search ran (to avoid noisy output).
+# - In non‑TTY environments, we print a single "Working..." line once (no animation).
+# - If gpt5_display_full_reasoning is True and the model is GPT‑5, we stream the model's
+#   reasoning summary instead of showing this indicator (and we do not log that summary).
+RESPONSE_WORKING_LABEL = "Working"
+
+# Model name display constants (only applies to user prompt display)
+USER_PROMPT_MODEL_MAX_CHARS = 20

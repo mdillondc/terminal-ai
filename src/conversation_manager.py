@@ -16,6 +16,7 @@ from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
 from constants import ColorConstants, ConversationConstants, RESPONSE_WAIT_SEC, LLMSettings, RESPONSE_WORKING_LABEL
+from timeline_manager import TimelineManager
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines, get_status_animator
 from rich.console import Console
@@ -1178,8 +1179,8 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
 
             # Read instructions
             instructions = self.read_file(self.settings_manager.setting_get("working_dir") + "/instructions/" + self.settings_manager.setting_get("instructions"))
-            current_date = datetime.now().strftime('%A %Y-%m-%d %H:%M')
-            date_line = f"System date/time: {current_date}. Treat this as 'today'. Ignore your training cutoff date."
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            date_line = TimelineManager.format_date_initial(current_date)
 
             # Append new instructions to conversation_history
             # TODO: Consider if it'd be better to prepend instead of append (evaluate GPT response performance over time)
@@ -1500,6 +1501,15 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
             with open(path_to_log_json) as file:
                 self.conversation_history = json.load(file)
+
+            # Recompute and replace singleton Info:System-Timeline on resume (always), if enabled
+            if self.settings_manager.setting_get("system_timeline_enabled"):
+                try:
+                    today = datetime.now().strftime('%Y-%m-%d')
+                    self.conversation_history = TimelineManager.consolidate_history(self.conversation_history, today)
+                    self.log_save()
+                except Exception as e:
+                    print_md(f"Warning: timeline injection failed: {e}")
 
             # Mark log as already renamed to prevent auto-renaming when resuming
             self.log_renamed = True

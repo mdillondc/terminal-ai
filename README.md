@@ -523,6 +523,11 @@ Terminal-AI uses a JSON logging system that provides reliable conversation stora
 - JSON files contain complete conversation history including system messages
 - Markdown files are only created when explicitly exported using `--export-markdown`
 - JSON files are the single source of truth for all conversation data
+- When resuming a conversation with `--log`, Terminal‑AI maintains a single system timeline entry to help models reason about elapsed time:
+  - An initial system date anchor is written once on new conversations: `Info:System-Date: YYYY-MM-DD`
+  - On resume, the app consolidates to one up‑to‑date timeline line:  
+    `Info:System-Timeline: start=YYYY-MM-DD; last=YYYY-MM-DD; current=YYYY-MM-DD; days_elapsed=N; days_inclusive=M; active_days=[YYYY-MM-DD,...]`
+  - This feature can be disabled via `system_timeline_enabled = False` in your config
 
 ### Commands
 

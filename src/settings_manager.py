@@ -32,6 +32,7 @@ class SettingsManager:
         self.log_file_name = self.generate_new_log_filename()  # Keep track of the log file name for the current session
         self.log_file_location = None  # Full path to current JSON log file (including .json extension), set after first AI response
         self.incognito = False  # Enable or disable conversation logging
+        self.system_timeline_enabled = True  # Enable Info:System-Timeline injection/updates on --log resume (set to False to disable)
 
         # Models & providers
         # Core conversation model and provider flags
