@@ -2,7 +2,7 @@ import os
 import datetime
 from typing import Optional, Any, ClassVar, Dict, List
 from print_helper import print_md
-from constants import FilenameConstants, USER_PROMPT_MODEL_MAX_CHARS
+from constants import FilenameConstants, UIConstants
 
 
 class SettingsManager:
@@ -166,8 +166,8 @@ class SettingsManager:
         # Add model name as the last element
         if self.model:
             model_display = self.model
-            if len(model_display) > USER_PROMPT_MODEL_MAX_CHARS:
-                model_display = model_display[:USER_PROMPT_MODEL_MAX_CHARS] + "..."
+            if len(model_display) > UIConstants.USER_PROMPT_MODEL_MAX_CHARS:
+                model_display = model_display[:UIConstants.USER_PROMPT_MODEL_MAX_CHARS] + "..."
             # If using GPT-5, show reasoning effort next to model
             try:
                 if model_display.lower().startswith('gpt-5'):
@@ -190,8 +190,8 @@ class SettingsManager:
             model = self.setting_get("model")
             if model:
                 model_display = model
-                if len(model_display) > USER_PROMPT_MODEL_MAX_CHARS:
-                    model_display = model_display[:USER_PROMPT_MODEL_MAX_CHARS] + "..."
+                if len(model_display) > UIConstants.USER_PROMPT_MODEL_MAX_CHARS:
+                    model_display = model_display[:UIConstants.USER_PROMPT_MODEL_MAX_CHARS] + "..."
                 # If using GPT-5, show reasoning effort next to model
                 try:
                     if model_display.lower().startswith('gpt-5'):

@@ -15,7 +15,7 @@ from searxng_search import create_searxng_search, SearXNGSearchError
 from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
-from constants import ColorConstants, ConversationConstants, RESPONSE_WAIT_SEC, LLMSettings, RESPONSE_WORKING_LABEL
+from constants import ColorConstants, ConversationConstants, LLMSettings, UIConstants
 from timeline_manager import TimelineManager
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines, get_status_animator
@@ -285,7 +285,7 @@ class ConversationManager:
                     gpt5_display_full_reasoning_cfg = True
                 use_animation = True
                 show_static_reasoning = False
-                anim_label = RESPONSE_WORKING_LABEL
+                anim_label = UIConstants.RESPONSE_WORKING_LABEL
                 if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
                     if gpt5_display_full_reasoning_cfg:
                         # Show full reasoning summary (no animation, no static line)
@@ -1129,13 +1129,13 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
         """Start timeout detection thread for response delays."""
         def timeout_monitor():
             # Start status after wait threshold if no visible output has started
-            if not visible_output_started.wait(timeout=RESPONSE_WAIT_SEC):
+            if not visible_output_started.wait(timeout=UIConstants.RESPONSE_WAIT_SEC):
                 if static_reasoning_line:
                     try:
                         GRAY = ColorConstants.THINKING_GRAY
                         RESET = ColorConstants.RESET
                         # Print a static status line (no newline)
-                        print(GRAY + f" {animator_label}..." + RESET, end="", flush=True)
+                        print(GRAY + f" {UIConstants.RESPONSE_WORKING_LABEL}..." + RESET, end="", flush=True)
                         status_line_mode[0] = "static"
                     except Exception:
                         # Never fail due to status printing issues

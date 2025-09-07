@@ -143,6 +143,9 @@ class UIConstants:
 
     MAX_COMPLETION_CACHE_ENTRIES = 100  # LRU cache size for completions
     GRUVBOX_STYLE_MARGIN = 1            # Markdown formatting margin
+    RESPONSE_WAIT_SEC = 3               # Seconds to wait before showing "working" indicator
+    RESPONSE_WORKING_LABEL = "Working"  # Label used by the animated/static status indicator
+    USER_PROMPT_MODEL_MAX_CHARS = 20    # Truncate model name in prompt display
 
 
 class LLMSettings:
@@ -274,26 +277,3 @@ class ModelPricingConstants:
             'total_cost': total_cost,
             'currency': 'USD'
         }
-
-# Response timeout constants for universal timeout system
-# Intention: Communicate to user that app has not hung, but is working
-# RESPONSE_WAIT_SEC controls how long (in seconds) we wait for visible output from the model
-# before showing a user-facing "working" indicator. Tune this higher if your models usually
-# start streaming quickly (to avoid flicker), or lower if you want feedback to appear sooner.
-RESPONSE_WAIT_SEC = 3
-
-# RESPONSE_WORKING_LABEL is the prefix text used by the animated "working" indicator that appears
-# after RESPONSE_WAIT_SEC with no visible model output yet. Examples (animated):
-#   "Working."
-#   "Working.."
-#   "Working..."
-# Behavior notes:
-# - Applies to all models.
-# - Suppressed for turns where web search or deep-search ran (to avoid noisy output).
-# - In non‑TTY environments, we print a single "Working..." line once (no animation).
-# - If gpt5_display_full_reasoning is True and the model is GPT‑5, we stream the model's
-#   reasoning summary instead of showing this indicator (and we do not log that summary).
-RESPONSE_WORKING_LABEL = "Working"
-
-# Model name display constants (only applies to user prompt display)
-USER_PROMPT_MODEL_MAX_CHARS = 20
