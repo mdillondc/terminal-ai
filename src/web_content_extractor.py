@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from print_helper import print_md
 from settings_manager import SettingsManager
 from llm_client_manager import LLMClientManager
-from constants import LLMSettings
+from constants import LLMSettingConstants
 
 
 class WebContentExtractor:
@@ -522,7 +522,7 @@ class WebContentExtractor:
 
         try:
             # Use different API parameters based on model type
-            if LLMSettings.is_gpt5_model(current_model):
+            if LLMSettingConstants.is_gpt5_model(current_model):
                 # GPT-5: Use structured outputs (temperature fixed at 1.0)
                 return self.llm_client_manager.create_chat_completion(
                     model=current_model,

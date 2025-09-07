@@ -15,7 +15,7 @@ from searxng_search import create_searxng_search, SearXNGSearchError
 from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
-from constants import ColorConstants, ConversationConstants, LLMSettings, UIConstants
+from constants import ColorConstants, ConversationConstants, LLMSettingConstants, UIConstants
 from timeline_manager import TimelineManager
 from llm_client_manager import LLMClientManager
 from print_helper import print_md, print_lines, get_status_animator
@@ -286,7 +286,7 @@ class ConversationManager:
                 use_animation = True
                 show_static_reasoning = False
                 anim_label = UIConstants.RESPONSE_WORKING_LABEL
-                if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
+                if provider == "openai" and LLMSettingConstants.is_gpt5_model(self.model):
                     if gpt5_display_full_reasoning_cfg:
                         # Show full reasoning summary (no animation, no static line)
                         use_animation = False
@@ -306,7 +306,7 @@ class ConversationManager:
                 timeout_thread = self._start_timeout_detection(visible_output_started, timeout_messages_shown, anim_label, use_animation, show_static_reasoning, status_line_mode)
 
                 # Setup stream to receive response from AI (OpenAI uses Responses API for reasoning summaries)
-                if provider == "openai" and LLMSettings.is_gpt5_model(self.model):
+                if provider == "openai" and LLMSettingConstants.is_gpt5_model(self.model):
                     stream = self.llm_client_manager.create_responses_stream(
                         model=self.model,
                         messages=self.conversation_history,

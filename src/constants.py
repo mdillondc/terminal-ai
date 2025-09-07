@@ -120,20 +120,6 @@ class CacheConstants:
     COMPLETION_CACHE_SHORT = 2.0       # Short-term completion cache (2 seconds)
 
 
-class EmbeddingConstants:
-    """
-    RAG and embedding system configuration values.
-
-    These values control document processing, chunking, and retrieval behavior.
-    Values optimized for balance between accuracy and performance.
-    """
-
-    # OpenAI embedding model costs (per 1k tokens)
-    OPENAI_EMBED_SMALL_COST = 0.00002  # text-embedding-3-small
-    OPENAI_EMBED_LARGE_COST = 0.00013  # text-embedding-3-large
-    OPENAI_EMBED_ADA_COST = 0.0001     # text-embedding-ada-002
-
-
 class UIConstants:
     """
     User interface configuration values.
@@ -148,7 +134,7 @@ class UIConstants:
     USER_PROMPT_MODEL_MAX_CHARS = 20    # Truncate model name in prompt display
 
 
-class LLMSettings:
+class LLMSettingConstants:
     """
     Model-specific API parameter configurations.
 

@@ -11,7 +11,7 @@ from typing import Any, Optional, Dict, List
 from openai import OpenAI
 
 from settings_manager import SettingsManager
-from constants import LLMSettings
+from constants import LLMSettingConstants
 from model_manager import ModelManager
 
 
@@ -40,7 +40,7 @@ class LLMClientManager:
         self,
         model: str,
         messages: List[Dict[str, str]],
-        temperature: float = LLMSettings.DEFAULT_TEMPERATURE,
+        temperature: float = LLMSettingConstants.DEFAULT_TEMPERATURE,
         max_tokens: Optional[int] = None,
         **kwargs
     ) -> Any:
@@ -74,15 +74,15 @@ class LLMClientManager:
         }
 
         # Set temperature for all models, with GPT-5 specific handling
-        params["temperature"] = LLMSettings.get_temperature_for_model(model, temperature)
+        params["temperature"] = LLMSettingConstants.get_temperature_for_model(model, temperature)
 
         # Handle max_tokens parameter (GPT-5 uses different parameter name)
         if max_tokens is not None:
-            max_tokens_param = LLMSettings.get_max_tokens_param_name(model)
+            max_tokens_param = LLMSettingConstants.get_max_tokens_param_name(model)
             params[max_tokens_param] = max_tokens
 
         # Handle reasoning_effort parameter (GPT-5 specific)
-        if LLMSettings.is_gpt5_model(model):
+        if LLMSettingConstants.is_gpt5_model(model):
             reasoning_effort = self.settings_manager.setting_get("gpt5_reasoning_effort")
             if reasoning_effort:
                 params["reasoning_effort"] = reasoning_effort
@@ -237,7 +237,7 @@ class LLMClientManager:
         self,
         model: str,
         messages: List[Dict[str, str]],
-        temperature: float = LLMSettings.DEFAULT_TEMPERATURE,
+        temperature: float = LLMSettingConstants.DEFAULT_TEMPERATURE,
         max_tokens: Optional[int] = None,
         reasoning_effort: Optional[str] = None,
         include_reasoning_summary: bool = True,
@@ -289,7 +289,7 @@ class LLMClientManager:
         }
 
         # Set temperature (GPT-5 uses 1.0)
-        params["temperature"] = LLMSettings.get_temperature_for_model(model, temperature)
+        params["temperature"] = LLMSettingConstants.get_temperature_for_model(model, temperature)
 
         # Map max tokens -> Responses param name
         if max_tokens is not None:
