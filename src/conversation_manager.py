@@ -16,9 +16,9 @@ from search_utils import extract_full_content_from_search_results
 from deep_search_agent import create_deep_search_agent
 from print_helper import print_md
 from constants import ColorConstants, ConversationConstants, LLMSettingConstants, UIConstants
-from timeline_manager import TimelineManager
 from llm_client_manager import LLMClientManager
-from print_helper import print_md, print_lines, get_status_animator
+from timeline_log_memory import TimelineLogMemory
+from print_helper import print_md, print_lines
 from rich.console import Console
 
 
@@ -54,8 +54,12 @@ class ConversationManager:
         if self.settings_manager.setting_get("incognito"):
             return
 
-        # Add to conversation history for LLM/JSON
-        self.conversation_history.append({"role": role, "content": content})
+        # Add to conversation history for LLM/JSON, including per-message Unix epoch timestamp (UTC)
+        self.conversation_history.append({
+            "role": role,
+            "content": content,
+            "timestamp": int(datetime.now().timestamp())
+        })
 
 
 
@@ -283,30 +287,40 @@ class ConversationManager:
                     gpt5_display_full_reasoning_cfg = self.settings_manager.setting_get("gpt5_display_full_reasoning")
                 except KeyError:
                     gpt5_display_full_reasoning_cfg = True
-                use_animation = True
-                show_static_reasoning = False
-                anim_label = UIConstants.RESPONSE_WORKING_LABEL
+                # Unified static Working... status (no animation)
+                show_working_line = True
                 if provider == "openai" and LLMSettingConstants.is_gpt5_model(self.model):
                     if gpt5_display_full_reasoning_cfg:
-                        # Show full reasoning summary (no animation, no static line)
-                        use_animation = False
-                        show_static_reasoning = False
+                        # GPT‑5 full reasoning summary shown; suppress Working...
+                        show_working_line = False
                     else:
-                        # Use static status line for GPT‑5 (no animation)
-                        use_animation = False
-                        show_static_reasoning = True
+                        # GPT‑5 without full reasoning: show static Working...
+                        show_working_line = True
 
-                # Start timeout/animation for response delays BEFORE visible output
+                # Start static Working... status (no animation) for response delays BEFORE visible output
                 timeout_messages_shown = [False]  # Use list for mutable reference
-                status_line_mode = ["none"]  # "anim", "static", or "none"
-                # Suppress working status this turn if search or deep search workflow already ran
+                status_cleared = [False]  # Track if Working... line has been cleared
+                # Suppress Working... this turn if search/deep-search already ran
                 if search_or_deep_ran:
-                    use_animation = False
-                    show_static_reasoning = False
-                timeout_thread = self._start_timeout_detection(visible_output_started, timeout_messages_shown, anim_label, use_animation, show_static_reasoning, status_line_mode)
+                    show_working_line = False
+                timeout_thread = self._start_timeout_detection(visible_output_started, timeout_messages_shown, show_working_line)
 
                 # Setup stream to receive response from AI (OpenAI uses Responses API for reasoning summaries)
                 if provider == "openai" and LLMSettingConstants.is_gpt5_model(self.model):
+                    # Timeline recall injection
+                    timeline_meta = None
+                    try:
+                        if self.settings_manager.setting_get("timeline"):
+                            # Lazy-init memory service
+                            if not hasattr(self, "timeline_log_memory") or self.timeline_log_memory is None:
+                                self.timeline_log_memory = TimelineLogMemory(self._original_openai_client)
+                            system_message, timeline_meta = self.timeline_log_memory.get_recall_system_message(self.conversation_history)
+                            if system_message:
+                                self.log_context(system_message, "system")
+                    except Exception as e:
+                        print_md(f"Error: Timeline recall failed: {e}\n    Aborting turn. Disable --timeline to continue without recall.")
+                        return
+
                     stream = self.llm_client_manager.create_responses_stream(
                         model=self.model,
                         messages=self.conversation_history,
@@ -314,6 +328,20 @@ class ConversationManager:
                     )
                     responses_streaming = True
                 else:
+                    # Timeline recall injection
+                    timeline_meta = None
+                    try:
+                        if self.settings_manager.setting_get("timeline"):
+                            # Lazy-init memory service
+                            if not hasattr(self, "timeline_log_memory") or self.timeline_log_memory is None:
+                                self.timeline_log_memory = TimelineLogMemory(self._original_openai_client)
+                            system_message, timeline_meta = self.timeline_log_memory.get_recall_system_message(self.conversation_history)
+                            if system_message:
+                                self.log_context(system_message, "system")
+                    except Exception as e:
+                        print_md(f"Error: Timeline recall failed: {e}\n    Aborting turn. Disable --timeline to continue without recall.")
+                        return
+
                     stream = self.llm_client_manager.create_chat_completion(
                         model=self.model, messages=self.conversation_history, stream=True
                     )
@@ -392,24 +420,14 @@ class ConversationManager:
                         else:
                             text_piece = getattr(delta_obj, "text", None) or getattr(delta_obj, "value", None)
                         if text_piece:
-                            if timeout_messages_shown[0]:
-                                if status_line_mode[0] == "anim":
-                                    # Stop animation and add newline before first visible output
-                                    try:
-                                        get_status_animator().stop(clear_line=True)
-                                    except Exception:
-                                        pass
-                                    print()
-                                    status_line_mode[0] = "cleared"
-                                elif status_line_mode[0] == "static":
-                                    # Clear static status line and add newline before first visible output
-                                    try:
-                                        clear_width = len(anim_label) + 4  # leading space + label + "..."
-                                        print("\r" + " " * clear_width + "\r", end="", flush=True)
-                                    except Exception:
-                                        pass
-                                    print()
-                                    status_line_mode[0] = "cleared"
+                            if timeout_messages_shown[0] and not status_cleared[0]:
+                                try:
+                                    # Clear the in-place Working... line before first visible output
+                                    print("\r\033[K", end="", flush=True)
+                                except Exception:
+                                    pass
+                                print()
+                                status_cleared[0] = True
                             if not visible_output_marked:
                                 visible_output_started.set()
                                 visible_output_marked = True
@@ -465,24 +483,14 @@ class ConversationManager:
                     if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
                         delta = chunk.choices[0].delta
                         if hasattr(delta, 'content') and delta.content is not None:
-                            if timeout_messages_shown[0]:
-                                if status_line_mode[0] == "anim":
-                                    # Stop animation and add newline before first visible output
-                                    try:
-                                        get_status_animator().stop(clear_line=True)
-                                    except Exception:
-                                        pass
-                                    print()
-                                    status_line_mode[0] = "cleared"
-                                elif status_line_mode[0] == "static":
-                                    # Clear static status line and add newline before first visible output
-                                    try:
-                                        clear_width = len(anim_label) + 4  # leading space + label + "..."
-                                        print("\r" + " " * clear_width + "\r", end="", flush=True)
-                                    except Exception:
-                                        pass
-                                    print()
-                                    status_line_mode[0] = "cleared"
+                            if timeout_messages_shown[0] and not status_cleared[0]:
+                                try:
+                                    # Clear the in-place Working... line before first visible output
+                                    print("\r\033[K", end="", flush=True)
+                                except Exception:
+                                    pass
+                                print()
+                                status_cleared[0] = True
                             if not visible_output_marked:
                                 visible_output_started.set()
                                 visible_output_marked = True
@@ -562,6 +570,15 @@ class ConversationManager:
             # Display RAG sources if any were used
             if rag_sources and self.rag_engine:
                 print_md(self.rag_engine.format_sources(rag_sources))
+            # Display Timeline recall summary if enabled and available
+            try:
+                if self.settings_manager.setting_get("timeline") and self.settings_manager.setting_get("timeline_transparency"):
+                    if 'timeline_meta' in locals() and timeline_meta and timeline_meta.get('included_turn_indices'):
+                        turns = ", ".join(f"#{i}" for i in timeline_meta['included_turn_indices'])
+                        summary = f"Timeline recall: {len(timeline_meta['included_turn_indices'])} snippets injected ({turns})"
+                        print_md(summary)
+            except Exception:
+                pass
 
             self.log_save()
 
@@ -1125,34 +1142,19 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
         except Exception:
             return False
 
-    def _start_timeout_detection(self, visible_output_started: threading.Event, timeout_messages_shown: list, animator_label: str, use_animation: bool, static_reasoning_line: bool, status_line_mode: list) -> threading.Thread:
-        """Start timeout detection thread for response delays."""
+    def _start_timeout_detection(self, visible_output_started: threading.Event, timeout_messages_shown: list, show_working_line: bool) -> threading.Thread:
+        """Start timeout detection thread for response delays (static Working... only)."""
         def timeout_monitor():
             # Start status after wait threshold if no visible output has started
             if not visible_output_started.wait(timeout=UIConstants.RESPONSE_WAIT_SEC):
-                if static_reasoning_line:
+                if show_working_line:
                     try:
                         GRAY = ColorConstants.THINKING_GRAY
                         RESET = ColorConstants.RESET
-                        # Print a static status line (no newline)
-                        print(GRAY + f" {UIConstants.RESPONSE_WORKING_LABEL}..." + RESET, end="", flush=True)
-                        status_line_mode[0] = "static"
+                        # Print a static status line in-place (no newline); will be cleared on first output
+                        print(GRAY + f" {UIConstants.RESPONSE_WORKING_LABEL}" + RESET, end="", flush=True)
                     except Exception:
                         # Never fail due to status printing issues
-                        pass
-                elif use_animation:
-                    try:
-                        status_line_mode[0] = "anim"
-                        animator = get_status_animator()
-                        animator.start(
-                            animator_label,
-                            frames=[".", "..", "..."],
-                            interval=0.4,
-                            color_prefix=ColorConstants.THINKING_GRAY,
-                            color_reset=ColorConstants.RESET
-                        )
-                    except Exception:
-                        # Never fail due to animation issues
                         pass
                 timeout_messages_shown[0] = True
 
@@ -1179,12 +1181,10 @@ Respond with just the key topics, one per line, no explanations. Maximum 5 topic
 
             # Read instructions
             instructions = self.read_file(self.settings_manager.setting_get("working_dir") + "/instructions/" + self.settings_manager.setting_get("instructions"))
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            date_line = TimelineManager.format_date_initial(current_date)
 
             # Append new instructions to conversation_history
             # TODO: Consider if it'd be better to prepend instead of append (evaluate GPT response performance over time)
-            self.log_context(f"instructions:{file_name}\n{date_line}\n{instructions}", "system")
+            self.log_context(f"instructions:{file_name}\n{instructions}", "system")
 
             # Inform user
             notice = f"Instructions {file_name}"
@@ -1502,14 +1502,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
             with open(path_to_log_json) as file:
                 self.conversation_history = json.load(file)
 
-            # Recompute and replace singleton Info:System-Timeline on resume (always), if enabled
-            if self.settings_manager.setting_get("system_timeline_enabled"):
-                try:
-                    today = datetime.now().strftime('%Y-%m-%d')
-                    self.conversation_history = TimelineManager.consolidate_history(self.conversation_history, today)
-                    self.log_save()
-                except Exception as e:
-                    print_md(f"Warning: timeline injection failed: {e}")
+
 
             # Mark log as already renamed to prevent auto-renaming when resuming
             self.log_renamed = True

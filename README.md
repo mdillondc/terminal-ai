@@ -29,6 +29,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - **RAG System**: Query your documents with hybrid search and intelligent retrieval
 - **Content Extraction**: YouTube transcripts, website content
 - **Conversation Management**: Save, resume, and organize conversations
+- **Timeline**: Time-aware recall for long conversations (earliest/latest mentions, date listing; see [timeline.md](timeline.md)); intended for use with local models that struggle with long-term memory
 - **Instruction Templates**: Custom AI behaviors and skills
 - **Clipboard Integration**: Use clipboard content as input
 - **Privacy-First**: Local processing with Ollama for sensitive documents
@@ -116,6 +117,7 @@ Confirm quitting (Y/n)?
 | `--model-clear-cache` | Force refresh of available models |
 | `--clear` | Clear conversation history |
 | `--usage` | Show token usage and costs |
+| `--timeline` | Toggle time-aware recall (Timeline) |
 
 ## Experimental: Image Generation & Editing
 
@@ -523,10 +525,7 @@ Terminal-AI uses a JSON logging system that provides reliable conversation stora
 - JSON files contain complete conversation history including system messages
 - Markdown files are only created when explicitly exported using `--export-markdown`
 - JSON files are the single source of truth for all conversation data
-- When resuming a conversation with `--log`, Terminal‑AI maintains a single system timeline entry to help models reason about elapsed time:
-  - An initial system date anchor is written once on new conversations: `Info:System-Date: YYYY-MM-DD`
-  - On resume, the app consolidates to one up‑to‑date timeline line:  
-    `Info:System-Timeline: start=YYYY-MM-DD; last=YYYY-MM-DD; current=YYYY-MM-DD; days_elapsed=N; days_inclusive=M; active_days=[YYYY-MM-DD,...]`
+
   - This feature can be disabled via `system_timeline_enabled = False` in your config
 
 ### Commands

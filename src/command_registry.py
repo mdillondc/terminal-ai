@@ -183,6 +183,14 @@ class CommandRegistry:
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False
         ))
+        self.register_command(CommandInfo(
+            name="--timeline",
+            description="Toggle Timeline mode: time-aware recall from the current conversation history using per-message timestamps. Injects compact, deterministic context before model calls.",
+            usage="--timeline",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
 
         self.register_command(CommandInfo(
             name="--search-auto",

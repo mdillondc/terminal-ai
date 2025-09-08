@@ -127,11 +127,11 @@ class UIConstants:
     Controls display behavior, formatting, and user interaction.
     """
 
-    MAX_COMPLETION_CACHE_ENTRIES = 100  # LRU cache size for completions
-    GRUVBOX_STYLE_MARGIN = 1            # Markdown formatting margin
-    RESPONSE_WAIT_SEC = 3               # Seconds to wait before showing "working" indicator
-    RESPONSE_WORKING_LABEL = "Working"  # Label used by the animated/static status indicator
-    USER_PROMPT_MODEL_MAX_CHARS = 20    # Truncate model name in prompt display
+    MAX_COMPLETION_CACHE_ENTRIES = 100       # LRU cache size for completions
+    GRUVBOX_STYLE_MARGIN = 1                 # Markdown formatting margin
+    RESPONSE_WAIT_SEC = 2                    # Seconds to wait before showing "working" indicator
+    RESPONSE_WORKING_LABEL = "Working...\n"  # Label used by the static status indicator
+    USER_PROMPT_MODEL_MAX_CHARS = 25         # Truncate model name in prompt display
 
 
 class LLMSettingConstants:
@@ -143,7 +143,7 @@ class LLMSettingConstants:
     """
 
     # Temperature settings
-    DEFAULT_TEMPERATURE = 0.7     # Default for most models (more focused)
+    DEFAULT_TEMPERATURE = 0.5     # Default for most models (focused, reliable). Increase to 0.7 for more creativity
     GPT5_TEMPERATURE = 1.0        # GPT-5 models only support temperature=1.0
 
     # Token limit parameter names (GPT-5 uses different parameter name)

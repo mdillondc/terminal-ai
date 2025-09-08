@@ -32,7 +32,6 @@ class SettingsManager:
         self.log_file_name = self.generate_new_log_filename()  # Keep track of the log file name for the current session
         self.log_file_location = None  # Full path to current JSON log file (including .json extension), set after first AI response
         self.incognito = False  # Enable or disable conversation logging
-        self.system_timeline_enabled = True  # Enable Info:System-Timeline injection/updates on --log resume (set to False to disable)
 
         # Models & providers
         # Core conversation model and provider flags
@@ -41,9 +40,9 @@ class SettingsManager:
         self.gpt5_display_full_reasoning = False  # Whether to display full reasoning summaries during OpenAI Responses streaming for GPT-5 models. If False, show a generic working indicator until visible output starts.
         self.nothink = False  # Disable thinking mode on Ollama models that support it
         self.ollama_base_url = "http://localhost:11434"  # Base URL for Ollama API, won't be different unless you specifically configure Ollama to be different
-        self.ollama_context_window = 4096  # Default context window (tokens) for Ollama chat models
+        self.ollama_context_window = 8192  # Default context window (tokens) for Ollama chat models
         self.cloud_vision_model = "gpt-5-mini"  # Vision model when using cloud providers (e.g., OpenAI)
-        self.ollama_vision_model = "qwen2.5vl:7b"  # Vision model when using Ollama locally
+        self.ollama_vision_model = "llama3.2-vision:11b"  # Vision model when using Ollama locally
         self.vision_debug = False  # Print raw vision model output for debugging image analysis
         self.cloud_embedding_model = "text-embedding-3-large"  # Embedding model for cloud providers (e.g., OpenAI)
         self.ollama_embedding_model = "snowflake-arctic-embed2:latest"  # Embedding model for Ollama
@@ -99,6 +98,22 @@ class SettingsManager:
         self.rag_enable_search_transparency = True  # Show search process information
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
         self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
+        
+        # Timeline: conversation memory from current conversation history (toggle with --timeline)
+        self.timeline = False  # Enable timeline recall injection from local history
+        self.timeline_top_k = 6  # Number of earlier turns to retrieve per prompt (favor accuracy over speed)
+        self.timeline_exclude_recent = 6  # Exclude the last N turns from recall to avoid redundancy
+        self.timeline_max_tokens = 2400  # Token budget for injected recall system block (generous by default)
+        self.timeline_quote_mode = "verbatim"  # Phase 1: verbatim quotes only; summaries may be added later
+        self.timeline_transparency = True  # Show a brief summary of injected recall (turn indices)
+
+        # Timeline temporal intent (LLM-assisted)
+        self.timeline_intent_use_llm = True  # Use the active chat provider to classify intent for temporal recall
+        self.timeline_intent_user_window = 3  # Number of recent user turns to include in intent context
+        self.timeline_intent_assistant_window = 3  # Number of recent assistant turns to include in intent context
+        self.timeline_intent_temperature = 0.1  # Stable, low-variance classification
+        self.timeline_intent_max_tokens = 256  # Sufficient headroom for structured intent output
+        self.timeline_temporal_pool_size = 24  # Candidate pool size for earliest/latest selection
 
     def generate_new_log_filename(self) -> str:
         """Generate a new log filename using standardized YYYYMMDD-HHMMSS format"""
@@ -144,6 +159,8 @@ class SettingsManager:
             enabled_toggles.append("incognito")
         if self.markdown:
             enabled_toggles.append("markdown")
+            if self.timeline:
+                enabled_toggles.append("timeline")
 
         if self.rag_active_collection:
             enabled_toggles.append(f"rag {self.rag_active_collection}")

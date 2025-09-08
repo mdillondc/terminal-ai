@@ -313,6 +313,14 @@ class CommandManager:
                     else:
                         self.extract_folder_content_recursive(arg)
                     command_executed = True
+                elif command_name == "--timeline":
+                    if self.settings_manager.setting_get("timeline"):
+                        self.settings_manager.setting_set("timeline", False)
+                        print_md("timeline disabled")
+                    else:
+                        self.settings_manager.setting_set("timeline", True)
+                        print_md("timeline enabled")
+                    command_executed = True
                 elif command_name == "--search":
                     if self.settings_manager.setting_get("search"):
                         self.settings_manager.setting_set("search", False)
@@ -619,8 +627,10 @@ class CommandManager:
             if self.settings_manager.setting_get("nothink"):
                 final_user_input = "/nothink " + final_user_input
 
-            # Add remaining text to conversation and generate response
+            # Add remaining text to conversation
             self.conversation_manager.log_context(final_user_input, "user")
+
+
 
             self.conversation_manager.generate_response()
 
@@ -1026,8 +1036,6 @@ class CommandManager:
 
         # Determine model source
         provider = self.conversation_manager.llm_client_manager.get_provider_for_model(model)
-
-
 
         # Show appropriate message using centralized method
         self.settings_manager.display_model_info("switch", provider, self.conversation_manager.llm_client_manager)
