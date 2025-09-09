@@ -1,5 +1,17 @@
 # Timeline: Deterministic, Time‑Aware Recall for Long Conversations
 
+## TODO: Refactor to RAG-Log Feature
+
+**Timeline should be renamed and refactored into `--rag-log` command:**
+- Current timeline feature is poorly suited for actual timeline-related queries (dates, chronological sequences)
+- However, it excels as a RAG system using conversation log as the data source
+- Should be integrated with existing RAG command structure (`--rag`, `--rag-rebuild`, etc.)
+- Rename from `--timeline` to `--rag-log` to better reflect its purpose as conversation log retrieval
+- Maintain existing functionality but position it correctly as a RAG feature, not a timeline feature
+- For true timeline functionality, implement separate `--search-log` feature (see search-log.md)
+
+---
+
 TL;DR
 Timeline is a provider‑agnostic memory scaffold that makes long conversations usable by injecting small, time‑aware recall from your own logs—so models don’t have to “remember” everything. It improves continuity (earliest/latest mentions, date lists, time spans) while keeping prompts lean. In 2025, it meaningfully reduces recency bias and “lost‑in‑the‑middle” effects on local models, but it’s not a guarantee of correctness and remains limited compared to frontier cloud models.
 
