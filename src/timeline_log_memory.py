@@ -84,6 +84,8 @@ class TimelineLogMemory:
         intent_max_tokens: int = int(self.settings.setting_get("timeline_intent_max_tokens"))
 
         # Rebuild index every call (accuracy first)
+        provider = self.embedding_service._get_provider()
+        print_md(f"Timeline: rebuilding index for {provider} embeddings...")
         self._build_index(conversation_history)
 
         # Last user prompt
@@ -394,8 +396,7 @@ class TimelineLogMemory:
         except Exception as e:
             raise Exception(f"RAG-Log: embedding batch failed: {e}")
 
-        if len(embeddings) != len(items):
-            raise Exception("RAG-Log: mismatch between embeddings and items")
+
 
         # Attach embeddings
         for idx, emb in enumerate(embeddings):
