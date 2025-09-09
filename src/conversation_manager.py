@@ -32,6 +32,7 @@ class ConversationManager:
         self.settings_manager = SettingsManager.getInstance()
         self.console = Console()
         self.log_renamed = False  # Track if we've already renamed the log with AI-generated title
+        self._message_id_counter = 0  # Sequential message ID counter
         self._response_buffer = ""  # Buffer to accumulate response text for thinking coloring
         self._execution_buffer = ""  # Buffer to accumulate potential execution commands
 
@@ -46,6 +47,40 @@ class ConversationManager:
             print_md(f"Warning: Could not initialize RAG engine: {e}")
             self.rag_engine = None
 
+    def get_next_message_id(self) -> int:
+        """Compute next message ID from existing conversation history to avoid off-by-one issues"""
+        max_id = 0
+        for i, message in enumerate(self.conversation_history):
+            mid = message.get("message_id")
+            if isinstance(mid, int):
+                if mid > max_id:
+                    max_id = mid
+            else:
+                # Fallback: if message_id missing, treat position as its ID (1-based)
+                pos_id = i + 1
+                if pos_id > max_id:
+                    max_id = pos_id
+        return max_id + 1
+
+    def _initialize_message_id_counter(self) -> None:
+        """Initialize message_id counter after loading conversation history"""
+        max_id = 0
+        has_existing_ids = False
+
+        # Check existing messages for message_ids and assign if missing
+        for i, message in enumerate(self.conversation_history):
+            if "message_id" not in message:
+                # Assign retroactive message_id for old logs
+                message["message_id"] = i + 1
+                max_id = max(max_id, i + 1)
+            else:
+                has_existing_ids = True
+                max_id = max(max_id, message["message_id"])
+
+        # Set counter to the highest used ID so get_next_message_id() returns max_id + 1
+        # If no messages exist, counter stays at 0 so first message gets ID 1
+        self._message_id_counter = max_id
+
 
 
     def log_context(self, content: str, role: str = "user") -> None:
@@ -58,7 +93,8 @@ class ConversationManager:
         self.conversation_history.append({
             "role": role,
             "content": content,
-            "timestamp": int(datetime.now().timestamp())
+            "timestamp": int(datetime.now().timestamp()),
+            "message_id": self.get_next_message_id()
         })
 
 
@@ -1475,6 +1511,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
 
             # Clear conversation history since log is deleted
             self.conversation_history = []
+            self._message_id_counter = 0  # Reset message ID counter
 
             # Reset logging state for new conversation (like start_new_conversation_log)
             self.log_renamed = False
@@ -1502,7 +1539,8 @@ Generate only the filename focusing on content substance:""".format(context[:100
             with open(path_to_log_json) as file:
                 self.conversation_history = json.load(file)
 
-
+            # Initialize message_id counter based on loaded conversation
+            self._initialize_message_id_counter()
 
             # Mark log as already renamed to prevent auto-renaming when resuming
             self.log_renamed = True
@@ -1524,6 +1562,7 @@ Generate only the filename focusing on content substance:""".format(context[:100
         """
         # Clear EVERYTHING for a truly fresh start
         self.conversation_history = []
+        self._message_id_counter = 0  # Reset message ID counter
 
         # Re-inject current instructions from settings
         current_instructions = self.settings_manager.setting_get("instructions")
