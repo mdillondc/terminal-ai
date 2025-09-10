@@ -204,17 +204,22 @@ class ConversationManager:
         if output:
             print(output, end="", flush=True)
 
-    def _adjust_markdown_headers_for_streamdown(self, chunk: str) -> str:
+    def _normalize_markdown_for_terminal_rendering(self, chunk: str) -> str:
         """
-        Adjust markdown headers for streamdown display by converting level 1 and 2 headers to level 3.
+        Normalize markdown for terminal rendering:
+        - Demote level 1 and 2 headers to level 3 for consistent terminal formatting
+        - Convert image syntax ![alt](url) to link syntax [alt](url) to avoid image rendering
         """
         import re
 
-        # Convert L1/L2 headers to L3, capturing title to rebuild the line correctly.
+        # Demote H1/H2 to H3 for streamdown display
         chunk = re.sub(r'^[ \t]*(#{1,2})(?!#)[ \t]*(.*)', r'### \2', chunk, flags=re.MULTILINE)
 
-        return chunk
+        # Convert markdown images to links: ![alt](url) -> [alt](url)
+        # Keep it simple and surgical as requested
+        chunk = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'[\1](\2)', chunk)
 
+        return chunk
 
     def _start_streamdown_process(self):
         """Starts and returns a streamdown subprocess for markdown rendering."""
@@ -554,7 +559,7 @@ class ConversationManager:
                                     streamdown_process.stdin.write('\n')
                                     streamdown_process.stdin.flush()
                                     need_separation_after_summary = False
-                                adjusted_chunk = self._adjust_markdown_headers_for_streamdown(ai_response_chunk)
+                                adjusted_chunk = self._normalize_markdown_for_terminal_rendering(ai_response_chunk)
                                 streamdown_process.stdin.write(adjusted_chunk)
                                 streamdown_process.stdin.flush()
                             else:
@@ -611,7 +616,7 @@ class ConversationManager:
                             ai_response += ai_response_chunk
                             if markdown_enabled and streamdown_process and streamdown_process.stdin:
                                 # Adjust headers for streamdown display and send chunk
-                                adjusted_chunk = self._adjust_markdown_headers_for_streamdown(ai_response_chunk)
+                                adjusted_chunk = self._normalize_markdown_for_terminal_rendering(ai_response_chunk)
                                 streamdown_process.stdin.write(adjusted_chunk)
                                 streamdown_process.stdin.flush()
                             else:
@@ -629,7 +634,7 @@ class ConversationManager:
         if markdown_enabled and streamdown_process and streamdown_process.stdin:
             # Send any remaining buffer content to streamdown
             if hasattr(self, '_response_buffer') and self._response_buffer:
-                adjusted_buffer = self._adjust_markdown_headers_for_streamdown(self._response_buffer)
+                adjusted_buffer = self._normalize_markdown_for_terminal_rendering(self._response_buffer)
                 streamdown_process.stdin.write(adjusted_buffer)
                 streamdown_process.stdin.flush()
 
@@ -1695,7 +1700,8 @@ Generate only the filename focusing on content substance:""".format(context[:100
                 # Use streamdown for markdown rendering
                 streamdown_process = self._start_streamdown_process()
                 if streamdown_process.stdin:
-                    streamdown_process.stdin.write(md_content)
+                    adjusted_content = self._normalize_markdown_for_terminal_rendering(md_content)
+                    streamdown_process.stdin.write(adjusted_content)
                     streamdown_process.stdin.close()
                 streamdown_process.wait()
             else:
