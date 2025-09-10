@@ -14,6 +14,7 @@ Created from the desire to build a terminal alternative to [OpenWebUI](https://g
 - [Core Commands](#core-commands)
 - [Content Input](#content-input)
 - [Search & Research](#search--research)
+- [Search-Log](#search-log)
 - [Document Analysis (RAG)](#document-analysis-rag)
 - [AI Customization (think "GPTs")](#ai-customization-think-gpts)
 - [Conversation Management](#conversation-management)
@@ -408,6 +409,26 @@ The user can choose to continue research or write a report based on the findings
 | **Deduplication** | Basic | Advanced content deduplication |
 | **Best For** | Quick facts | Complex research |
 | **Sources** | 3-6 sources | many more sources (dynamic) |
+
+## Search-Log
+
+Search your current conversation log instantly without bloating the AI’s context window.
+
+What it is
+- Local conversation search that finds precise, sentence-level snippets (with timestamps) from your on-disk JSON log.
+
+Why it exists
+- Quickly answer “when did we…?” or “where did we mention…?” without scrolling or overloading the model.
+
+How it works (brief)
+- Enable with --search-log
+- The app generates search terms, builds a fast in-memory index of user/assistant messages, and returns concise snippets
+- Temporal queries are grouped by date
+- If no results are available, the AI response is skipped and you’re returned to the prompt
+
+Example
+- --search-log
+- “On which dates did we discuss deployment steps?” → shows dates and short snippets, then the AI answers using that summary
 
 ## Document Analysis (RAG)
 

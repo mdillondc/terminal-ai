@@ -396,6 +396,14 @@ class CommandManager:
                         self.settings_manager.setting_set("search_deep_auto", True)
                         print_md("search-deep-auto enabled")
                     command_executed = True
+                elif command_name == "--search-log":
+                    if self.settings_manager.setting_get("search_log"):
+                        self.settings_manager.setting_set("search_log", False)
+                        print_md("search-log disabled")
+                    else:
+                        self.settings_manager.setting_set("search_log", True)
+                        print_md("search-log enabled")
+                    command_executed = True
                 elif command_name == "--search-engine":
                     self.set_search_engine(arg)
                     command_executed = True

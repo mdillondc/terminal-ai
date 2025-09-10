@@ -390,6 +390,15 @@ class CommandRegistry:
 
         # Utility commands
 
+        self.register_command(CommandInfo(
+            name="--search-log",
+            description="Toggle Search-Log: local conversation search with sentence-aware snippets.",
+            usage="--search-log",
+            execution_order=1,
+            completion_rules=CompletionRules(CompletionType.NONE),
+            requires_argument=False
+        ))
+
 
 
         # RAG (Retrieval-Augmented Generation) commands

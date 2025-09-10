@@ -259,6 +259,7 @@ class ConversationManager:
 
     def generate_response(self, instructions: Optional[str] = None) -> None:
         search_or_deep_ran = False
+        search_log_skip_ai = False
         # Auto web search gating (uses context). If enabled and decision is SEARCH, run regular search workflow.
         if self.settings_manager.setting_get("search_auto") and self.conversation_history:
             try:
@@ -292,6 +293,82 @@ class ConversationManager:
         elif self.settings_manager.setting_get("search_deep") and self.conversation_history:
             search_or_deep_ran = True
             self._handle_deep_search_workflow()
+
+        # Search-Log: local conversation search (runs on user turns before AI answers)
+        try:
+            if self.settings_manager.setting_get("search_log") and self.conversation_history:
+                # Import locally to avoid top-level imports or circulars
+                from search_log_keyword_extractor import KeywordExtractor
+                from search_log_log_reader import SearchLogLogReader
+                from search_log_engine import SearchLogEngine
+
+                # Recent context for keyword extraction (last few turns)
+                recent_ctx = self.conversation_history[-6:] if len(self.conversation_history) > 0 else []
+
+                # Extract keywords/phrases and temporal intent
+                extractor = KeywordExtractor(self.llm_client_manager, self.settings_manager)
+                last_user = ""
+                try:
+                    # Last user message content (if present)
+                    for m in reversed(self.conversation_history):
+                        if m.get("role") == "user":
+                            last_user = str(m.get("content") or "")
+                            break
+                except Exception:
+                    pass
+
+                # Immediate status to indicate progress before extraction starts
+                try:
+                    if self.settings_manager.setting_get("search_log_transparency"):
+                        print_md("Generating search terms...")
+                except Exception:
+                    pass
+
+                kw = extractor.extract(user_question=last_user, recent_messages=recent_ctx)
+
+                # Edge-case guard: if no query terms, skip AI response entirely
+                keywords = kw.get("keywords", []) or []
+                phrases = kw.get("phrases", []) or []
+                is_temporal = bool(kw.get("is_temporal", False))
+                if not keywords and not phrases:
+                    try:
+                        if self.settings_manager.setting_get("search_log_transparency"):
+                            print_md("Search-Log: no query terms detected")
+                            print_md("Search-Log: no results available — AI response skipped")
+                    except Exception:
+                        pass
+                    search_log_skip_ai = True
+                else:
+                    # Read indexable messages (user+assistant) from disk JSON (source of truth)
+                    reader = SearchLogLogReader(self.settings_manager)
+                    indexable = reader.get_indexable_messages()
+
+                    if indexable:
+                        engine = SearchLogEngine(self.settings_manager)
+                        result = engine.search(
+                            messages=indexable,
+                            keywords=keywords,
+                            phrases=phrases,
+                            is_temporal=is_temporal,
+                        )
+                        summary = result.get("formatted_summary")
+                        if summary:
+                            # Append via standard path so the AI can see it
+                            self.log_context(summary, "system")
+                        else:
+                            # Zero-hits policy: do not append to log; skip AI response
+                            print_md("Search-Log: no matches found")
+                            print_md("Search-Log: no results available — AI response skipped")
+                            search_log_skip_ai = True
+                    else:
+                        print_md("Search-Log: no indexable messages")
+                        print_md("Search-Log: no results available — AI response skipped")
+                        search_log_skip_ai = True
+        except Exception as e:
+            print_md(f"Search-Log error: {e}")
+
+        if search_log_skip_ai:
+            return
 
         # Check if RAG is active and inject context
         rag_sources = []

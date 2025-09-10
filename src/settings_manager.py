@@ -79,6 +79,22 @@ class SettingsManager:
         # Set to True to allow Jina fallback even with Ollama models (you accept the third‑party privacy tradeoff).
         self.allow_jina_with_ollama = False
 
+        # Search-Log (local log search)
+        self.search_log = False  # Enable or disable Search-Log mode
+        self.search_log_transparency = True  # Show keywords, hit counts, temporal grouping decision
+        # Neighbor context behavior:
+        #   This value is the number of neighboring messages PER SIDE to include around each match.
+        #   Examples:
+        #     0 => none
+        #     1 => up to 2 neighbors total (1 before + 1 after)
+        #     2 => up to 4 neighbors total (2 before + 2 after)
+        self.search_log_context_messages = 0
+        # Snippets per hit:
+        #   How many sentence-bounded fragments to include for each matched message.
+        #   Default 1 for concise summaries. Increase (e.g., to 2) if you want a bit more local context.
+        self.search_log_snippets_per_hit = 1
+        self.search_log_max_results = 500  # Maximum anchor hits per search before snippet/context expansion
+
         # Image generation & editing
         self.image_engine = "nano-banana"  # Default image engine for image generation/editing
         self.image_revision_mode = "iterative"  # "original" or "iterative" - how image edits build on each other
@@ -98,7 +114,7 @@ class SettingsManager:
         self.rag_enable_search_transparency = True  # Show search process information
         self.rag_enable_result_diversity = True  # Prevent over-representation from single sources
         self.rag_max_chunks_per_source = 4  # Maximum chunks to return from same source document
-        
+
         # Timeline: conversation memory from current conversation history (toggle with --timeline)
         self.timeline = False  # Enable timeline recall injection from local history
         self.timeline_top_k = 6  # Number of earlier turns to retrieve per prompt (favor accuracy over speed)
@@ -153,6 +169,8 @@ class SettingsManager:
             enabled_toggles.append("search-deep")
         if self.search_deep_auto:
             enabled_toggles.append("search-deep-auto")
+        if self.search_log:
+            enabled_toggles.append("search-log")
         if self.nothink:
             enabled_toggles.append("nothink")
         if self.incognito:
