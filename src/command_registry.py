@@ -305,14 +305,10 @@ class CommandRegistry:
             requires_argument=False
         ))
 
-
-
-
-
         self.register_command(CommandInfo(
-            name="--clear",
-            description="Clears the current conversation history, starting fresh without any previous messages.",
-            usage="--clear",
+            name="--clear-discard",
+            description="Discard unsubmitted prompt (text) on ENTER and return to a blank prompt.",
+            usage="--clear-discard",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False

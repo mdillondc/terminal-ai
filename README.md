@@ -116,7 +116,7 @@ Confirm quitting (Y/n)?
 | `--` | Show all available commands |
 | `--model <name>` | Switch AI model (dynamically fetched from providers) |
 | `--model-clear-cache` | Force refresh of available models |
-| `--clear` | Clear conversation history |
+| `--clear-discard` | Discard unsubmitted prompt (text) on ENTER and return to a blank prompt. |
 | `--usage` | Show token usage and costs |
 | `--timeline` | Toggle time-aware recall (Timeline) |
 

@@ -161,6 +161,12 @@ class CommandManager:
         # Extract valid commands from user input
         extracted_commands, remaining_text = self._extract_valid_commands(user_input)
 
+        # Short-circuit: if --clear-discard is present, ignore all other commands and text
+        if any(cmd.get('command') == "--clear-discard" for cmd in extracted_commands):
+            print_md("Above prompt skipped. Nothing added to log.")
+            print()
+            return True, ""
+
         command_processed = False
 
         # If a pending image action exists and user entered a new command, cancel it
@@ -539,12 +545,10 @@ class CommandManager:
                         self.settings_manager.setting_set("incognito", True)
                         print_md("Incognito mode enabled - no data will be saved to logs")
                     command_executed = True
-                elif command_name == "--clear":
-                    self.conversation_manager.start_new_conversation_log()
-                    clear_text = "Conversation history cleared - will create new log file after first AI response\n"
-                    clear_text += "    AI instructions preserved"
-                    print_md(clear_text)
-                    command_executed = True
+                elif command_name == "--clear-discard":
+                    print_md("Above user prompt discarded (not added to log/submitted to AI.")
+                    print()
+                    return True, ""
                 elif command_name == "--usage":
                     self.display_token_usage()
                     command_executed = True
