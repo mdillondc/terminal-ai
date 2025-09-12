@@ -388,7 +388,7 @@ class CommandRegistry:
 
         self.register_command(CommandInfo(
             name="--search-log",
-            description="Toggle Search-Log: local conversation search with sentence-aware snippets.",
+            description="Search current conversation log contents.",
             usage="--search-log",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
