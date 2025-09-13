@@ -10,3 +10,4 @@ rag/
 images/
 shell.personal.sh
 instructions/doc*
+ollama-128k.md

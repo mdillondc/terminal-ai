@@ -116,7 +116,7 @@ Confirm quitting (Y/n)?
 | `--` | Show all available commands |
 | `--model <name>` | Switch AI model (dynamically fetched from providers) |
 | `--model-clear-cache` | Force refresh of available models |
-| `--clear-discard` | Discard unsubmitted prompt (text) on ENTER and return to a blank prompt. |
+| `--clear` | Discard unsubmitted prompt (text) on ENTER and return to a blank prompt. |
 | `--usage` | Show token usage and costs |
 | `--timeline` | TOOD: Refactor as part of RAG system (if you need timeline, use `--search-log`) |
 

@@ -306,9 +306,9 @@ class CommandRegistry:
         ))
 
         self.register_command(CommandInfo(
-            name="--clear-discard",
+            name="--clear",
             description="Discard unsubmitted prompt (text) on ENTER and return to a blank prompt.",
-            usage="--clear-discard",
+            usage="--clear",
             execution_order=1,
             completion_rules=CompletionRules(CompletionType.NONE),
             requires_argument=False

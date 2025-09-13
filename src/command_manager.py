@@ -161,8 +161,8 @@ class CommandManager:
         # Extract valid commands from user input
         extracted_commands, remaining_text = self._extract_valid_commands(user_input)
 
-        # Short-circuit: if --clear-discard is present, ignore all other commands and text
-        if any(cmd.get('command') == "--clear-discard" for cmd in extracted_commands):
+        # Short-circuit: if --clear is present, ignore all other commands and text
+        if any(cmd.get('command') == "--clear" for cmd in extracted_commands):
             print_md("Above prompt skipped. Nothing added to log.")
             print()
             return True, ""
@@ -545,7 +545,7 @@ class CommandManager:
                         self.settings_manager.setting_set("incognito", True)
                         print_md("Incognito mode enabled - no data will be saved to logs")
                     command_executed = True
-                elif command_name == "--clear-discard":
+                elif command_name == "--clear":
                     print_md("Above user prompt discarded (not added to log/submitted to AI.")
                     print()
                     return True, ""
